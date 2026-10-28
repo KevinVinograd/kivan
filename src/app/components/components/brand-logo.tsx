@@ -1,0 +1,100 @@
+import type { SVGProps } from 'react'
+
+import { cn } from '@/app/lib/utils'
+
+export type BrandLogoVariant = 'full' | 'mark'
+
+export type BrandLogoProps = Omit<SVGProps<SVGSVGElement>, 'title'> & {
+  /** `full` = the "Kivan" wordmark + accent (viewBox 0 0 86 24); `mark` = the
+   *  standalone K + accent (viewBox 0 0 24 24). Defaults to `full`. */
+  variant?: BrandLogoVariant
+  /** Accessible name, also rendered as the SVG `<title>`. Defaults to "Kivan".
+   *  For purely decorative placements, pass `aria-hidden` (the label is then
+   *  ignored by assistive tech). */
+  title?: string
+}
+
+/**
+ * BrandLogo — the Kivan brand mark, in two variants driven by `variant`:
+ * `full` renders the "Kivan" wordmark followed by the lime accent chevron;
+ * `mark` renders just the K glyph + accent for tight/square placements.
+ *
+ * Color: the letterforms paint with `currentColor` (via `fill-current` on the
+ * root `<svg>`, inherited by the glyph paths), so the mark adapts to the caller's
+ * text color exactly like the surrounding wordmark — `fg-default` on light chrome,
+ * `fg-reverse` on the dark auth/brand panels. The accent chevron paints with the
+ * theme-adaptive `--brand-mark-accent` token (`fill-brand-mark-accent`): deep teal
+ * on light surfaces, vivid Kivan lime on dark.
+ *
+ * Sizing: intrinsic size comes from the viewBox; the caller controls the rendered
+ * size through `className` (default `h-6 w-auto`, overridable — height drives width
+ * via the aspect ratio). Do NOT hardcode raw color values on the `<svg>` — pass a
+ * text-color utility to retint the letterforms through `currentColor`.
+ *
+ * Animation-ready: every part is an individually addressable `<path>` carrying a
+ * stable `data-glyph` hook (`k` / `i` / `v` / `a` / `n` / `accent`) in reading
+ * order, so a consumer can target and stagger them (e.g. a draw-on reveal) without
+ * editing this file. No motion is applied here — that is layered by the consumer.
+ *
+ * Accessibility: `role="img"` + `aria-label` (default "Kivan") name the mark, and
+ * a `<title>` mirrors it. Decorative instances pass `aria-hidden`.
+ */
+export function BrandLogo({ variant = 'full', title = 'Kivan', className, ...props }: BrandLogoProps) {
+  const isMark = variant === 'mark'
+
+  return (
+    <svg
+      viewBox={isMark ? '0 0 24 24' : '0 0 86 24'}
+      role="img"
+      aria-label={title}
+      xmlns="http://www.w3.org/2000/svg"
+      className={cn('h-6 w-auto fill-current', className)}
+      {...props}
+    >
+      <title>{title}</title>
+
+      {isMark ? (
+        // — K glyph (24×24 mark) —
+        <path
+          data-glyph="k"
+          d="M0 23.0431V0.953125H3.97425V13.1657H4.542L9.71483 7.39078H14.8877L7.66463 14.9645L15.14 23.0431H10.0303L4.542 16.8264H3.97425V23.0431H0Z"
+        />
+      ) : (
+        // — "Kivan" wordmark (86×24), glyphs in reading order for staggered motion —
+        <>
+          <path
+            data-glyph="k"
+            d="M0 23.0391V0.953125H3.97547V13.1635H4.5434L9.71782 7.3896H14.8922L7.66698 14.9619L15.1446 23.0391H10.0333L4.5434 16.8235H3.97547V23.0391H0Z"
+          />
+          <path
+            data-glyph="i"
+            d="M16.8609 23.0433V7.39382H20.8364V23.0433H16.8609ZM18.8486 5.56384C18.1335 5.56384 17.5235 5.33247 17.0186 4.86971C16.5349 4.40696 16.293 3.79697 16.293 3.03973C16.293 2.2825 16.5349 1.67251 17.0186 1.20976C17.5235 0.747002 18.1335 0.515625 18.8486 0.515625C19.5848 0.515625 20.1948 0.747002 20.6786 1.20976C21.1624 1.67251 21.4043 2.2825 21.4043 3.03973C21.4043 3.79697 21.1624 4.40696 20.6786 4.86971C20.1948 5.33247 19.5848 5.56384 18.8486 5.56384Z"
+          />
+          <path
+            data-glyph="v"
+            d="M27.575 23.0401L22.5898 7.39062H26.8177L30.4461 20.1374H31.0141L34.6425 7.39062H38.8703L33.8852 23.0401H27.575Z"
+          />
+          <path
+            data-glyph="a"
+            d="M45.1225 23.486C44.0076 23.486 43.0085 23.2967 42.1251 22.9181C41.2416 22.5185 40.537 21.9505 40.0111 21.2143C39.5063 20.4571 39.2539 19.5421 39.2539 18.4694C39.2539 17.3966 39.5063 16.5027 40.0111 15.7875C40.537 15.0513 41.2522 14.5044 42.1566 14.1468C43.0821 13.7682 44.1338 13.5789 45.3118 13.5789H49.6027V12.6955C49.6027 11.9593 49.3714 11.3598 48.9086 10.897C48.4459 10.4133 47.7097 10.1714 46.7 10.1714C45.7114 10.1714 44.9752 10.4027 44.4914 10.8655C44.0076 11.3072 43.6921 11.8857 43.5449 12.6008L39.8849 11.3703C40.1373 10.571 40.537 9.84533 41.0839 9.19327C41.6518 8.52018 42.3985 7.9838 43.324 7.58415C44.2706 7.16347 45.4169 6.95312 46.7631 6.95312C48.8245 6.95312 50.4546 7.46846 51.6536 8.49914C52.8525 9.52982 53.452 11.0232 53.452 12.9794V18.8164C53.452 19.4475 53.7465 19.763 54.3355 19.763H55.5975V23.0443H52.9472C52.1689 23.0443 51.5274 22.855 51.0226 22.4764C50.5177 22.0978 50.2653 21.593 50.2653 20.9619V20.9304H49.6659C49.5817 21.1828 49.3924 21.5193 49.0979 21.94C48.8034 22.3397 48.3407 22.6973 47.7097 23.0128C47.0786 23.3283 46.2162 23.486 45.1225 23.486ZM45.8166 20.2678C46.9314 20.2678 47.8359 19.9628 48.53 19.3528C49.2452 18.7218 49.6027 17.8909 49.6027 16.8602V16.5447H45.5957C44.8595 16.5447 44.2811 16.7025 43.8604 17.018C43.4397 17.3335 43.2294 17.7752 43.2294 18.3432C43.2294 18.9111 43.4502 19.3738 43.892 19.7314C44.3337 20.089 44.9752 20.2678 45.8166 20.2678Z"
+          />
+          <path
+            data-glyph="n"
+            d="M57.5625 23.0425V7.39304H61.4749V9.44387H62.0428C62.2952 8.89698 62.7685 8.38164 63.4626 7.89786C64.1567 7.39304 65.2084 7.14062 66.6177 7.14062C67.8377 7.14062 68.9 7.42459 69.8044 7.99251C70.7299 8.5394 71.4451 9.30715 71.9499 10.2958C72.4547 11.2633 72.7071 12.3992 72.7071 13.7033V23.0425H68.7317V14.0188C68.7317 12.8409 68.4372 11.9575 67.8482 11.3685C67.2803 10.7795 66.46 10.4851 65.3872 10.4851C64.1672 10.4851 63.2207 10.8952 62.5476 11.7156C61.8745 12.5149 61.538 13.6402 61.538 15.0916V23.0425H57.5625Z"
+          />
+        </>
+      )}
+
+      {/* — Accent chevron — theme-adaptive brand token, not currentColor — */}
+      <path
+        data-glyph="accent"
+        className="fill-brand-mark-accent"
+        d={
+          isMark
+            ? 'M24 14.8826L16.9111 20L15 17.6689L18.776 14.9429L15.031 12.3748L16.8801 10L24 14.8826Z'
+            : 'M85.707 14.8826L78.6181 20L76.707 17.6689L80.4831 14.9429L76.738 12.3748L78.5871 10L85.707 14.8826Z'
+        }
+      />
+    </svg>
+  )
+}

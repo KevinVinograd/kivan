@@ -1,0 +1,130 @@
+/* ─── Semantic Surface & Page Tokens ───
+   Surface = card/panel-level containers.
+   Page    = full-page background.
+   Usage: `bg-surface-flat`, `bg-surface-recessed`, `bg-page`.
+
+   Theme model: light values live in `:root`; dark overrides in
+   `[data-theme="dark"]`. Recipes/utilities below reference the themed
+   `--color-*` and resolve per theme automatically.
+   ────────────────────────────────────────────── */
+
+:root {
+  /* Surface / flat — primary card/panel surface */
+  --surface-flat-bg: var(--white);
+
+  /* Surface / recessed — inset wells, read-only fields. Intentionally tracks the
+     page background (same primitive) so recessed surfaces (Sheet, Dialog,
+     read-only fields, recessed gradients) blend with the page. */
+  --surface-recessed-bg: var(--page-bg);
+
+  /* Page — full-page background */
+  --page-bg: var(--gray-050);
+
+  /* Pin surface — the opaque fill a horizontally-sticky table cell paints so the
+     scrolling columns occlude BEHIND it, and the color its leading fade band seams
+     into. It defaults to the page because that is where a table lives by default.
+     An opaque container that can HOST a table (Card) redeclares it to its own fill,
+     so a pinned column inside a card pins against the card instead of punching a
+     page-colored strip through it. Kept as a plain custom property (not a @theme
+     color) so a container can override it for its subtree with one class. */
+  --pin-surface: var(--page-bg);
+
+  /* Surface / code-block (theme-independent dark code previews) */
+  --surface-code-block: #1e1e2e;
+}
+
+:root[data-theme="dark"] {
+  --surface-flat-bg: var(--gray-1700);
+  /* --surface-recessed-bg intentionally omitted: it references --page-bg (above),
+     so it tracks the page background in dark too. */
+  --page-bg: var(--gray-1750);
+}
+
+@theme inline {
+  /* Surface / flat */
+  --color-surface-flat: var(--surface-flat-bg);
+
+  /* Surface / recessed */
+  --color-surface-recessed: var(--surface-recessed-bg);
+
+  /* Page */
+  --color-page: var(--page-bg);
+
+  /* Surface / code-block */
+  --color-surface-code-block: var(--surface-code-block);
+}
+
+/* ─── Sticky header fade utility ───
+   Surface-to-transparent gradient for sticky headers so scrolling
+   content fades out beneath the header instead of being cut off.
+   ──────────────────────────────── */
+.bg-header-fade {
+  background: linear-gradient(180deg, var(--surface-flat-bg) 80%, transparent);
+}
+
+/* ─── Surface gradient utility ───
+   Content-area background that fades between the surface gradient stops.
+   ──────────────────────────────── */
+.bg-surface-gradient {
+  background-color: var(--surface-end);
+  background-image: linear-gradient(
+    to bottom,
+    var(--surface-start),
+    var(--surface-end)
+  );
+}
+
+/* ─── Surface composite recipes ───
+   Bundle bg + border + shadow + radius that container components repeat
+   inline. Each recipe maps to a distinct surface role:
+     surface-subtle — Card subtle variant (surface + soft shadow + container radius, no border)
+     surface-raised — floating dismissible chrome: Popover, DropdownMenu, Select listbox (bg = page)
+     surface-modal  — blocking dialogs: Modal, Dialog (bg = page)
+   ──────────────────────────────────────────────────────────────────────────── */
+
+@utility surface-subtle {
+  background-color: var(--color-surface-flat);
+  border-radius: var(--radius-container);
+  box-shadow: var(--shadow-subtle);
+}
+
+@utility surface-raised {
+  background-color: var(--color-page);
+  border: 1px solid var(--color-border-alpha-subtle);
+  border-radius: var(--radius-container);
+  box-shadow: var(--shadow-raised);
+}
+
+@utility surface-modal {
+  background-color: var(--color-page);
+  border: 1px solid var(--color-border-alpha-subtle);
+  border-radius: var(--radius-layout);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ─── Pin surface ───
+   `bg-pin-surface` paints whatever surface the element's nearest opaque host
+   declares (the page, unless a container overrode it) — the fill a horizontally
+   sticky table cell needs so the scrolling columns disappear behind it, and the
+   color its leading fade band seams into. `pin-surface-flat` is the override an
+   opaque `surface-flat`-filled container applies so its subtree pins against IT.
+   Single consumer of `bg-pin-surface`: DataTable's `PINNED_ACTIONS_CLASS`.
+   Single consumer of `pin-surface-flat`: Card's opaque variants.
+
+   Contract for future surfaces: ANY opaque container that can host a horizontal
+   scroller must republish `--pin-surface` as its own fill. The three recipes above
+   do NOT — `surface-raised` (Popover / DropdownMenu / Select) and `surface-modal`
+   (Dialog) both fill with `--color-page`, and `SheetContent` fills with
+   `--surface-recessed-bg`, which itself tracks `--page-bg`. A pinned table inside
+   any of them is therefore correct with the default, but only BECAUSE those surfaces
+   deliberately track the page. Give one of them a distinct fill and it must claim an
+   override here, or a pinned column inside it silently paints the page color again.
+   ──────────────────────────────────────────────────────────────────────────── */
+
+@utility bg-pin-surface {
+  background-color: var(--pin-surface);
+}
+
+@utility pin-surface-flat {
+  --pin-surface: var(--surface-flat-bg);
+}

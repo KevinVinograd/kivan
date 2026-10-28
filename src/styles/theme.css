@@ -1,0 +1,219 @@
+:root {
+  --font-size: 16px;
+
+  /* Derived radius — outlined-frame ring.
+     Geometric relationship: outer-ring radius = inner control radius
+     (radius/control, 8px) + 2px inset gap. The +2px expresses the ring offset,
+     not a free magic value. */
+  --radius-outlined-frame: calc(var(--radius-control) + 2px);
+
+  /* Switch primitive — consumed by ui/switch.tsx (off-track fill). */
+  --switch-background: #cbced4;
+
+  /* LocationSwapper stack indicator colors — derived from sidebar bg tint. */
+  --stack-indicator-1: #D6DAE1;
+  --stack-indicator-2: #E1E4EA;
+
+  /* Surface gradient — content area bg that fades from surface to recessed */
+  --surface-start: var(--white);
+  --surface-end: var(--gray-100);
+
+  /* App chrome gradient (sidebar / outer shell) — neutral nav backdrop */
+  --chrome-gradient-start: var(--gray-100);
+  --chrome-gradient-end: var(--gray-200);
+
+  /* AI gradient — used by AI-insights / audio-player visuals */
+  --ai-gradient-start: var(--blue-600);
+  --ai-gradient-end: var(--emerald-500);
+
+  /* Nav background gradients (bgNav) — gray (neutral) and blue (branded) */
+  --bg-nav-gray-start: var(--gray-100);
+  --bg-nav-gray-end: var(--gray-200);
+  --bg-nav-blue-start: #1D2541;
+  --bg-nav-blue-end: #3E508C;
+
+  /* Score card — semantic stripe tokens per state (used in ScorecardReportPage) */
+  --score-stripe-success: var(--green-100);
+  --score-stripe-warning: var(--yellow-100);
+  --score-stripe-danger:  var(--red-100);
+
+  /* AI-insight prominent glow stops — per semantic tone. The two radial glows of
+     bg-gradient-ai-insight read these; the --bg-reverse base is shared, only the
+     hue changes per tone. Vibrant mid stops for the dark reverse base (light theme). */
+  --ai-insight-info-start:    var(--blue-600);
+  --ai-insight-info-end:      var(--blue-400);
+  --ai-insight-warning-start: var(--yellow-500);
+  --ai-insight-warning-end:   var(--yellow-300);
+  --ai-insight-danger-start:  var(--red-600);
+  --ai-insight-danger-end:    var(--red-400);
+  --ai-insight-success-start: var(--emerald-600);
+  --ai-insight-success-end:   var(--emerald-400);
+
+  /* Daytime hero wash — a single DAY variant, colors from the Kivan brand palette
+     (--brand-* in primitives.css). The .bg-gradient-daytime utility
+     (semantics-gradients.css) applies alpha via color-mix; the hero layer + scroll
+     fade live in src/styles/daytime.css. Recipe: the convention.
+     Emerald wash + faint animated lime rays, dialed down to stay subtle. */
+  /* LIGHT trades CHROMA for VALUE. Dark's hero works because its wash is *brighter* than
+     its ground — measured, 2.00:1 — so the color reads as LIGHT. Light's wash sat at the
+     same luminance as the paper (1.17:1) while carrying nearly as much green (+21 vs dark's
+     +26), and a strong hue with no value behind it does not read as light: it reads as a
+     green FILTER laid over the page. That is why two rounds of lowering the alpha never
+     fixed it — lowering alpha drains the little value that is left AND the color, so the
+     wash just fades toward nothing while staying exactly as cheap.
+     The move is the opposite: a DEEPER, less saturated base at a LOWER alpha. Chroma drops
+     to +11 (half of what it was) while the value step RISES to 1.22:1. Dark adds light;
+     light adds shade. Same atmosphere, translated instead of copied.
+     Dark re-declares every knob this block CHANGES (`--daytime-day` and the three strengths),
+     so it is untouched by construction. `--daytime-beam` is the one knob dark does NOT
+     re-declare — it inherits this lime — but its value is unchanged here, so nothing moves. */
+  --daytime-day:   var(--brand-deep-teal);  /* day wash base — deep, so the wash has value */
+  /* Lime, and it still paints in light: `--daytime-beam` colors BOTH the rays (off below) AND
+     the overhead sun-bloom (`--daytime-flourish`, semantics-gradients.css), which stays on at
+     9%. So light is a deep-teal wash under a soft lime bloom — the measured +11 green bias
+     includes that bloom. Do not read `--daytime-beam-strength: 0%` as "no lime in light". */
+  --daytime-beam:  var(--brand-lime);       /* ray + sun-bloom color (both themes) */
+  --daytime-wash-strength: 13%;             /* wash peak alpha at the top */
+  --daytime-beam-strength: 0%;              /* RAYS off in light (the bloom is a separate layer):
+                                               at 6.3% lime on near-white they moved no measurable
+                                               pixel and showed in no capture, while their 9s drift
+                                               repainted the hero every frame. */
+  --daytime-flourish-strength: 9%;          /* overhead sun-bloom alpha (lime, still visible) */
+
+  /* Brand mark accent — the SideNav logo chevron. Deep brand teal on light
+     surfaces so the mark stays legible on the white rail; swapped to vivid lime
+     on dark (see the [data-theme="dark"] block). */
+  --brand-mark-accent: var(--brand-teal);
+}
+
+:root[data-theme="dark"] {
+  --switch-background: var(--gray-1500);
+
+  --stack-indicator-1: var(--gray-1500);
+  --stack-indicator-2: var(--gray-1600);
+
+  --surface-start: var(--gray-1700);
+  --surface-end: var(--gray-1750);
+
+  --chrome-gradient-start: var(--gray-1750);
+  --chrome-gradient-end: var(--gray-1800);
+
+  --bg-nav-gray-start: var(--gray-1750);
+  --bg-nav-gray-end: var(--gray-1800);
+  --bg-nav-blue-start: #0B0F1E;
+  --bg-nav-blue-end: #0C1329;
+
+  --score-stripe-success: var(--green-1000);
+  --score-stripe-warning: var(--yellow-900);
+  --score-stripe-danger:  var(--red-1000);
+
+  /* AI-insight glow stops — deeper stops so the glows read on the light reverse
+     base in dark theme (mirrors --score-stripe-* deepening). */
+  --ai-insight-info-start:    var(--blue-700);
+  --ai-insight-info-end:      var(--blue-500);
+  --ai-insight-warning-start: var(--yellow-700);
+  --ai-insight-warning-end:   var(--yellow-500);
+  --ai-insight-danger-start:  var(--red-700);
+  --ai-insight-danger-end:    var(--red-500);
+  --ai-insight-success-start: var(--emerald-700);
+  --ai-insight-success-end:   var(--emerald-500);
+
+  /* Daytime hero wash (dark) — ease the wash peak and soften the rays (they punch
+     harder over a dark ground). */
+  --daytime-day:   var(--brand-teal);   /* slightly deeper teal day on dark */
+  --daytime-wash-strength: 16%;         /* dialed down for subtlety (was 32%) */
+  --daytime-beam-strength: 7%;          /* faint rays over the dark ground (was 16%) */
+  /* Dark keeps the ORIGINAL sun-bloom alpha. It is re-declared here (rather than
+     inherited) only because the light block eased its own by 30%; the value is
+     unchanged from when the literal lived in .bg-gradient-daytime[data-moment="day"]. */
+  --daytime-flourish-strength: 18%;
+
+  /* Brand mark accent (dark) — vivid lime pops on the dark / frosted rail. */
+  --brand-mark-accent: var(--brand-lime);
+}
+
+/* Custom responsive breakpoint — `desktop:` variant at 1440px (90rem).
+   Declared in `@theme` (not `@theme inline`) so Tailwind emits it as a literal
+   into the generated media queries (a breakpoint cannot resolve `var(--*)` inside
+   an `@media` condition). Adds a wide-desktop tier ABOVE the built-in `lg` (1024px)
+   / `xl` (1280px) scale so the density ramp can step page/card spacing up to its
+   comfortable tier only on genuinely wide viewports. */
+@theme {
+  --breakpoint-desktop: 90rem;
+}
+
+@theme inline {
+  --color-switch-background: var(--switch-background);
+  --gradient-ai-start: var(--ai-gradient-start);
+  --gradient-ai-end: var(--ai-gradient-end);
+
+  /* Brand mark accent exposed as a color token so `fill-brand-mark-accent` (the
+     SideNav logo chevron) is a first-class utility. Resolves to deep brand teal
+     on light surfaces and vivid lime on dark (theme.css :root blocks). */
+  --color-brand-mark-accent: var(--brand-mark-accent);
+
+  /* Accordion open/close — consumed by accordion.tsx content region. */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  /* KPI corner status indicator pulse (danger/warning dots) — drives the
+     `animate-sparkle-pulse` utility from the sparkle-pulse keyframe below, so the
+     indicator timing stays tokenised (motion-adoption-check). */
+  --animate-sparkle-pulse: sparkle-pulse 1.8s ease-in-out infinite;
+
+  /* KPI danger halo — a softer, capped breathing pulse (peaks at 60%, not full)
+     so the ring reads as a gentle glow behind the solid dot. Distinct from
+     sparkle-pulse (which drives the warning dot 1→0.3→1). */
+  --animate-halo-pulse: halo-pulse 1.8s ease-in-out infinite;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border-alpha-subtle);
+    outline-color: color-mix(in srgb, var(--color-ring-focus) 50%, transparent);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  }
+
+  /* Hide scrollbar arrow buttons globally (Chromium / Safari) */
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  body {
+    @apply bg-page fg-default;
+    font-family: 'Inter', sans-serif;
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+}
+
+@keyframes sparkle-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@keyframes halo-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+@keyframes accordion-down {
+  from { height: 0; }
+  to { height: var(--radix-accordion-content-height); }
+}
+
+@keyframes accordion-up {
+  from { height: var(--radix-accordion-content-height); }
+  to { height: 0; }
+}

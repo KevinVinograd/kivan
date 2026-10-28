@@ -1,0 +1,38 @@
+/* ─── Daytime hero layer ───
+   Structural + interaction layer for the time-of-day wash. The VISUALS (color wash,
+   sun-beams, radial flourish, dark starfield/moon) live in .bg-gradient-daytime
+   (semantics-gradients.css); this file owns the geometry, the soft bottom mask and
+   the scroll-driven fade.
+
+   The layer is a full-bleed band pinned to the top of the app shell, painted behind
+   the (transparent) content region so page content scrolls over it. It sits at
+   z-index:-1, so the shell root MUST establish a stacking context (isolation:isolate,
+   applied by AppShell only while the hero is active) — otherwise the negative layer
+   would escape behind the whole app.
+
+   --hero-scroll (0 → 1) is published imperatively onto this element by DaytimeHero
+   (src/app/daytime/daytime-hero.tsx) from the shell's <main> scrollTop, so the fade is
+   pure CSS with no JS animation. Recipe: the convention. */
+.daytime-hero {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  block-size: var(--daytime-hero-height, 820px);
+  z-index: -1;
+  pointer-events: none;
+  /* The whole scroll interaction: the wash dissolves as content scrolls up. */
+  opacity: calc(1 - var(--hero-scroll, 0));
+  /* Fade the whole layer out in step with the color wash (which hits alpha 0 at
+     ~62% of the height), so the sun-beams dissolve together with the wash instead
+     of trailing below it as bright shafts over a color that has already faded. */
+  -webkit-mask-image: linear-gradient(180deg, black 0, black 34%, transparent 62%);
+          mask-image: linear-gradient(180deg, black 0, black 34%, transparent 62%);
+  will-change: opacity;
+}
+
+/* Dark scheme — resolve a touch sooner (the peaks are gentler on dark, per the
+   --daytime-*-strength tokens), still tracking the wash's fade. */
+:root[data-theme="dark"] .daytime-hero {
+  -webkit-mask-image: linear-gradient(180deg, black 0, black 28%, transparent 60%);
+          mask-image: linear-gradient(180deg, black 0, black 28%, transparent 60%);
+}

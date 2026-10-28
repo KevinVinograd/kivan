@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" role="img" aria-label="hold.">
+  <!-- App favicon: the collapsed "h." brand mark on the brand-blue gradient tile.
+       Colors mirror the theme.css brand-blue nav tokens (#1D2541 to #3E508C). The
+       glyph uses a system sans stack (Inter is the app face but is not bundled),
+       so it falls back gracefully; the "h." reads in any sans-serif at 16px. -->
+  <defs>
+    <linearGradient id="hold-brand" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1D2541" />
+      <stop offset="1" stop-color="#3E508C" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="url(#hold-brand)" />
+  <text x="16" y="16" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central"
+        font-family="Inter, 'Segoe UI', system-ui, -apple-system, Arial, sans-serif"
+        font-size="20" font-weight="700">h.</text>
+</svg>

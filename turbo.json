@@ -1,0 +1,11 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "generate": { "cache": false, "outputs": ["src/generated/**"] },
+    "build": { "dependsOn": ["generate", "^build"], "outputs": ["dist/**"] },
+    "typecheck": { "dependsOn": ["generate", "^build"] },
+    "lint": {},
+    "test": { "dependsOn": ["generate", "^build"] },
+    "test:e2e": { "dependsOn": ["^build"], "cache": false }
+  }
+}

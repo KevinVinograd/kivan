@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es-AR" translate="no" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- A machine translator is not a cosmetic problem here, it is a crash. Chrome
+         replaces every text node it translates with a <font> wrapper, which leaves
+         React 18 holding detached nodes: a text update then writes to an orphan and
+         never repaints (a button stuck on "Guardando" while the write succeeded), and
+         a removeChild throws NotFoundError, which the app-wide ErrorBoundary turns
+         into a full-screen "Algo salió mal". When that throw lands mid-portal, Radix's
+         DismissableLayer never restores `body { pointer-events }` and the whole page
+         stops accepting clicks until a reload. All three were reported from one
+         session, on a page that declared lang="en" while being written entirely in
+         Spanish - so Chrome offered "translate to Spanish", and translated only the
+         English words left in the product (Branding came back as "Herrada").
+
+         `lang` removes the reason to offer it; `translate="no"` and the notranslate
+         meta refuse it even when asked by hand or by a pinned per-site preference.
+         The opt-out belongs on <html>, NOT on #root: Radix portals every Dialog and
+         Select into document.body, so a #root-scoped attribute would miss precisely
+         the subtrees that crash. Pinned by document-language-check.mjs. -->
+    <meta name="google" content="notranslate" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Hold</title>
+    <meta name="description" content="Gestión de cobros, pagos y operación mensual." />
+
+    <!-- Open Graph / Twitter social-share preview. og:url and og:image need the
+         ABSOLUTE production origin to render cards on scrapers that require it
+         (WhatsApp, LinkedIn, Facebook). The production domain is not set yet — the
+         app will be served from the shared EC2 (like vendiar); add absolute og:url
+         + og:image (and twitter:image) here once that domain exists. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Hold" />
+    <meta property="og:description" content="Gestión de cobros, pagos y operación mensual." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Hold" />
+    <meta name="twitter:description" content="Gestión de cobros, pagos y operación mensual." />
+    <script>
+      // Apply the persisted (or system-preferred) color theme before first
+      // paint so there is no flash of the wrong theme. The app's useTheme
+      // hook adopts whatever value this sets on <html data-theme>.
+      (function () {
+        try {
+          var stored = localStorage.getItem('theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {
+          /* keep the default data-theme="light" */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

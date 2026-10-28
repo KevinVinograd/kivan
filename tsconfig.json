@@ -1,0 +1,67 @@
+{
+  // TypeScript type-checking configuration for hold.
+  // This file is for `tsc --noEmit` (type checking) only.
+  // The actual build is handled by Vite/esbuild and does not use tsc.
+  //
+  // Strictness posture:
+  //  - strict: true is enabled (all strict flags: null checks, function types, etc.).
+  //  - skipLibCheck: true avoids noise from library type declarations.
+  //  - noEmit: true so tsc never touches the build output.
+  //  - noUnusedLocals / noUnusedParameters are ON. They were the "planned incremental-
+  //    strictness step" this comment used to defer, and deferring them had a cost: a
+  //    12-file toolbar refactor left eleven dead `Input` imports and a dead `useNavigate`
+  //    binding behind, and NOTHING in the toolchain noticed (eslint does not flag them
+  //    either). Turning them on cost 23 fixes across the whole repo — a fraction of what
+  //    it would cost to keep hand-auditing every refactor for orphans forever.
+  "compilerOptions": {
+    // ── Output (none — type-check only) ────────────────────────────────
+    "noEmit": true,
+
+    // ── Language / environment ──────────────────────────────────────────
+    "target": "ES2020",
+    "lib": ["ES2021", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "useDefineForClassFields": true,
+
+    // ── JSX ────────────────────────────────────────────────────────────
+    "jsx": "react-jsx",
+
+    // ── Module resolution ───────────────────────────────────────────────
+    "paths": {
+      "@/*": ["./src/*"],
+      // The front imports the workspace `@hold/shared` package as runtime VALUES
+      // (the Zod enums reused by the response schemas) as well as types. Resolve it to
+      // source so `tsc --noEmit` does not depend on the package being built first (its
+      // `types`/`main` point at `dist/`, absent in a fresh CI checkout). Because the
+      // import is now a runtime value (not erased), every BUNDLER that compiles `src/`
+      // must carry the same source alias: `vite.config.ts` and `vitest.config.ts`
+      // both do — keep them in lockstep.
+      "@hold/shared": ["./packages/shared/src/index.ts"]
+    },
+    "resolveJsonModule": true,
+
+    // ── Interop ────────────────────────────────────────────────────────
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "isolatedModules": true,
+
+    // ── Type checking ───────────────────────────────────────────────────
+    "strict": true,          // enables all strict flags (null checks, function types, etc.)
+    "skipLibCheck": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+
+    // ── Compatibility ──────────────────────────────────────────────────
+    "allowImportingTsExtensions": false,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next"
+  ]
+}

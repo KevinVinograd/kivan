@@ -1,0 +1,28 @@
+/* ─── Semantic Link Tokens ───
+   Inline text link color. Sourced from the `link.color` design token.
+
+   Exposed through the existing `@utility fg-*` (semantics-fg.css) as
+   `fg-link` / `fg-link-hover` / `fg-link-active`, so a link reads:
+     className="fg-link hover:fg-link-hover"
+
+   Theme model: light = neutral near-black (matches the neutral brand);
+   dark = high-contrast white. Sourced from link.color ($root) per theme.
+   ────────────────────────────────────────────── */
+
+:root {
+  --fg-link: var(--gray-1800);
+  --fg-link-hover: var(--gray-1800);
+  --fg-link-active: var(--gray-1800);
+}
+
+:root[data-theme="dark"] {
+  --fg-link: var(--white);
+  --fg-link-hover: var(--white);
+  --fg-link-active: var(--white);
+}
+
+@theme inline {
+  --color-fg-link: var(--fg-link);
+  --color-fg-link-hover: var(--fg-link-hover);
+  --color-fg-link-active: var(--fg-link-active);
+}

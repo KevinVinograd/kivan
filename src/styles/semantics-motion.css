@@ -1,0 +1,427 @@
+/* ─── Semantic Motion Tokens + Utilities ───
+   Motion System v0. The single source of motion truth for Hold: durations,
+   easings, and travel distances live here as tokens; the `.motion-*` classes
+   and keyframes consume them. Motion is FEEDBACK, never decoration — it signals
+   what is actionable, confirms an action happened, and reinforces state changes.
+
+   Usage (via lib/motion.ts presets, never hand-rolled per screen):
+     motion-standard       — color/bg/border/shadow/opacity transition (no transform)
+     motion-glass          — height + opacity (mobile header's frosted band resize)
+     motion-press          — press feedback (scale 0.98 + 1px down on :active)
+     motion-soft-magnetic  — subtle hover lift (pointer:fine only) + press
+     motion-magnetic-card  — modifier: raises the magnetic distance to the card token
+     motion-panel-enter    — panel content enter (opacity + short translateX)
+     motion-panel-exit     — panel exit (opacity fade out; presence-held)
+     motion-content-dissolve — reversible content dissolve (blur + fade + scale-recede);
+                               master-detail page header (keyed on data-dissolved)
+     motion-md-*           — master-detail view transition halves (content dissolve
+                               out/in + list/detail slide in/out, staggered)
+
+   LAYERING: these are intentionally PLAIN (unlayered) classes, not Tailwind
+   `@utility` rules. Unlayered CSS outranks Tailwind's `@layer utilities`, so a
+   motion class deterministically owns the `transition`/`animation` property
+   wherever it is applied — even when the element also carries `transition-colors`
+   from a shared CVA base (e.g. `buttonVariants`). That lets us add motion to
+   Button/IconButton without stripping `transition-colors` from the ~12 places
+   that consume `buttonVariants` directly.
+
+   Theme model: motion is theme-independent (no dark overrides). Reduced motion
+   is honored globally at the bottom of this file.
+
+   in the stack), tuned to these duration tokens at the call site. Toast enter/exit
+   is owned by Sonner. PanelContent enters with `motion-panel-enter`; `motion-panel-exit`
+   (keyed on data-state="closed", held mounted by `usePresence`) is a general
+   single-node exit-fade primitive.
+
+   MASTER-DETAIL VIEW TRANSITION: the table <-> list+detail split switch is staged
+   by a phase machine in MasterDetailLayout using the `md-*` keyframe halves
+   (content dissolves in place — blur/fade/scale-recede — then the panels slide the
+   full track from their edges, staggered; reversed on close). The consumer's page
+   header pairs it with the reversible `motion-content-dissolve` transition so header
+   and table dissolve together. See the convention
+   ────────────────────────────────────────────── */
+
+:root {
+  /* Durations — operative cadence: fast, confident, never lingering. */
+  --motion-duration-press: 80ms;
+  --motion-duration-hover: 120ms;
+  --motion-duration-quick: 160ms;
+  --motion-duration-panel: 220ms;
+  --motion-duration-modal: 260ms;
+
+  /* Easings */
+  --motion-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-snap: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Travel distances — kept tiny on purpose (sober, not playful). */
+  --motion-distance-magnetic-button: 2px;
+  --motion-distance-magnetic-card: 4px;
+  --motion-distance-press-y: 1px;
+  --motion-distance-panel-slide: 8px;
+
+  /* Resolved magnetic distance — defaults to the button step; the
+     `motion-magnetic-card` modifier raises it to the card step. */
+  --motion-magnetic-distance: var(--motion-distance-magnetic-button);
+
+  /* Scales — a contained nav-rail transform (the `.motion-flip` brand-chevron
+     flip is the other). Kept tiny: the icon glyph micro-scales on hover; the nav
+     row itself never moves. */
+  --motion-scale-nav-icon: 1.08;
+
+  /* Master-detail view transition (table <-> list+detail split). The content
+     (table / page header) recedes on a subtle scale as it dissolves; the panels
+     slide the full track width from their edges. Kept in the token layer so the
+     whole choreography routes through motion tokens (durations reuse
+     hover/modal; the stagger offsets the detail behind the list). */
+  --motion-scale-content-recede: 0.985;
+  --motion-blur-dissolve: 8px;
+  --motion-stagger-panel: 70ms;
+}
+
+/* ── Transition presets ───────────────────────────────────────── */
+
+/* Color/elevation/opacity only — the safe default for any hoverable surface
+   that must NOT move (table rows, list rows, nav items). */
+.motion-standard {
+  transition:
+    background-color var(--motion-duration-hover) var(--motion-ease-out),
+    border-color var(--motion-duration-hover) var(--motion-ease-out),
+    color var(--motion-duration-hover) var(--motion-ease-out),
+    box-shadow var(--motion-duration-hover) var(--motion-ease-out),
+    opacity var(--motion-duration-hover) var(--motion-ease-out);
+}
+
+/* Wordmark reveal — width + opacity for the SideNav brand text-reveal ("ivan"
+   sliding out between the K and the chevron). Panel cadence so it reads as a
+   deliberate expand rather than a flicker. */
+.motion-reveal {
+  transition:
+    max-width var(--motion-duration-panel) var(--motion-ease-out),
+    opacity var(--motion-duration-panel) var(--motion-ease-out);
+}
+
+/* Glass band resize — the mobile header's single frosted band changes HEIGHT as the
+   nav auto-hides and the KPI strip pins. `motion-standard` cannot carry it: it
+   transitions no size property, so the glass snapped between its heights in one frame
+   while the pill (translate) and the strip both animated over the panel cadence — the
+   sheet and the cards it frosts visibly came apart on every scroll-direction flip.
+   Height rides the same panel cadence and the same in/out easing as the pill's slide,
+   so they move as one; opacity stays on the shorter hover cadence, since the fade-in
+   is a reveal, not a move. */
+.motion-glass {
+  transition:
+    height var(--motion-duration-panel) var(--motion-ease-in-out),
+    opacity var(--motion-duration-hover) var(--motion-ease-out);
+}
+
+/* Chevron flip — the SideNav brand chevron rotates 180° on hover/focus as a
+   directional toggle cue (collapsed → previews expand; expanded → reverse spin
+   previews collapse). Transform-only, quick snap cadence. Both `transform` and
+   the standalone `rotate` property are transitioned so it animates whether the
+   Tailwind rotate utility resolves to one or the other. */
+.motion-flip {
+  transition:
+    transform var(--motion-duration-quick) var(--motion-ease-snap),
+    rotate var(--motion-duration-quick) var(--motion-ease-snap);
+}
+
+/* Press feedback for buttons. Color transitions stay on the hover cadence;
+   the transform snaps on the shorter press cadence. */
+.motion-press {
+  transition:
+    transform var(--motion-duration-press) var(--motion-ease-snap),
+    background-color var(--motion-duration-hover) var(--motion-ease-out),
+    border-color var(--motion-duration-hover) var(--motion-ease-out),
+    color var(--motion-duration-hover) var(--motion-ease-out);
+}
+
+/* Soft magnetic — a very subtle hover LIFT (CSS-only, cursor-direction
+   agnostic) plus the same press feedback. The lift is gated to fine pointers
+   below so it never fires on touch. */
+.motion-soft-magnetic {
+  transition:
+    transform var(--motion-duration-hover) var(--motion-ease-out),
+    background-color var(--motion-duration-hover) var(--motion-ease-out),
+    border-color var(--motion-duration-hover) var(--motion-ease-out),
+    color var(--motion-duration-hover) var(--motion-ease-out),
+    box-shadow var(--motion-duration-hover) var(--motion-ease-out);
+}
+
+/* Modifier: switch the magnetic lift from the 2px button step to the 4px card
+   step. Pair with `motion-soft-magnetic` on large actionable cards. */
+.motion-magnetic-card {
+  --motion-magnetic-distance: var(--motion-distance-magnetic-card);
+}
+
+/* Nav icon hover — a contained nav-rail transform (the `.motion-flip` brand-chevron
+   flip above is the other). The nav ROW stays a resting reading surface
+   (motion-standard, color only — no magnetic, no lift, no layout shift); only the
+   icon glyph micro-scales when its row (the Tailwind `.group`) is hovered. Gated to
+   fine pointers so it never fires on touch; `transform` is the only animated
+   property, so there is no reflow. */
+.motion-nav-icon {
+  transition: transform var(--motion-duration-hover) var(--motion-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .motion-nav-icon {
+    transform: scale(var(--motion-scale-nav-icon));
+  }
+}
+
+/* `transform` is the only animated geometry — no layout properties move, so
+   there is no reflow. */
+.motion-press:active,
+.motion-soft-magnetic:active {
+  transform: scale(0.98) translateY(var(--motion-distance-press-y));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motion-soft-magnetic:hover {
+    transform: translateY(calc(var(--motion-magnetic-distance) * -1));
+  }
+}
+
+/* Disabled / loading never move. Covers native :disabled and the ARIA/data
+   flags used by Radix-driven and custom disabled/loading states. */
+.motion-press:disabled,
+.motion-press[aria-disabled="true"],
+.motion-press[data-disabled="true"],
+.motion-soft-magnetic:disabled,
+.motion-soft-magnetic[aria-disabled="true"],
+.motion-soft-magnetic[data-disabled="true"],
+.motion-soft-magnetic[data-loading="true"] {
+  transform: none;
+}
+
+/* ── Enter animations (CSS-only fallback) ─────────────────────── */
+
+.motion-panel-enter {
+  animation: motion-panel-enter var(--motion-duration-panel) var(--motion-ease-out);
+}
+
+/* Panel exit — the unmount half of the panel motion. A plain opacity fade (no
+   translate): the closing panel simply dissolves before the layout collapses,
+   which reads cleaner than a slide on a panel that is also being removed. Played
+   by the presence host in MasterDetailLayout while `usePresence` keeps it mounted;
+   `forwards` holds the faded-out frame until React removes the node, so there is
+   no flash back to opacity 1. Scoped to the closed state so the host stays inert
+   while open (PanelContent owns the enter). 160ms (quick) ease-in. */
+.motion-panel-exit[data-state="closed"] {
+  animation: motion-panel-exit var(--motion-duration-quick) var(--motion-ease-in) forwards;
+}
+
+/* ── Master-detail view transition (table <-> list+detail split) ──
+   Two coordinated halves. (1) The CONTENT (table + page header) dissolves in
+   place — blur + fade + a subtle scale-recede, no translate — so nothing slides
+   while it leaves/returns; the blur is what replaces movement. (2) The list and
+   detail PANELS slide the full track width from their edges (list from the left,
+   detail from the right), staggered so the list leads and the detail trails.
+
+   The component (MasterDetailLayout) mounts/unmounts each half, so those use
+   keyframes (`md-*`, driven by a phase machine + `animationend`). The page
+   header stays mounted and toggles a state attr, so it uses the reversible
+   TRANSITION preset `content-dissolve` (bidirectional, same tokens/values).
+   Timings reuse existing tokens: `hover` (120ms) for the fast dissolve, `modal`
+   (260ms) for the panel slide; the panel enter waits one dissolve (`hover`) so
+   the content is gone first, and the detail trails the list by `stagger`. On
+   exit the stagger reverses (detail leaves first, list trails). */
+
+/* Header content dissolve — reversible transition keyed on `data-dissolved`.
+   Applied to a wrapper that stays mounted (the page header dissolves in place; it
+   no longer collapses its height). The delay is direction-aware: dissolve-out is
+   immediate on open; dissolve-in waits for the split to slide out and the table
+   to dissolve back in (`modal` + `stagger`, matching `md-content-in`) so the
+   header re-appears in lockstep WITH the content instead of trailing it. */
+.motion-content-dissolve {
+  transition:
+    filter var(--motion-duration-hover) var(--motion-ease-in-out),
+    opacity var(--motion-duration-hover) var(--motion-ease-in-out),
+    transform var(--motion-duration-hover) var(--motion-ease-in-out);
+  transition-delay: calc(var(--motion-duration-modal) + var(--motion-stagger-panel));
+}
+.motion-content-dissolve[data-dissolved="true"] {
+  filter: blur(var(--motion-blur-dissolve));
+  opacity: 0;
+  transform: scale(var(--motion-scale-content-recede));
+  transition-delay: 0ms;
+}
+
+/* Content leaves: blur + fade + recede in place (open). `forwards` holds the
+   dissolved frame until the phase machine unmounts the outgoing content. */
+.motion-md-content-out {
+  animation: motion-md-content-out var(--motion-duration-hover) var(--motion-ease-in) forwards;
+}
+/* Content returns: reverse, delayed until the panels have slid out (close). */
+.motion-md-content-in {
+  animation: motion-md-content-in var(--motion-duration-hover) var(--motion-ease-out)
+    calc(var(--motion-duration-modal) + var(--motion-stagger-panel)) backwards;
+}
+/* List enters from the left after the content dissolves (open). */
+.motion-md-list-in {
+  animation: motion-md-list-in var(--motion-duration-modal) var(--motion-ease-out)
+    var(--motion-duration-hover) backwards;
+}
+/* Detail enters from the right, trailing the list by one stagger (open). */
+.motion-md-detail-in {
+  animation: motion-md-detail-in var(--motion-duration-modal) var(--motion-ease-out)
+    calc(var(--motion-duration-hover) + var(--motion-stagger-panel)) backwards;
+}
+/* List leaves to the left, trailing the detail by one stagger (close). */
+.motion-md-list-out {
+  animation: motion-md-list-out var(--motion-duration-modal) var(--motion-ease-in)
+    var(--motion-stagger-panel) forwards;
+}
+/* Detail leaves to the right first (close). */
+.motion-md-detail-out {
+  animation: motion-md-detail-out var(--motion-duration-modal) var(--motion-ease-in) forwards;
+}
+
+@keyframes motion-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-distance-panel-slide));
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-panel-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Master-detail transition keyframes. Content recedes on a subtle scale as it
+   blurs/fades (no translate); panels travel the full track width from their
+   edges. */
+@keyframes motion-md-content-out {
+  from {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    filter: blur(var(--motion-blur-dissolve));
+    transform: scale(var(--motion-scale-content-recede));
+  }
+}
+
+@keyframes motion-md-content-in {
+  from {
+    opacity: 0;
+    filter: blur(var(--motion-blur-dissolve));
+    transform: scale(var(--motion-scale-content-recede));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-md-list-in {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-md-detail-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-md-list-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes motion-md-detail-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+}
+
+/* ── Reduced motion (mandatory) ───────────────────────────────────
+   Strip translate/scale/slide/spring and instant-out every motion class.
+   Color/background/border/opacity state changes survive (they convey meaning,
+   not movement). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+
+  .motion-standard,
+  .motion-glass,
+  .motion-press,
+  .motion-soft-magnetic,
+  .motion-magnetic-card,
+  .motion-nav-icon,
+  .motion-flip,
+  .motion-panel-enter,
+  .motion-panel-exit,
+  .motion-content-dissolve,
+  .motion-md-content-out,
+  .motion-md-content-in,
+  .motion-md-list-in,
+  .motion-md-detail-in,
+  .motion-md-list-out,
+  .motion-md-detail-out {
+    transition-duration: 0ms !important;
+    /* Also zero any transition-delay (e.g. content-dissolve's dissolve-in delay):
+       a 0ms duration with a non-zero delay still defers the state change, which
+       would blank the header for the delay window instead of an instant cut. */
+    transition-delay: 0ms !important;
+    transform: none !important;
+    rotate: none !important;
+    animation: none !important;
+  }
+
+  /* Master-detail dissolve is a blur; strip the blur too so reduced motion gets a
+     clean instant cut (opacity/height only) rather than an instantly-blurred
+     frame. The keyframe halves reset filter via `animation: none` above. */
+  .motion-content-dissolve,
+  .motion-content-dissolve[data-dissolved="true"] {
+    filter: none !important;
+  }
+
+  /* The nav-icon hover scale is applied via the `.group:hover` descendant rule
+     above, not on the `.motion-nav-icon` element itself, so neutralize it here. */
+  .group:hover .motion-nav-icon {
+    transform: none !important;
+  }
+}

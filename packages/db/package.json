@@ -1,0 +1,36 @@
+{
+  "name": "@hold/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "generate": "prisma generate",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint src",
+    "test": "vitest run --passWithNoTests",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@hold/config": "workspace:*",
+    "@hold/shared": "workspace:*",
+    "@prisma/adapter-pg": "7.8.0",
+    "@prisma/client": "7.8.0"
+  },
+  "devDependencies": {
+    "@testcontainers/postgresql": "12.0.2",
+    "@types/node": "^24.13.2",
+    "@types/pg": "8.15.6",
+    "pg": "8.16.3",
+    "prisma": "7.8.0",
+    "testcontainers": "12.0.2",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.6"
+  }
+}

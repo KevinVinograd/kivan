@@ -1,0 +1,1172 @@
+// Prisma 7 (rust-free). The `prisma-client` generator replaces the legacy
+// `prisma-client-js` provider and REQUIRES an explicit `output` path — the
+// client is no longer emitted into node_modules. We generate into
+// `src/generated/prisma` (git-ignored) and import it from src/client.ts.
+// Datasource url + env loading live in prisma.config.ts (Prisma 7 moved env
+// out of the schema).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  owner
+  admin
+  employee
+}
+
+enum Currency {
+  ARS
+  USD
+}
+
+enum ClientStatus {
+  active
+  onboarding
+  paused
+  churned
+}
+
+/// How a priced service line becomes money (`ClientService.billingMode`).
+///
+/// monthly        — part of the retainer: summed into `Client.monthlyFeeMinor` and billed
+///                  every month by the generator.
+/// one_time       — a project price, billed on demand in one or more partial cobros
+///                  until the price is used up. Never part of the monthly fee.
+/// per_production — a unit price per logged `Production` linked to the line; the
+///                  generator bills the linked, unbilled productions. Never part of the fee.
+/// per_hour       — a price per production HOUR ("producción con celular" / "con cámara"):
+///                  a linked production is billed hours × price. Never part of the fee.
+enum ServiceBillingMode {
+  monthly
+  one_time
+  per_production
+  per_hour
+}
+
+enum AssignmentStatus {
+  active
+  paused
+  ended
+}
+
+enum CollectionStatus {
+  pending
+  collected
+  partial
+  overdue
+  cancelled
+}
+
+enum BillingStatus {
+  no_invoice
+  pending
+  invoiced
+  sent
+  error_arca
+  manual
+  not_required
+}
+
+enum PaymentStatus {
+  pending
+  approved
+  paid
+  partial
+  overdue
+  cancelled
+}
+
+enum RecipientType {
+  collaborator
+  provider
+  employee
+  fixed_expense
+  monotributo
+  platform
+}
+
+enum MonthStatus {
+  draft
+  review
+  closed
+  reopened
+}
+
+enum TreasuryPartner {
+  vicky
+  flor
+  more
+  shared
+}
+
+enum LedgerEntryType {
+  charge
+  collection
+  generated
+  payment
+  adjustment
+  reversal
+}
+
+// The studio's settings. Exactly one row.
+model Workspace {
+  id                  String    @id @default(uuid()) @db.Uuid
+  name                String    @db.VarChar(200)
+  timezone            String    @default("America/Argentina/Buenos_Aires")
+  defaultCurrency     Currency  @default(ARS)
+  fiscalLegalName     String?
+  fiscalTaxId         String? // CUIT
+  monotributoCategory String?
+  positionAsOf        DateTime?
+  /**
+   * Monthly-operation rules (Configuración → Operación mensual): closing day, reminders,
+   * team pay day, approval requirement, and the studio's own expense-category and
+   * production-type vocabularies. One JSON document rather than a column per rule: these
+   * are read as a config blob and never queried or joined on, and a new rule would
+   * otherwise mean a migration each time. Validated at the edge (Zod) on write.
+   */
+  monthlyRules        Json?
+  createdAt           DateTime  @default(now())
+}
+
+// A role definition: a NAME plus the set of permissions it grants. Studio-owned,
+// so a studio can express its own structure instead of bending to three fixed
+// roles.
+//
+// GRANTS ARE STORED AS PERMISSION KEYS, never as the UI's four-stop level. The
+// level is an authoring affordance that materializes into explicit keys on save,
+// so a preset can be retuned later without silently changing what existing roles
+// already grant.
+model WorkspaceRole {
+  id          String   @id @default(uuid()) @db.Uuid
+  /**
+   * `owner` | `admin` | `employee` for the three seeded system rows; null for a
+   * studio-created role. Mirrors the `Role` enum so the two can be reconciled.
+   */
+  key         String?  @db.VarChar(60)
+  name        String   @db.VarChar(60)
+  description String?  @db.VarChar(200)
+  /**
+   * System roles ship with the product: not editable, not deletable.
+   */
+  isSystem    Boolean  @default(false)
+  /**
+   * The seat that always holds everything. Guards against a studio locking
+   * itself out of its own workspace.
+   */
+  isOwner     Boolean  @default(false)
+  /**
+   * Permission keys (`resource.action`), the vocabulary in
+   * `src/app/pages/settings-roles-data.ts` and, later, `@hold/shared`.
+   */
+  grants      String[]
+  /**
+   * Optimistic concurrency: a stale write loses rather than overwriting.
+   */
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users     User[]
+
+  @@unique([name])
+  // Postgres does not collide NULLs in a unique index, so every custom role
+  // (key = null) coexists while the three system keys stay unique.
+  @@unique([key])
+}
+
+// Account + access identity. Optionally linked 1:0..1 to a TeamMember (the
+// operational roster identity). The access role lives here.
+model User {
+  id                String   @id @default(uuid()) @db.Uuid
+  email             String
+  passwordHash      String
+  firstName         String
+  lastName          String
+  role              Role     @default(employee)
+  /**
+   * The role definition this user holds. Nullable during the transition: the
+   * `role` enum above is still what the API authorizes on, and this points at
+   * the matching system row (or at a studio-created role). Both are written in
+   * one transaction so they can never disagree.
+   */
+  roleId            String?  @db.Uuid
+  status            String   @default("active")
+  /**
+   * Which in-app notices this person wants (Configuración → Notificaciones). A JSON
+   * document of event-key → boolean, validated at the edge; NULL means never configured
+   * and reads as the defaults. Per USER, not per workspace: two admins can want
+   * different notices, and "read" is already per person.
+   */
+  notificationPrefs Json?
+  teamMemberId      String?  @unique @db.Uuid
+  payoutBankId      String?  @db.Uuid
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspaceRole WorkspaceRole? @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  teamMember    TeamMember?    @relation(fields: [teamMemberId], references: [id])
+  refreshTokens RefreshToken[]
+  invitations   Invitation[]
+
+  @@unique([email])
+}
+
+// Rotating refresh tokens (hashed). Scoped by userId.
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  replacedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// One-time invitation / set-password tokens (hashed). Minted when a member is
+// created without a password (email-invite flow): the raw token travels in the
+// emailed link, only its hash is stored. Consumed once (usedAt) to set the
+// password and activate the account.
+model Invitation {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+// Operational/employment record. May exist without a User (a collaborator who
+// doesn't log in). Compensation flattened in (ARS minor units).
+model TeamMember {
+  id                   String    @id @default(uuid()) @db.Uuid
+  name                 String
+  role                 String // free-text job title
+  status               String    @default("active")
+  employmentType       String    @default("collaborator")
+  startDate            DateTime?
+  compensationModel    String    @default("monthly_fixed")
+  hourlyRateMinor      BigInt?
+  monthlyAmountMinor   BigInt?
+  productionRateMinor  BigInt?
+  // Monthly capacity in hours. Nullable = capacity not set yet (the capacity report
+  // reports it as "sin datos"). HOLD fills this in going forward to unlock utilization.
+  capacityHoursMonthly Float?
+  currency             Currency  @default(ARS)
+  bankId               String?   @db.Uuid
+  taxId                String?
+  email                String?
+  phone                String?
+  notes                String?
+  deletedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  bank        Bank?                   @relation(fields: [bankId], references: [id])
+  users       User[]
+  assignments ClientAssignment[]
+  payments    Payment[]
+  payouts     PayoutStatement[]
+  productions ProductionParticipant[]
+  managedProductions Production[]
+
+  @@index([createdAt])
+}
+
+// Deduped bank-details value object (referenced by TeamMember/User payout).
+model Bank {
+  id            String  @id @default(uuid()) @db.Uuid
+  bankName      String?
+  accountHolder String?
+  cbuOrCvu      String?
+  alias         String?
+  accountType   String? // checking | savings
+
+  teamMembers TeamMember[]
+
+}
+
+// Service catalog (Redes/Ads/Producción/Branding/...). Kept because
+// `ClientAssignment.serviceId` still points at it, but no screen writes it any more: the
+// field left the assign dialogs on 2026-10-01, after not one of 46 assignments had used
+// it, and the area list (`ASSIGNMENT_AREAS`) took over what it was reaching for.
+model Service {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  createdAt   DateTime @default(now())
+
+  assignments   ClientAssignment[]
+  clientServices ClientService[]
+
+  @@unique([name])
+}
+
+/// One priced service on a client's contract: the line items whose sum IS the monthly
+/// fee ("este importe se forma por los distintos servicios").
+///
+/// OPT-IN per client. A client with no lines keeps its hand-typed `monthlyFeeMinor` and
+/// bills exactly as it did before this table existed; a client with at least one active
+/// line has a fee the server recomputes as their sum. Presence of lines is the whole
+/// discriminator — which is why this shipped with no backfill, and why no client could
+/// silently fall out of the month generator's `monthlyFeeMinor > 0` filter.
+///
+/// `name` is a STAMP, not a join: the line keeps the label it was contracted under even
+/// if the catalog entry is later renamed, the same reason a receivable stores its own
+/// client name. `serviceId` is the optional link to the catalog for reporting.
+model ClientService {
+  id          String    @id @default(uuid()) @db.Uuid
+  clientId    String    @db.Uuid
+  serviceId   String?   @db.Uuid
+  name        String
+  priceMinor  BigInt
+  /// Contracted but not billed this month is a MONTH-level decision made in the
+  /// generator, not here. This flag is the contract-level one: the service is off the
+  /// contract going forward but the row survives so past cobros stay explicable.
+  active      Boolean   @default(true)
+  /// Only `monthly` lines form the fee. A `one_time` line's `priceMinor` is the whole
+  /// project price (billed in parts through service-line charges); a `per_production`
+  /// line's is the price of ONE production. Defaulted to monthly so every line written
+  /// before this column existed keeps billing exactly as it did (migration 0029).
+  billingMode ServiceBillingMode @default(monthly)
+  /// Per-hour lines only: the hours a month the client's retainer already covers ("el
+  /// servicio de redes incluye 6 h de producción con celular"). Hours past it bill at
+  /// `priceMinor`; see `production-pack.ts`. Null = none included.
+  includedHours Float?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  /// Soft delete, so a removed line does not orphan the receivable lines that cite it.
+  deletedAt   DateTime?
+
+  client      Client            @relation(fields: [clientId], references: [id])
+  service     Service?          @relation(fields: [serviceId], references: [id], onDelete: NoAction)
+  lines       ReceivableLine[]
+  productions Production[]
+
+  // One live line per (client, name): a PARTIAL unique index (WHERE deletedAt IS NULL)
+  // created in migration 0001_init, because Prisma's DSL cannot express a WHERE clause on an
+  // index. Declaring @@unique here instead would emit a FULL unique and make it
+  // impossible to re-contract a service that was once removed.
+  @@index([clientId])
+  @@index([serviceId])
+}
+
+/// What a cobro was actually made of. One row per priced service billed on that
+/// receivable, so a client can be shown WHY the amount is what it is — and so a month
+/// where a service was left out is explicable a year later.
+///
+/// `amountMinor` is in the RECEIVABLE's currency (post-conversion); `originalAmountMinor`
+/// carries the contracted figure when the two differ. The rows always sum to the
+/// receivable's `baseAmountMinor` — the last line absorbs the conversion remainder,
+/// because the FX helper rounds half-up per call and converting a sum is not the same
+/// as summing the conversions.
+model ReceivableLine {
+  id                  String   @id @default(uuid()) @db.Uuid
+  receivableId        String   @db.Uuid
+  /// Nullable and NOT cascading: the contract line can be removed later, and the record
+  /// of what was billed must outlive it.
+  clientServiceId     String?  @db.Uuid
+  name                String
+  amountMinor         BigInt
+  originalAmountMinor BigInt?
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+
+  receivable    Receivable     @relation(fields: [receivableId], references: [id])
+  clientService ClientService? @relation(fields: [clientServiceId], references: [id], onDelete: NoAction)
+
+  @@index([receivableId])
+}
+
+// Client / account book. Money in ARS minor units. The normalized member↔client
+// relationship lives in ClientAssignment (the legacy denormalized roster is gone).
+model Client {
+  id                String       @id @default(uuid()) @db.Uuid
+  name              String
+  businessName      String?
+  taxId             String? // CUIT
+  status            ClientStatus @default(onboarding)
+  monthlyFeeMinor   BigInt       @default(0)
+  currency          Currency     @default(ARS)
+  billingEntityId   String? // → InvoiceEmitter (P2)
+  startDate         DateTime?
+  lastIncreaseDate  DateTime?
+  /// The client's rubro (Gastronomía, Retail, Salud…). A closed list in the UI.
+  clientType        String?
+  /// Contracted services, as LABELS, from the front's SERVICE_CATALOG.
+  ///
+  /// Still the source for the roster's Servicios column, its filter and the CSV, which
+  /// match against those nine catalog strings — deriving this from the priced lines
+  /// would make the filter match nothing and flatten the column, silently.
+  ///
+  /// PRICING lives in `ClientService` (opt-in per client), not here. A client with no
+  /// lines bills its hand-typed `monthlyFeeMinor` exactly as before; a client with
+  /// lines has a fee that is their sum. Presence of lines is the discriminator, so no
+  /// backfill was needed and no client could silently drop out of the generator.
+  services          String[]     @default([])
+  /// How the client normally pays: efectivo | transferencia.
+  paymentMethod     String?
+  /// A standing discount off the monthly fee, in BASIS POINTS (1000 = 10%), so the
+  /// arithmetic stays integer end to end. Applied to EVERY generated cobro,
+  /// unconditionally — it is not gated on `paymentMethod`. The percentage is the
+  /// RULE and lives only here; the resolved centavos are the FACT and land in
+  /// `Receivable.discountAmountMinor`. Nullable = no discount was ever agreed,
+  /// which is not the same as a discount of zero.
+  discountPercentBp Int?
+  /// arrears ("mes vencido") | current ("mes corriendo"). RECORDED, NOT ENFORCED:
+  /// nothing derives a period or a due date from it, so it is a policy label the
+  /// operator still applies by hand. Nullable = the term was never stated.
+  projectFeeMinor   BigInt?
+  /// A one-off project fee alongside the monthly retainer, and when it ends. One
+  /// project at a time by design. The fee TYPE (monthly / project / both) is DERIVED
+  /// from which amounts are present, so a discriminator cannot contradict them.
+  projectEndDate    DateTime?
+  billingCycle      String?
+  contactName       String?
+  billingEmail      String?
+  phone             String?
+  /// The client's street address (domicilio). One flat field: nothing parses,
+  /// sorts or geocodes it, and it deliberately does NOT travel to the factura
+  /// payload — the billing selects are explicit and would drop it silently.
+  address           String?
+  /// A second contact email. Some clients have two.
+  secondaryEmail    String?
+  /// The administrative contact, distinct from the day-to-day one. Flat columns
+  /// rather than a contacts table: the studio caps this at two contacts.
+  adminContactName  String?
+  adminContactEmail String?
+  adminContactPhone String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
+
+  assignments ClientAssignment[]
+  receivables Receivable[]
+  serviceLines ClientService[]
+
+  @@index([status])
+  @@index([name])
+  @@index([createdAt])
+}
+
+// Normalized member↔client assignment (source of truth, replaces the deprecated
+// Client.assignedTeam). Soft-end via status='ended' + endedAt.
+model ClientAssignment {
+  id                    String           @id @default(uuid()) @db.Uuid
+  clientId              String           @db.Uuid
+  teamMemberId          String           @db.Uuid
+  serviceId             String?          @db.Uuid
+  roleOnClient          String
+  status                AssignmentStatus @default(active)
+  assignedSince         DateTime?
+  endedAt               DateTime?
+  allocationPercent     Int?
+  estimatedMonthlyHours Int?
+  /// What we pay this member for this client per month ("Le pagamos x cliente"):
+  /// the real cost-allocation figure HOLD tracks. Feeds the team-cost report.
+  ///
+  /// TYPED by the operator on the assignment, never derived from hours: a
+  /// `monthly_fixed` collaborator (the schema default) has no hourly rate, so a
+  /// derived figure is blank for most of the team.
+  ///
+  /// NULLABLE, and the distinction is load-bearing: `null` = nobody has entered what
+  /// this client costs, `0` = the studio agreed it costs nothing (pro bono, internal).
+  /// It shipped as `@default(0)` with no write path anywhere, so every existing row
+  /// carried a zero that could only ever mean "never entered" — and Reports printed
+  /// it as `$ 0`, a measured figure the studio did not have.
+  monthlyCostMinor      BigInt?
+  createdAt             DateTime         @default(now())
+
+  client     Client     @relation(fields: [clientId], references: [id])
+  teamMember TeamMember @relation(fields: [teamMemberId], references: [id])
+  service    Service?   @relation(fields: [serviceId], references: [id])
+
+  // At most one LIVE assignment per (client, member): a PARTIAL unique index
+  // (WHERE status <> 'ended'), created in migration 0001_init because Prisma cannot
+  // express a WHERE clause here. The old @@unique([clientId, teamMemberId, status])
+  // allowed only one ENDED row per pair, so a second removal 409ed forever.
+  @@index([clientId, teamMemberId])
+  @@index([clientId, status])
+  @@index([teamMemberId, status])
+}
+
+// The fixed monotributo emisores (one set for the studio). The comprobante
+// sequence (puntoDeVenta + nextNumber) is a monotonic atomic counter; quota
+// limits gate issuance (reserve-before-effect).
+model InvoiceEmitter {
+  id                String   @id @default(uuid()) @db.Uuid
+  code              String // monotributo_1 | monotributo_2 | monotributo_3
+  label             String
+  cuit              String?
+  puntoDeVenta      Int      @default(1)
+  nextNumber        Int      @default(1)
+  monthlyLimitMinor BigInt?
+  annualLimitMinor  BigInt?
+  connected         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  receivables Receivable[]
+  payments    Payment[]
+
+  @@unique([code])
+}
+
+// Canonical COLLECTION actuals + inline comprobante. clientId is a real FK
+// (never a name join). Two independent state axes: collection `status` and
+// `billingStatus`. Money is re-derived server-side. `version` is bumped on every
+// mutation and is reserved for optimistic-concurrency enforcement on edit paths
+// (not yet enforced; collect/invoice are already atomic via guarded writes).
+model Receivable {
+  id                   String           @id @default(uuid()) @db.Uuid
+  clientId             String           @db.Uuid
+  period               DateTime         @db.Date
+  service              String
+  baseAmountMinor      BigInt
+  extraAmountMinor     BigInt           @default(0)
+  discountAmountMinor  BigInt           @default(0)
+  totalAmountMinor     BigInt
+  collectedAmountMinor BigInt           @default(0)
+  // Per-client monthly COST breakdown (HOLD's model: cost by area + allocated fixed).
+  // Margin = totalAmountMinor − (sum of these). Defaulted to 0 so existing rows and
+  // the revenue-only flow are unaffected (expand-contract safe).
+  costDesignMinor      BigInt           @default(0)
+  costCommMinor        BigInt           @default(0)
+  costProductionMinor  BigInt           @default(0)
+  costViaticsMinor     BigInt           @default(0)
+  costPautaMinor       BigInt           @default(0)
+  costFixedMinor       BigInt           @default(0)
+  currency             Currency         @default(ARS)
+  /// What the retainer was DENOMINATED in, when that is not what it is billed in.
+  ///
+  /// A client can be priced in dollars and invoiced in pesos: the studio fixes a rate on
+  /// the first business day and the factura goes out in ARS. So `currency` above stays
+  /// the money this row actually is (ARS), and these three remember where it came from —
+  /// the amount in its original currency and the rate that turned it into this total.
+  ///
+  /// A STAMP, NOT A LINK. The rate is copied here at generation and never re-read. Editing
+  /// the month's rate afterwards moves nothing already generated, because these rows are
+  /// invoiced money: a total that silently changed under an issued factura would be worse
+  /// than a stale one. Correcting a generated cobro is an amount edit, and says so.
+  ///
+  /// All three are null together, on every row billed in its own currency.
+  originalCurrency     Currency?
+  originalAmountMinor  BigInt?
+  /// ARS centavos per 1 unit of `originalCurrency`, as used. 1.234,50 → 123450.
+  fxRateMinor          BigInt?
+  dueDate              DateTime         @db.Date
+  /// When the cash actually arrived. The row carried period, dueDate,
+  /// invoiceIssuedAt and effectiveDate but nothing for the collection itself, so the
+  /// UI was rendering the row's createdAt as its "Fecha de cobro". Latest wins.
+  collectedAt          DateTime?
+  /// WHERE the cash landed. Nullable, and deliberately so: every row written before this
+  /// column existed has no known destination, and inventing one is the defect this
+  /// closes. A collection that names an account moves that account's balance in the same
+  /// transaction — which is what makes the Cashflow Posición stop falling when money
+  /// comes in. One that names none moves nothing, and says so.
+  treasuryAccountId    String?          @db.Uuid
+  status               CollectionStatus @default(pending)
+  /// How the row came to exist: 'manual' (somebody created it) | 'monthly_fee' (the
+  /// month generator turned Client.monthlyFeeMinor into a cobro). This is what makes
+  /// regeneration idempotent: a PARTIAL unique index on (clientId, period) WHERE
+  /// source = 'monthly_fee' AND deletedAt IS NULL, created in migration 0001_init because
+  /// Prisma cannot express a WHERE clause on an index here. Deliberately NOT unique
+  /// over manual rows: two cobros of the same service in one month is a legitimate
+  /// operation (the abono plus an extra job), and forbidding it would break real
+  /// billing to buy an idempotency the generator can get on its own rows alone.
+  source               String           @default("manual")
+  billingStatus        BillingStatus    @default(no_invoice)
+  emitterId            String?          @db.Uuid
+  invoiceNumber        String?
+  cae                  String?
+  invoiceIssuedAt      DateTime?
+  // Monthly-plan fields (Operación mensual): per-client-month review workflow, the
+  // alta/baja effective date, free-text notes, and the itemized extras behind the
+  // extraAmountMinor aggregate ([{ description, amountMinor, billable }]).
+  reviewStatus         String?
+  effectiveDate        DateTime?        @db.Date
+  planNotes            String?
+  extras               Json?
+  version              Int              @default(0)
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  deletedAt            DateTime?
+
+  client          Client           @relation(fields: [clientId], references: [id])
+  emitter         InvoiceEmitter?  @relation(fields: [emitterId], references: [id])
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [id])
+  lines           ReceivableLine[]
+  productions     Production[]
+
+  @@unique([invoiceNumber])
+  @@index([period])
+  @@index([clientId, period])
+  @@index([period, status])
+  // Covers the emitter monthly/annual quota aggregation (issuedMinorInWindow).
+  @@index([emitterId, invoiceIssuedAt])
+  @@index([createdAt])
+  // Declared so `migrate dev` does not read migration 0019's index as drift and emit a
+  // DROP for it into an unrelated migration.
+  @@index([treasuryAccountId])
+}
+
+/// The dollar rate the studio fixes for a month, once.
+///
+/// WHY A TABLE AND NOT A SETTING. Several clients are priced in USD and invoiced in ARS,
+/// at a rate the studio fixes on the first business day of the month. That rate is not
+/// configuration — it is a fact about ONE period, it differs every month, and the cobros
+/// generated under it have to be able to say which number they used. A single workspace
+/// setting would answer "what is the rate" and lose "what was the rate in August".
+///
+/// One row per period, period normalized to the 1st. Re-loading a month's
+/// rate updates that row; it does NOT re-price anything already generated under the old
+/// one (see `Receivable.fxRateMinor`).
+model MonthlyExchangeRate {
+  id             String   @id @default(uuid()) @db.Uuid
+  period         DateTime @db.Date
+  /// ARS centavos per 1 USD. 1.234,50 ARS/USD is stored as 123450, so the conversion is
+  /// integer arithmetic end to end and never a float.
+  arsPerUsdMinor BigInt
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([period])
+}
+
+// Idempotency keys for money-moving endpoints (collect/register). A retry with
+// the same key is a no-op that returns the prior result.
+model IdempotencyKey {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String
+  scope       String
+  createdAt   DateTime @default(now())
+
+  @@unique([scope, key])
+}
+
+// Proveedores (gives providers a stable id instead of name-based de-joins).
+model Provider {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  taxId       String?
+  bankId      String?   @db.Uuid
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
+
+  payments Payment[]
+
+}
+
+// Outgoing-money ledger (mirror of Receivable). recipientRef is polymorphic:
+// teamMemberId for a collaborator/employee, providerId for a provider, neither
+// for fixed_expense/monotributo/platform. `register` applies payment atomically.
+model Payment {
+  id                String        @id @default(uuid()) @db.Uuid
+  recipientType     RecipientType
+  teamMemberId      String?       @db.Uuid
+  providerId        String?       @db.Uuid
+  recipientName     String // display snapshot
+  period            DateTime      @db.Date
+  concept           String
+  totalAmountMinor  BigInt
+  paidAmountMinor   BigInt        @default(0)
+  currency          Currency      @default(ARS)
+  expectedDate      DateTime      @db.Date
+  paymentDate       DateTime?
+  status            PaymentStatus @default(pending)
+  method            String?
+  /// WHERE the cash left from. Same contract as `Receivable.treasuryAccountId`: naming
+  /// an account moves its balance in the same transaction, naming none moves nothing.
+  treasuryAccountId String?       @db.Uuid
+  /// WHICH monotributista this cuota is for. A workspace runs up to three emisores with
+  /// their own limits, so this is what lets a `tax` commitment be superseded by the cuota
+  /// that actually realized it rather than by any monotributo pago of the month.
+  invoiceEmitterId  String?       @db.Uuid
+  version           Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  teamMember      TeamMember?      @relation(fields: [teamMemberId], references: [id])
+  provider        Provider?        @relation(fields: [providerId], references: [id])
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [id])
+  invoiceEmitter  InvoiceEmitter?  @relation(fields: [invoiceEmitterId], references: [id])
+
+  @@index([period])
+  @@index([teamMemberId, period])
+  @@index([providerId, period])
+  @@index([createdAt])
+  // Declared so `migrate dev` does not read the indexes migrations 0019 and 0021 created
+  // in raw SQL as drift and emit a DROP for them into an unrelated migration.
+  @@index([treasuryAccountId])
+  @@index([invoiceEmitterId])
+}
+
+// One pay statement per (member, period) — reconciles the plan amounts
+// (base + productions + viatics + adjustments) into a derived total, tracks the
+// approve→dispatch→confirm lifecycle, and the paid actual. Plan amounts are set
+// explicitly for now (auto-derivation from activity lands with P4).
+model PayoutStatement {
+  id                     String    @id @default(uuid()) @db.Uuid
+  teamMemberId           String    @db.Uuid
+  period                 DateTime  @db.Date
+  baseAmountMinor        BigInt    @default(0)
+  productionsAmountMinor BigInt    @default(0)
+  viaticsAmountMinor     BigInt    @default(0)
+  adjustmentsTotalMinor  BigInt    @default(0)
+  totalAmountMinor       BigInt    @default(0)
+  paidAmountMinor        BigInt    @default(0)
+  // Hours attributed to this member for the period, and the rate the statement
+  // was actually computed at. Both NULLABLE and both meaning "not recorded":
+  // every statement that predates attribution has neither, and the detail must
+  // say so rather than print `0 h` at `$ 0` — a figure nobody worked for.
+  // Recorded only for members paid by the hour; a monthly_fixed member has no
+  // rate to record, so the pair stays null for them by design.
+  hoursTotal             Float?
+  hourlyRateMinor        BigInt?
+  statementStatus        String    @default("draft") // draft|approved|dispatched|confirmed
+  bankId                 String?   @db.Uuid
+  bankProfile            Json? // free-form bank data for the payout ({ bankName, accountHolder, cbuOrCvu, alias })
+  dueDate                DateTime? @db.Date
+  /// The DAY the payout was actually paid, as the operator entered it. Nullable and
+  /// meaning "not recorded": every payout registered before 0020 has none, and the
+  /// detail must say so rather than fall back to createdAt, which is data entry.
+  paidAt                 DateTime? @db.Date
+  /// WHERE the payout left from. Same contract as `Payment.treasuryAccountId`: naming an
+  /// account moves its balance in the same transaction, naming none moves nothing. Payroll
+  /// is usually the month's largest outflow and until 0021 it moved no balance at all.
+  treasuryAccountId      String?   @db.Uuid
+  approvedAt             DateTime?
+  approvedByUserId       String?   @db.Uuid
+  version                Int       @default(0)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  teamMember      TeamMember       @relation(fields: [teamMemberId], references: [id])
+  adjustments     TeamAdjustment[]
+  treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [id])
+
+  @@unique([teamMemberId, period])
+  @@index([createdAt])
+  // Declared so `migrate dev` does not read migration 0021's index as drift and emit a
+  // DROP for it into an unrelated migration.
+  @@index([treasuryAccountId])
+}
+
+// A line behind payout adjustments/deductions. amountMinor may be negative.
+model TeamAdjustment {
+  id                String   @id @default(uuid()) @db.Uuid
+  payoutStatementId String   @db.Uuid
+  description       String
+  amountMinor       BigInt
+  createdAt         DateTime @default(now())
+
+  statement PayoutStatement @relation(fields: [payoutStatementId], references: [id])
+
+  @@index([payoutStatementId])
+}
+
+// The monthly close aggregate root. One per period 'YYYY-MM'.
+// While open, per-client cobro / per-member pago actuals are DERIVED at read
+// time from Receivable/Payment; closing BAKES them into an immutable snapshot.
+model MonthRecord {
+  id             String      @id @default(uuid()) @db.Uuid
+  period         String // 'YYYY-MM'
+  label          String
+  status         MonthStatus @default(draft)
+  checklist      Json? // the 12 closing-checklist booleans, keyed by ChecklistItemId
+  closedAt       DateTime?
+  closedByUserId String?     @db.Uuid
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  snapshots MonthSnapshot[]
+
+  @@unique([period])
+}
+
+// Immutable, versioned freeze taken at each close (reopen→reclose appends a new
+// version). `bakedActuals` holds the derived cobro/pago actuals at close time.
+model MonthSnapshot {
+  id              String   @id @default(uuid()) @db.Uuid
+  monthRecordId   String   @db.Uuid
+  version         Int
+  bakedActuals    Json
+  createdAt       DateTime @default(now())
+  createdByUserId String?  @db.Uuid
+
+  month MonthRecord @relation(fields: [monthRecordId], references: [id])
+
+  @@unique([monthRecordId, version])
+}
+
+// A production/deliverable logged in the monthly operation. clientId null = no client
+// (a close blocker). Money in minor units; hours as a plain number.
+model Production {
+  id              String    @id @default(uuid()) @db.Uuid
+  period          DateTime  @db.Date
+  date            DateTime  @db.Date
+  clientId        String?   @db.Uuid
+  clientName      String?
+  title           String
+  type            String
+  // Legacy free-text attribution, kept in sync with `participantLinks` below.
+  // These are display snapshots: a name here matches nobody in particular, which
+  // is why hours could never be attributed to a person before ProductionParticipant.
+  responsible     String?
+  participants    Json? // string[] of collaborator names
+  hours           Float     @default(0)
+  viaticsMinor    BigInt    @default(0)
+  totalCostMinor  BigInt    @default(0)
+  billable        String? // internal | billable | both | null
+  /// What the client is charged for this production. When the production is linked to
+  /// a `per_production` service line (`clientServiceId`), this is in the CLIENT's
+  /// contract currency, like the line's price it was prefilled from, and the month
+  /// generator converts it alongside the retainer lines.
+  billAmountMinor BigInt?
+  status          String    @default("pending") // pending | approved | invoiced
+  notes           String?
+  /// The client's `per_production` service this production is billed under. Only a
+  /// linked production is picked up by the month generator; an unlinked one keeps the
+  /// old behaviour (shown in Operación mensual, never billed).
+  clientServiceId String?   @db.Uuid
+  /// The cobro that billed this production — the billed marker. Set by the generator
+  /// together with `status = 'invoiced'`, cleared (and status back to 'approved') when that
+  /// cobro is cancelled. A production carrying it cannot be edited or deleted: its amount
+  /// is part of a cobro's base.
+  receivableId    String?   @db.Uuid
+  version         Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  /// Who coordinated the production — the planilla's "Account Manager". A coordinator,
+  /// NOT a worker: never an attribution row, so it never reaches a liquidación.
+  accountManagerId String?   @db.Uuid
+  /// The day the viático was reimbursed to whoever spent it. Null = still owed. HOLD
+  /// pays viáticos weekly, often after the month closes, so this field is writable on a
+  /// closed month and on a billed production (see `markViaticsPaid`).
+  viaticsPaidAt    DateTime? @db.Date
+  /// The viático's receipt: a Drive link or the file's name, as the planilla carried it.
+  /// Text, not a file — the app stores no uploads.
+  receipt          String?
+  /// How many of `hours` the per-hour line's included hours covered this month
+  /// (`production-pack.ts`). `billAmountMinor` bills only the rest.
+  packHours        Float     @default(0)
+
+  participantLinks ProductionParticipant[]
+  accountManager   TeamMember?    @relation(fields: [accountManagerId], references: [id])
+  clientService    ClientService? @relation(fields: [clientServiceId], references: [id])
+  receivable       Receivable?    @relation(fields: [receivableId], references: [id])
+
+  @@index([period])
+  @@index([clientId, period])
+  @@index([clientServiceId])
+  @@index([receivableId])
+}
+
+/// Who worked a production, by id — the join that lets a liquidación state real
+/// hours. Before this table, attribution lived only in `Production.responsible`
+/// and `Production.participants` as free-text names, so hours could not be tied
+/// to a person and every hours figure on a payment screen was invented.
+model ProductionParticipant {
+  id           String   @id @default(uuid()) @db.Uuid
+  productionId String   @db.Uuid
+  teamMemberId String   @db.Uuid
+  // Hours this person put into this production. NULLABLE, and null means
+  // UNKNOWN — never zero. Rows backfilled from the legacy name strings carry
+  // null because the per-person split was never recorded; reading that as 0
+  // would silently deflate a member's hours instead of reporting missing data.
+  hours        Float?
+  role         String   @default("participant") // responsible | participant
+  createdAt    DateTime @default(now())
+
+  production Production @relation(fields: [productionId], references: [id], onDelete: Cascade)
+  teamMember TeamMember @relation(fields: [teamMemberId], references: [id])
+
+  @@unique([productionId, teamMemberId])
+  @@index([teamMemberId])
+  @@index([productionId])
+}
+
+// Hours a team member logged against a client (Cargar horas). Denormalized clientName
+// like Production, and no declared relations.
+model TimeEntry {
+  id             String    @id @default(uuid()) @db.Uuid
+  teamMemberId   String    @db.Uuid
+  clientId       String?   @db.Uuid
+  clientName     String?
+  taskType       String    @default("general")
+  date           DateTime  @db.Date
+  hours          Float
+  description    String?
+  isOutOfScope   Boolean   @default(false)
+  // Who recorded it — the member self-logging or a manager on their behalf.
+  loggedByUserId String?   @db.Uuid
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+
+  @@index([teamMemberId])
+  @@index([date])
+}
+
+// An in-app notice for ONE user. Written inline by the action that caused it (a month
+// closed, a payment approved, a statement sent) — there is no scheduler and no email;
+// the user sees it inside the app and marks it read. `entityType`/`entityId` let the
+// notice link back to what it is about.
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  /// The recipient. One row per user, so "read" is per person and never shared.
+  userId      String    @db.Uuid
+  /// Event key (matches the preference keys): month.closed | payment.approved | statement.sent
+  type        String
+  title       String
+  body        String?
+  entityType  String?
+  entityId    String?   @db.Uuid
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+// A member's viático — a standalone expense-reimbursement record (NOT a fixed
+// operating cost; that is FixedExpense). Denormalized client like TimeEntry,
+// no hard relation. Money in minor units.
+model MemberExpense {
+  id             String    @id @default(uuid()) @db.Uuid
+  teamMemberId   String    @db.Uuid
+  clientId       String?   @db.Uuid
+  clientName     String?
+  date           DateTime  @db.Date
+  concept        String
+  amountMinor    BigInt
+  // pending | approved. Lifecycle carried for parity with extra work; approval
+  // does not yet feed the liquidación (a later, deliberate integration).
+  status         String    @default("pending")
+  notes          String?
+  loggedByUserId String?   @db.Uuid
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+
+  @@index([teamMemberId])
+  @@index([date])
+}
+
+// A member's extra work — hours and/or an amount beyond the plan, with a
+// pending→approved lifecycle. Approval records the state only; it does not yet
+// post to the payout (integration deferred by product decision).
+model MemberExtraWork {
+  id               String    @id @default(uuid()) @db.Uuid
+  teamMemberId     String    @db.Uuid
+  clientId         String?   @db.Uuid
+  clientName       String?
+  date             DateTime  @db.Date
+  description      String
+  hours            Float?
+  amountMinor      BigInt
+  status           String    @default("pending")
+  approvedByUserId String?   @db.Uuid
+  loggedByUserId   String?   @db.Uuid
+  createdAt        DateTime  @default(now())
+  deletedAt        DateTime?
+
+  @@index([teamMemberId])
+  @@index([date])
+}
+
+// A fixed expense in the monthly operation (per-month list).
+model FixedExpense {
+  id                   String    @id @default(uuid()) @db.Uuid
+  period               DateTime  @db.Date
+  concept              String
+  category             String    @default("other")
+  amountMinor          BigInt    @default(0)
+  recurrence           String    @default("monthly") // monthly | one_time | quarterly | annual
+  responsible          String?
+  monotributo          String?
+  payStatus            String    @default("pending") // paid | pending
+  affectsProfitability Boolean   @default(true)
+  notes                String?
+  version              Int       @default(0)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  deletedAt            DateTime?
+
+  @@index([period])
+}
+
+// An operational alert surfaced in the monthly operation.
+model MonthlyAlert {
+  id          String    @id @default(uuid()) @db.Uuid
+  period      DateTime  @db.Date
+  severity    String // critical | high | medium | low
+  type        String // cobros | facturacion | equipo | rentabilidad | comercial | arca
+  entity      String
+  description String
+  responsible String?
+  status      String    @default("open") // open | in_progress | resolved
+  version     Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  @@index([period])
+}
+
+// Treasury cash account. Per-lane balances (minor units) are NEVER converted into each
+// other. Reserve vs operating split by isReserve. `version` is enforced (optimistic
+// concurrency) on edits.
+//
+// A fund account (FIMA and the like) is an account of `type = "investment"` holding a PESO
+// balance. It used to hold a third `balanceFci` lane counting cuotapartes, which made a
+// Fondo Común look like a currency — see 0028 and `ai/reference/product-context.md` § 9.
+model TreasuryAccount {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String
+  partner         TreasuryPartner @default(shared)
+  type            String          @default("bank") // bank | cash | investment
+  balanceArsMinor BigInt          @default(0)
+  balanceUsdMinor BigInt          @default(0)
+  isReserve       Boolean         @default(false)
+  note            String?
+  isActive        Boolean         @default(true)
+  version         Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  movements        TreasuryMovement[]
+  receivables      Receivable[]
+  payments         Payment[]
+  payoutStatements PayoutStatement[]
+
+  @@index([isActive])
+}
+
+/// What moved a treasury account's balance.
+///
+/// The balance column IS the balance — a manual edit still overwrites it, because
+/// reconciling against the bank is the operator's prerogative. This is the audit trail
+/// of every automatic movement, so a delta between two readings is never unexplained and
+/// the Cashflow can say "cobros y pagos desde el saldo que cargaste" instead of showing a
+/// number that changed for reasons nobody can reconstruct.
+///
+/// Append-only: a correction is a new movement, never an edit of an old one.
+model TreasuryMovement {
+  id              String   @id @default(uuid()) @db.Uuid
+  accountId       String   @db.Uuid
+  /// The calendar day the money moved — the settlement date the operator entered, not
+  /// the moment the row was written.
+  date            DateTime @db.Date
+  /// inflow | outflow.
+  direction       String
+  /// Which lane of the account moved: ARS | USD — every lane `Currency` has.
+  lane            String   @default("ARS")
+  amountMinor     BigInt
+  description     String
+  /// receivable | payment — what caused it.
+  referenceType   String?
+  referenceId     String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  createdByUserId String?  @db.Uuid
+
+  account TreasuryAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, date])
+  @@index([referenceType, referenceId])
+}
+
+// Forward register for the cashflow projection. `linkedEntityId` ties a derived
+// item to its source (FixedExpense/TeamMember/Client); manual items have none.
+model CommittedItem {
+  id               String    @id @default(uuid()) @db.Uuid
+  description      String
+  direction        String // inflow | outflow
+  amountMinor      BigInt
+  currency         Currency  @default(ARS)
+  category         String?
+  recurrence       String    @default("one_time") // one_time | weekly | monthly
+  startDate        DateTime  @db.Date
+  endDate          DateTime? @db.Date
+  anchorDay        Int       @default(1) // 1..28
+  confidence       String    @default("expected")
+  source           String    @default("manual") // manual | derived
+  linkedEntityType String?
+  linkedEntityId   String?   @db.Uuid
+  observations     String?
+  isActive         Boolean   @default(true)
+  version          Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  @@index([isActive])
+  @@index([linkedEntityType, linkedEntityId])
+}
+
+// Cuentas corrientes — a persisted APPEND-ONLY ledger. Each money operation
+// emits an entry in the SAME transaction (so the ledger can't drift from the
+// canonical stores). Rows are never updated/deleted; corrections are reversing
+// entries. `balanceMinor` is the running balance after the entry (debit −
+// credit, cumulative) for that (entityType, entityId); appends are serialized
+// per account via a transaction advisory lock. `seq` gives a deterministic order.
+model LedgerEntry {
+  id              String          @id @default(uuid()) @db.Uuid
+  seq             Int             @default(autoincrement())
+  entityType      String // client | teamMember | provider
+  entityId        String          @db.Uuid
+  period          DateTime        @db.Date
+  type            LedgerEntryType
+  referenceType   String?
+  referenceId     String?         @db.Uuid
+  invoiceNumber   String?
+  description     String
+  debitMinor      BigInt          @default(0)
+  creditMinor     BigInt          @default(0)
+  balanceMinor    BigInt
+  /// The lane. `balanceMinor` above is the running total for (entityType, entityId,
+  /// currency), never across lanes: a pago in dollars used to net against a peso
+  /// balance because there was no slot to record the lane in.
+  currency        Currency        @default(ARS)
+  reversesEntryId String?         @db.Uuid
+  date            DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  createdByUserId String?         @db.Uuid
+
+  @@index([entityType, entityId, seq])
+  // Declared as well as created in SQL: an index a migration adds but the schema does
+  // not name gets DROPped by the next `migrate dev`.
+  @@index([entityType, entityId, currency, seq])
+}
+
+// Append-only audit trail — the source for "última actividad", attribution and
+// history across money-moving and config operations. Replaces per-row
+// lastActivity* overwrites.
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorUserId String?  @db.Uuid
+  entityType  String
+  entityId    String
+  action      String
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
+  @@index([createdAt])
+}

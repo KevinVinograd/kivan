@@ -1,0 +1,71 @@
+/* ─── Semantic Status (badge / pill) Tokens ───
+   Component-scoped chrome AND color for the Status pill (Badge).
+
+   Dimensions (fontSize / fontWeight / paddingX / borderRadius) are
+   theme-independent.
+
+   Color is OWNED here (not pulled from the shared semantic bg/fg families) so the
+   pill controls its own subtle/emphasis treatment WITHOUT affecting buttons /
+   alerts that consume `bg-*-subtle` / `bg-*-emphasis`:
+     - subtle   = tinted fill + themed text (`--status-subtle-fg` flips per theme);
+                  the dark fill deepens to the ramp floor so it recedes.
+     - emphasis = THEME-INDEPENDENT deep fill + fixed text (white; warning uses a
+                  dark ink because its fill is light) — a strong, consistent
+                  high-contrast look in both light and dark.
+
+   Exposed as `status-chrome` (dims) + `status-{tone}-{subtle|emphasis}` (color)
+   utilities, consumed by badge.tsx.
+   ────────────────────────────────────────────── */
+
+:root {
+  /* ── Dimensions (theme-independent) ── */
+  --status-font-size: 0.75rem;   /* 12px — fontSize.xs */
+  --status-font-weight: var(--font-weight-medium); /* 500 — medium */
+  --status-padding-x: 0.375rem;  /* 6px  — 2px more per side than spacing.050 for label breathing room */
+  --status-border-radius: 0.125rem; /* 2px — borderRadius.025 */
+
+  /* ── Subtle (highContrast off) — tinted fill, themed text ── */
+  --status-subtle-fg: var(--fg-default);
+  --status-neutral-subtle-bg: var(--gray-200);
+  --status-success-subtle-bg: var(--green-100);
+  --status-warning-subtle-bg: var(--yellow-200);
+  --status-danger-subtle-bg:  var(--red-100);
+
+  /* ── Emphasis (highContrast on) — theme-INDEPENDENT deep fill + fixed text ── */
+  --status-emphasis-fg: var(--white);
+  --status-neutral-emphasis-bg: var(--gray-1200);
+  --status-success-emphasis-bg: var(--green-800);
+  --status-warning-emphasis-bg: var(--yellow-600);
+  --status-warning-emphasis-fg: var(--ink-900); /* warning fill is light → dark ink (both themes) */
+  --status-danger-emphasis-bg:  var(--red-900);
+}
+
+/* Dark: only the subtle fills deepen (to the ramp floor) so they recede below the
+   theme-independent emphasis. Subtle text flips automatically via --fg-default. */
+:root[data-theme="dark"] {
+  --status-neutral-subtle-bg: var(--gray-1400);
+  /* Below the ramp floor: a muted, desaturated wash (the neutral dark surface
+     shows through via color-mix) so the subtle chip recedes instead of reading as
+     a still-saturated fill. Light stays the solid pale tint. */
+  --status-success-subtle-bg: color-mix(in srgb, var(--green-800) 30%, transparent);
+  --status-warning-subtle-bg: color-mix(in srgb, var(--yellow-700) 38%, transparent);
+  --status-danger-subtle-bg:  color-mix(in srgb, var(--red-900) 30%, transparent);
+}
+
+@utility status-chrome {
+  font-size: var(--status-font-size);
+  font-weight: var(--status-font-weight);
+  padding-inline: var(--status-padding-x);
+  border-radius: var(--status-border-radius);
+}
+
+/* Tone colors — each utility sets exactly one background + one text colour from
+   the paired tokens (never layered, so twMerge conflicts can't arise). */
+@utility status-neutral-subtle { background-color: var(--status-neutral-subtle-bg); color: var(--status-subtle-fg); }
+@utility status-success-subtle { background-color: var(--status-success-subtle-bg); color: var(--status-subtle-fg); }
+@utility status-warning-subtle { background-color: var(--status-warning-subtle-bg); color: var(--status-subtle-fg); }
+@utility status-danger-subtle  { background-color: var(--status-danger-subtle-bg);  color: var(--status-subtle-fg); }
+@utility status-neutral-emphasis { background-color: var(--status-neutral-emphasis-bg); color: var(--status-emphasis-fg); }
+@utility status-success-emphasis { background-color: var(--status-success-emphasis-bg); color: var(--status-emphasis-fg); }
+@utility status-warning-emphasis { background-color: var(--status-warning-emphasis-bg); color: var(--status-warning-emphasis-fg); }
+@utility status-danger-emphasis  { background-color: var(--status-danger-emphasis-bg);  color: var(--status-emphasis-fg); }

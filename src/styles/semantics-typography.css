@@ -1,0 +1,222 @@
+/* ─── Semantic Typography Tokens ───
+   Primitive scales (font-family, font-size, weight, line-height, letter-spacing)
+   consumed by the composite `type-*` utilities below. Product code uses the
+   composites, not the primitives.
+
+   Canonical typescale (role-based — pick by role, never by pixel size):
+     type-hero      52 / 56 / 700 / -0.03em   pre-auth / splash hero title (largest)
+     type-metric    52 / 60 / 700 / -0.02em   in-app hero figure — the single focal metric of a view (responsive: 34/40/52 by viewport)
+     type-display   32 / 40 / 700 / -0.03em   highest-level / product titles
+     type-headline  24 / 36 / 700 / -0.02em   page-level titles
+     type-section   20 / 24 / 700 / -0.02em   section-level titles
+     type-heading   16 / 24 / 700 / -0.01em   component-level titles
+     type-body      16 / 24 / 400 / 0          primary content
+     type-body-2    14 / 20 / 400 / 0          secondary content
+     type-mono      16 / 24 / 400 / 0          numeric / data-heavy content
+     type-mono-2    14 / 20 / 400 / 0          smaller numeric / data content
+     type-button    14 / 16 / 600 / 0          interactive text (controls)
+     type-caption   12 / 16 / 400 / 0          auxiliary text
+
+   Title utilities use the brand display family (--font-family-display: Space
+   Grotesk, falling back to Inter). Content, data, and control utilities use Inter
+   (set globally on body in theme.css). mono is a ROLE token for numeric/data
+   content, not a separate typeface — it intentionally shares Inter and the body /
+   body-2 metrics while carrying a distinct role.
+   ────────────────────────────────────────────── */
+
+:root {
+  /* Font Family */
+  --font-family-default: 'Inter', sans-serif;
+  --font-family-display: 'Space Grotesk', 'Inter', sans-serif; /* brand display family — titles */
+
+  /* Font Size (px) */
+  --font-size-4xl: 52px;
+  --font-size-3xl: 32px;
+  --font-size-2xl: 24px;
+  --font-size-xl: 20px;
+  --font-size-md: 16px;
+  --font-size-sm: 14px;
+  --font-size-xs: 12px;
+
+  /* Font Weight */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Height (px) */
+  --line-height-4xl: 60px;
+  --line-height-3xl: 56px;
+  --line-height-2xl: 40px;
+  --line-height-xl: 36px;
+  --line-height-lg: 24px;
+  --line-height-md: 20px;
+  --line-height-sm: 16px;
+
+  /* Letter Spacing (em — percentage-of-font-size from the typescale spec) */
+  --letter-spacing-tight-3: -0.03em; /* -3% */
+  --letter-spacing-tight-2: -0.02em; /* -2% */
+  --letter-spacing-tight-1: -0.01em; /* -1% */
+  --letter-spacing-none: 0em;        /*  0% */
+}
+
+/* ─── Title + Hero-figure Utilities ───
+   hero / metric / display / headline / section / heading. Each renders in the
+   brand display family (var(--font-family-display) — Space Grotesk, fallback
+   Inter) and bakes weight (bold, 700) and letter-spacing — hierarchy comes from
+   the token level, never from a caller adding weight or size. Do NOT add
+   font-bold / font-semibold to these.
+
+   type-hero is the single largest title, reserved for the pre-auth / splash
+   surface (login). It sits above type-display; do not use it inside the app.
+
+   type-metric is its in-app counterpart, the single focal FIGURE of a view (a KPI's
+   hero number — money / percent / count). Exactly one per viewport. It is a
+   data-figure role, not a title — pair it with the semantic state tokens
+   (fg-success / fg-warning / fg-danger) and tabular-nums, never a caller-added
+   weight. Distinct from type-hero by leading and tracking (-2% vs -3%).
+
+   RESPONSIVE FIGURE RAMP. type-metric / type-metric-2 are the only responsive
+   type-* tokens: the figure is prudent where space is tight and reaches full size
+   only at the wide desktop tier (desktop: — 1440px / 90rem, the density ramp's
+   comfortable width; see theme.css --breakpoint-desktop). Steps (font / leading):
+     type-metric    34/40  (mobile) → 40/44  (md, tablet+laptop) → 52/60  (desktop:)
+     type-metric-2  24/28  (mobile) → 28/36  (md, tablet+laptop) → 32/40  (desktop:)
+   The two smaller steps are responsive steps for THESE figure tokens only, NOT
+   canonical typescale levels — never pick 34/40/28px from a type-* decision. The
+   desktop tier references the canonical 4xl/3xl primitives (unchanged 52/32). The
+   hero (type-metric) stays larger than the supporting figure (type-metric-2) at
+   every tier, so the rank invariant holds at all widths.
+   ────────────────────────────────────────────── */
+
+@utility type-hero {
+  font-family: var(--font-family-display);     /* Space Grotesk */
+  font-size: var(--font-size-4xl);             /* 52px */
+  line-height: var(--line-height-3xl);         /* 56px */
+  font-weight: var(--font-weight-bold);        /* 700 */
+  letter-spacing: var(--letter-spacing-tight-3); /* -3% */
+}
+
+@utility type-metric {
+  font-family: var(--font-family-display);       /* Space Grotesk */
+  font-size: 34px;                               /* mobile — responsive step */
+  line-height: 40px;
+  font-weight: var(--font-weight-bold);          /* 700 */
+  letter-spacing: var(--letter-spacing-tight-2); /* -2% */
+
+  @media (min-width: 768px) {                    /* md — tablet / laptop */
+    font-size: 40px;                             /* responsive step */
+    line-height: 44px;
+  }
+  @media (min-width: 90rem) {                    /* desktop: (1440px) — full size */
+    font-size: var(--font-size-4xl);             /* 52px */
+    line-height: var(--line-height-4xl);         /* 60px */
+  }
+}
+
+/* type-metric-2 is the in-app SUPPORTING-KPI figure (data role, not a title):
+   the secondary KPI figures in a summary card's grid, below the one type-metric
+   hero. The 32px (desktop) numeric counterpart of type-display — same display
+   family and size, but figure tracking (-2%, matching type-metric) and a NUMERIC
+   role. Shares the responsive figure ramp above (24/28/32 by viewport). */
+@utility type-metric-2 {
+  font-family: var(--font-family-display);       /* Space Grotesk */
+  font-size: 24px;                               /* mobile — responsive step */
+  line-height: 28px;
+  font-weight: var(--font-weight-bold);          /* 700 */
+  letter-spacing: var(--letter-spacing-tight-2); /* -2% */
+
+  @media (min-width: 768px) {                    /* md — tablet / laptop */
+    font-size: 28px;                             /* responsive step */
+    line-height: 36px;
+  }
+  @media (min-width: 90rem) {                    /* desktop: (1440px) — full size */
+    font-size: var(--font-size-3xl);             /* 32px */
+    line-height: var(--line-height-2xl);         /* 40px */
+  }
+}
+
+@utility type-display {
+  font-family: var(--font-family-display);     /* Space Grotesk */
+  font-size: var(--font-size-3xl);             /* 32px */
+  line-height: var(--line-height-2xl);         /* 40px */
+  font-weight: var(--font-weight-bold);        /* 700 */
+  letter-spacing: var(--letter-spacing-tight-3); /* -3% */
+}
+
+@utility type-headline {
+  font-family: var(--font-family-display);     /* Space Grotesk */
+  font-size: var(--font-size-2xl);             /* 24px */
+  line-height: var(--line-height-xl);          /* 36px */
+  font-weight: var(--font-weight-bold);        /* 700 */
+  letter-spacing: var(--letter-spacing-tight-2); /* -2% */
+}
+
+@utility type-section {
+  font-family: var(--font-family-display);     /* Space Grotesk */
+  font-size: var(--font-size-xl);              /* 20px */
+  line-height: var(--line-height-lg);          /* 24px */
+  font-weight: var(--font-weight-bold);        /* 700 */
+  letter-spacing: var(--letter-spacing-tight-2); /* -2% */
+}
+
+@utility type-heading {
+  font-family: var(--font-family-display);     /* Space Grotesk */
+  font-size: var(--font-size-md);              /* 16px */
+  line-height: var(--line-height-lg);          /* 24px */
+  font-weight: var(--font-weight-bold);        /* 700 */
+  letter-spacing: var(--letter-spacing-tight-1); /* -1% */
+}
+
+/* ─── Content + Data Utilities ───
+   body / body-2 / mono / mono-2 / caption. Weight is intentionally NOT baked:
+   400 is the inherited default, and omitting it keeps the sanctioned
+   in-content emphasis path (`font-semibold` / `font-medium` on selected
+   snippets / highlighted data values) working. Do NOT use these to create
+   hierarchy — that is what the title utilities are for.
+   ────────────────────────────────────────────── */
+
+@utility type-body {
+  font-size: var(--font-size-md);          /* 16px */
+  line-height: var(--line-height-lg);      /* 24px */
+  letter-spacing: var(--letter-spacing-none);
+}
+
+@utility type-body-2 {
+  font-size: var(--font-size-sm);          /* 14px */
+  line-height: var(--line-height-md);      /* 20px */
+  letter-spacing: var(--letter-spacing-none);
+}
+
+@utility type-mono {
+  font-size: var(--font-size-md);          /* 16px */
+  line-height: var(--line-height-lg);      /* 24px */
+  letter-spacing: var(--letter-spacing-none);
+}
+
+@utility type-mono-2 {
+  font-size: var(--font-size-sm);          /* 14px */
+  line-height: var(--line-height-md);      /* 20px */
+  letter-spacing: var(--letter-spacing-none);
+}
+
+@utility type-caption {
+  font-size: var(--font-size-xs);          /* 12px */
+  line-height: var(--line-height-sm);      /* 16px */
+  letter-spacing: var(--letter-spacing-none);
+}
+
+/* ─── Control Utility ───
+   button — all interactive text (buttons, nav items, tabs, dropdown items,
+   inline actions, form labels, pagination). Weight is component-defined
+   (semibold, 600) and baked in. Controls MUST NOT add a custom weight on top
+   of this. Inline text links are content, not controls: they use type-body /
+   type-body-2 at regular (400) weight with fg-link + underline, never this.
+   ────────────────────────────────────────────── */
+
+@utility type-button {
+  font-size: var(--font-size-sm);            /* 14px */
+  line-height: var(--line-height-sm);        /* 16px */
+  font-weight: var(--font-weight-semibold);  /* 600 */
+  letter-spacing: var(--letter-spacing-none);
+}

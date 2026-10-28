@@ -1,0 +1,168 @@
+/* ─── Semantic Border (border) Tokens ───
+   Maps intent-based names to primitive color variables.
+   Usage: `border-alpha-subtle`, `border-primary-emphasis`, etc.
+
+   Theme model: light values live in `:root`; dark overrides live in the
+   `[data-theme="dark"]` block. The `@theme inline` + `@utility` layer is
+   theme-independent.
+
+   Grouping (canonical order):
+     1. Alpha — neutral borders, transparent + disabled state
+     2. Primary — brand (neutral)
+     3. Semantics — success / warning / danger
+     4. Accent — 13 chromatic sub-tones
+     5. Data — 13 chromatic mid-tones (theme-independent)
+   ────────────────────────────────────────────── */
+
+:root {
+  /* ── 1. Alpha (incl. transparent) ── */
+  --border-alpha-transparent: transparent;
+  --border-alpha-subtle: var(--ink-200);
+  --border-alpha-subtle-hover: var(--ink-300);
+  --border-alpha-subtle-active: var(--ink-400);
+  --border-alpha-emphasis: var(--ink-600);
+  --border-alpha-emphasis-hover: var(--ink-700);
+  --border-alpha-emphasis-active: var(--ink-800);
+  --border-alpha-disabled: var(--ink-100);
+
+  /* ── 2. Primary (neutral brand) ── */
+  --border-primary-subtle: var(--gray-200);
+  --border-primary-emphasis: var(--gray-1800);
+
+  /* ── 3. Semantics ── */
+  --border-success-subtle: var(--green-100);
+  --border-success-emphasis: var(--green-800);
+  --border-warning-subtle: var(--yellow-100);
+  --border-warning-emphasis: var(--yellow-600);
+  --border-danger-subtle: var(--red-100);
+  --border-danger-emphasis: var(--red-800);
+
+  /* ── 4. Accent — 13 chromatic border tones, paired with bg-accent-{color}-subtle. ── */
+  --border-accent-blue:    var(--blue-800);
+  --border-accent-red:     var(--red-800);
+  --border-accent-orange:  var(--orange-900);
+  --border-accent-yellow:  var(--yellow-800);
+  --border-accent-navy:    var(--navy-1000);
+  --border-accent-green:   var(--green-800);
+  --border-accent-gray:    var(--gray-1200);
+  --border-accent-aqua:    var(--aqua-800);
+  --border-accent-emerald: var(--emerald-800);
+  --border-accent-purple:  var(--purple-800);
+  --border-accent-pink:    var(--pink-900);
+  --border-accent-beige:   var(--beige-800);
+  --border-accent-forest:  var(--forest-800);
+
+  /* ── 5. Data — SINGLE-TONE borders at primitive -700 (theme-independent). ── */
+  --border-data-blue:    var(--blue-700);
+  --border-data-red:     var(--red-700);
+  --border-data-orange:  var(--orange-700);
+  --border-data-yellow:  var(--yellow-700);
+  --border-data-navy:    var(--navy-700);
+  --border-data-green:   var(--green-700);
+  --border-data-gray:    var(--gray-700);
+  --border-data-aqua:    var(--aqua-700);
+  --border-data-emerald: var(--emerald-700);
+  --border-data-purple:  var(--purple-700);
+  --border-data-pink:    var(--pink-700);
+  --border-data-beige:   var(--beige-700);
+  --border-data-forest:  var(--forest-700);
+
+  /* ── Data semantic state — single-tone (-700) raw vars for taxonomy + direct
+     CSS reference. The unified `--color-data-{state}` entries in
+     semantics-bg.css § 5 cover the `border-data-{state}` utilities. ── */
+  --border-data-success: var(--green-700);
+  --border-data-warning: var(--yellow-700);
+  --border-data-danger:  var(--red-700);
+  --border-data-neutral: var(--gray-700);
+}
+
+:root[data-theme="dark"] {
+  /* ── 1. Alpha — invert ink → inkReverse ── */
+  --border-alpha-subtle: var(--ink-reverse-200);
+  --border-alpha-subtle-hover: var(--ink-reverse-300);
+  --border-alpha-subtle-active: var(--ink-reverse-400);
+  --border-alpha-emphasis: var(--ink-reverse-600);
+  --border-alpha-emphasis-hover: var(--ink-reverse-700);
+  --border-alpha-emphasis-active: var(--ink-reverse-800);
+  --border-alpha-disabled: var(--ink-reverse-100);
+
+  /* ── 2. Primary — neutral brand INVERTED for dark (mirrors bg-primary-emphasis) ── */
+  --border-primary-subtle: var(--gray-1500);
+  --border-primary-emphasis: var(--gray-100);
+
+  /* ── 3. Semantics ── */
+  --border-success-subtle: var(--green-1000);
+  --border-success-emphasis: var(--green-400);
+  --border-warning-subtle: var(--yellow-900);
+  /* warning intentionally keeps no dark override — it inherits the light
+     yellow-600, the muted mustard we want in dark too. */
+  --border-danger-subtle: var(--red-1000);
+  --border-danger-emphasis: var(--red-500);
+
+  /* ── 4. Accent — lighter chromatic steps for dark surfaces ── */
+  --border-accent-blue:    var(--blue-600);
+  --border-accent-red:     var(--red-300);
+  --border-accent-orange:  var(--orange-300);
+  --border-accent-yellow:  var(--yellow-400);
+  --border-accent-navy:    var(--navy-500);
+  --border-accent-green:   var(--green-400);
+  --border-accent-gray:    var(--gray-600);
+  --border-accent-aqua:    var(--aqua-400);
+  --border-accent-emerald: var(--emerald-500);
+  --border-accent-purple:  var(--purple-400);
+  --border-accent-pink:    var(--pink-200);
+  --border-accent-beige:   var(--beige-400);
+  --border-accent-forest:  var(--forest-400);
+}
+
+@theme inline {
+  /* ── 1. Alpha (incl. transparent) ── */
+  --color-border-alpha-transparent: var(--border-alpha-transparent);
+  --color-border-alpha-subtle: var(--border-alpha-subtle);
+  --color-border-alpha-subtle-hover: var(--border-alpha-subtle-hover);
+  --color-border-alpha-subtle-active: var(--border-alpha-subtle-active);
+  --color-border-alpha-emphasis: var(--border-alpha-emphasis);
+  --color-border-alpha-emphasis-hover: var(--border-alpha-emphasis-hover);
+  --color-border-alpha-emphasis-active: var(--border-alpha-emphasis-active);
+  --color-border-alpha-disabled: var(--border-alpha-disabled);
+
+  /* ── 2. Primary ── */
+  --color-border-primary-subtle: var(--border-primary-subtle);
+  --color-border-primary-emphasis: var(--border-primary-emphasis);
+
+  /* ── 3. Semantics ── */
+  --color-border-success-subtle: var(--border-success-subtle);
+  --color-border-success-emphasis: var(--border-success-emphasis);
+  --color-border-warning-subtle: var(--border-warning-subtle);
+  --color-border-warning-emphasis: var(--border-warning-emphasis);
+  --color-border-danger-subtle: var(--border-danger-subtle);
+  --color-border-danger-emphasis: var(--border-danger-emphasis);
+
+  /* ── 4. Accent ── */
+  --color-border-accent-blue:    var(--border-accent-blue);
+  --color-border-accent-red:     var(--border-accent-red);
+  --color-border-accent-orange:  var(--border-accent-orange);
+  --color-border-accent-yellow:  var(--border-accent-yellow);
+  --color-border-accent-navy:    var(--border-accent-navy);
+  --color-border-accent-green:   var(--border-accent-green);
+  --color-border-accent-gray:    var(--border-accent-gray);
+  --color-border-accent-aqua:    var(--border-accent-aqua);
+  --color-border-accent-emerald: var(--border-accent-emerald);
+  --color-border-accent-purple:  var(--border-accent-purple);
+  --color-border-accent-pink:    var(--border-accent-pink);
+  --color-border-accent-beige:   var(--border-accent-beige);
+  --color-border-accent-forest:  var(--border-accent-forest);
+
+  /* ── 5. Data ── intentionally omitted from @theme inline.
+       The unified `--color-data-{color}` and `--color-data-{state}` entries in
+       semantics-bg.css § 5 cover `border-data-{color}` / `border-data-{state}`
+       too. The `--border-data-*` raw vars above remain for taxonomy + direct
+       CSS reference. */
+}
+
+/* Custom utility — generates `border-{name}` from `--color-border-{name}`.
+   Tailwind built-ins (e.g. `border-blue-700`, `border-transparent`) keep
+   working via fall-through when `--color-border-{name}` does not exist. */
+@utility border-* {
+  border-color: --value(--color-border-*);
+}

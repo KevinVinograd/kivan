@@ -1,0 +1,38 @@
+import * as React from "react"
+import { Switch as SwitchPrimitive } from "radix-ui"
+
+import { cn } from "@/app/lib/utils"
+
+/**
+ * Switch — shadcn/ui Radix switch, token-adapted to the form-control token
+ * family (`semantics-control.css`, which names Switch as a consumer). The
+ * off-track uses the Switch-local `bg-switch-background` outlier; the on-track
+ * fills with the neutral brand `bg-control-on`. The thumb is a `bg-surface-flat`
+ * disc lifted with `shadow-subtle`. Focus uses the shared `ring-focus` halo.
+ * Theme is handled by the tokens (no `dark:` overrides).
+ *
+ * Use for an immediate on/off toggle with a visible track (e.g. enabling a
+ * comparison). For an independent boolean in a form/list, prefer Checkbox.
+ */
+function Switch({
+  className,
+  ...props
+}: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+  return (
+    <SwitchPrimitive.Root
+      data-slot="switch"
+      className={cn(
+        "peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-alpha-transparent transition-colors duration-[var(--motion-duration-hover)] ease-[var(--motion-ease-out)] outline-none focus-visible:ring-2 focus-visible:ring-focus disabled:cursor-not-allowed disabled:opacity-50 data-[state=unchecked]:bg-switch-background data-[state=checked]:bg-control-on",
+        className,
+      )}
+      {...props}
+    >
+      <SwitchPrimitive.Thumb
+        data-slot="switch-thumb"
+        className="pointer-events-none block size-4 rounded-full bg-surface-flat shadow-subtle ring-0 transition-transform duration-[var(--motion-duration-press)] ease-[var(--motion-ease-snap)] motion-reduce:transition-none data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0"
+      />
+    </SwitchPrimitive.Root>
+  )
+}
+
+export { Switch }

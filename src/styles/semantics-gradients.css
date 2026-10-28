@@ -1,0 +1,623 @@
+/* ─── Semantic Gradient Utilities ───
+   Canonical gradient utility layer. All static gradients used in
+   product code must source from this file — inline `style={{
+   background: "linear-gradient(...)" }}` and ad-hoc
+   `bg-[linear-gradient(...)]` arbitrary-value classes are avoided
+   in product code.
+
+   Each utility composes from existing CSS vars defined in
+   `theme.css` / `primitives.css` / `semantics-surface.css` — this
+   file introduces no new color or gradient tokens.
+
+   Runtime/dynamic gradients whose color stops cannot be expressed
+   as a finite enum (e.g. arbitrary per-row computed colors) route
+   through inline style with a documented exception. Closed-enum
+   runtime gradients (e.g. score-stripe, 3-tier) are expressed here
+   via `data-state` switching — see `.score-stripe` below.
+
+   Usage: `<div className="bg-gradient-accent-active" />`
+   ────────────────────────────────────────────────────────── */
+
+/* Active-state vertical accent bar (KPI active highlight, list-item
+   selected indicator). Used as a 5×24 rounded pill on the leading
+   edge of an active row/metric. */
+.bg-gradient-accent-active {
+  background: linear-gradient(to bottom, var(--blue-600), var(--green-500));
+}
+
+/* Horizontal AI accent — audio progress fill / inline AI affordance.
+   Sourced from --ai-gradient-start / --ai-gradient-end tokens. */
+.bg-gradient-ai-horizontal {
+  background: linear-gradient(90deg, var(--ai-gradient-start), var(--ai-gradient-end));
+}
+
+/* App chrome background — used by the page shell (sidebar-nav backdrop,
+   AppShell backdrop). Sourced from --chrome-gradient-start/end. */
+.bg-gradient-chrome {
+  background: linear-gradient(180deg, var(--chrome-gradient-start) 0%, var(--chrome-gradient-end) 100%);
+}
+
+/* Nav backdrops (bgNav) — neutral and branded vertical gradients for the
+   side-nav / shell chrome. Sourced from the --bg-nav-* tokens (theme.css),
+   which flip per theme. */
+.bg-gradient-nav-gray {
+  background: linear-gradient(180deg, var(--bg-nav-gray-start) 0%, var(--bg-nav-gray-end) 100%);
+}
+.bg-gradient-nav-blue {
+  background: linear-gradient(180deg, var(--bg-nav-blue-start) 0%, var(--bg-nav-blue-end) 100%);
+}
+
+/* Card content fade — transparent → flat surface, used by the Card
+   bottom-fade overlay when content is clipped. */
+.bg-gradient-fade-surface-flat {
+  background: linear-gradient(to bottom, transparent, var(--surface-flat-bg));
+}
+
+/* Drawer body fade — surface → recessed surface, used by drawer body
+   backgrounds that transition into a softer recessed area. */
+.bg-gradient-fade-surface-recessed {
+  background: linear-gradient(to bottom, var(--surface-flat-bg), var(--surface-recessed-bg));
+}
+
+/* Sticky-header offset — solid 48px transparent gutter then white
+   below. Used as a "gradient-cut" wrapper that lets a sticky
+   PageHeader (48px tall) sit on a tinted page surface while the
+   content area below uses a white card surface. */
+.bg-gradient-sticky-header-offset {
+  background: linear-gradient(to bottom, transparent 48px, var(--surface-flat-bg) 48px);
+}
+
+/* Modal header inner fade — recessed surface fades to transparent.
+   Used by ModalHeader when `gradient` prop is true: solid recessed
+   for 70% of the height, then fade out to let scrolled content show
+   through behind the header. */
+.bg-gradient-modal-header-fade {
+  background: linear-gradient(to bottom, var(--surface-recessed-bg) 70%, transparent 100%);
+}
+
+/* Modal footer inner fade — mirror of header fade, recessed surface
+   solid for 70% from the bottom, fading up. Used by ModalFooter
+   when `gradient` prop is true. */
+.bg-gradient-modal-footer-fade {
+  background: linear-gradient(to top, var(--surface-recessed-bg) 70%, transparent 100%);
+}
+
+/* Panel footer fixed-at-mobile fade — identical gradient value to the
+   modal footer fade, applied by PanelFooter (templates/panel-footer.tsx)
+   when it is fixed at the viewport bottom at `<md` so the scrolling form
+   content fades under the Save action (the same treatment as ModalFooter).
+   Self-resets to transparent at `≥md`, where PanelFooter returns to its
+   in-flow (static) layout and a fade would be wrong. A dedicated class
+   (rather than `bg-gradient-modal-footer-fade` + a responsive override) is
+   required because these gradient utilities are unlayered plain CSS — a
+   Tailwind `md:` utility cannot defeat them; the reset must live here. */
+.bg-gradient-panel-footer-fade {
+  background: linear-gradient(to top, var(--surface-recessed-bg) 70%, transparent 100%);
+}
+@media (min-width: 768px) {
+  .bg-gradient-panel-footer-fade {
+    background: none;
+  }
+}
+
+/* Button `selected` hover overlay — alpha-transparent overlay painted via
+   `background-image` so the underlying `bg-primary-subtle` chromatic resting
+   fill stays visible while hover dims the chip. Both gradient stops are the
+   same color (a "self-gradient" trick) because `background-color` would
+   replace the resting fill instead of layering. Single-consumer:
+   `src/app/components/components/button.tsx` `selected=true` compound
+   variant; disabled state strips the overlay with
+   `disabled:hover:[background-image:none]`. */
+.bg-gradient-button-selected-hover-overlay {
+  background-image: linear-gradient(var(--bg-alpha-transparent-hover), var(--bg-alpha-transparent-hover));
+}
+
+/* Horizontal-scroll overflow affordance — scroll-position-aware edge fades.
+   Applied via `mask-image` (not `background-image`) so the underlying content
+   fades visually without the parent painting any extra layer. This is the system's
+   single horizontal-overflow cue: the alpha mask dissolves the content at an
+   engaged edge, so the edge reads as "the row continues" instead of hard-cutting
+   in front of a painted shadow. It cues at rest, not only mid-scroll (which matters
+   on iOS/Safari, where overlay scrollbars auto-hide), and it is surface-agnostic —
+   the same class is correct on a page and inside a Card, with no knowledge of the
+   fill behind it.
+
+   Consumers toggle the directional class from the `useScrollMask` hook
+   (`src/app/lib/use-scroll-mask.ts`): the mobile KPI tab-card strips and their
+   pinned overlay (`src/app/pages/mobile-kpi-strip.tsx`) apply `mask-fade-right-32`
+   at scroll-start (more content to the right), `mask-fade-both-32` mid-scroll
+   (hidden on both sides), `mask-fade-left-32` at scroll-end (more to the left).
+   32px fade band on each engaged edge. The Reportes tab strip
+   (`src/app/pages/reports-tabs-header.tsx`) and the Table primitive
+   (`src/app/components/components/table.tsx`) opt into the shorter `-24` band below
+   for a tighter fade.
+
+   A mask fades EVERY descendant at the edge it engages, `position: sticky` cells
+   included. A scroller that pins an opaque control column to its trailing edge MUST
+   therefore leave that edge unengaged, or the pinned control goes washed out while
+   staying clickable. Table takes the hook's `edges: 'leading'` mode for exactly that
+   case (DataTable's `pinActionsColumn`) and lets `.pinned-actions-fade` below carry
+   the trailing cue — the same reason that band is a `::before` and not a mask. */
+.mask-fade-right-32 {
+  mask-image: linear-gradient(to right, black calc(100% - 32px), transparent);
+}
+.mask-fade-left-32 {
+  mask-image: linear-gradient(to right, transparent, black 32px);
+}
+.mask-fade-both-32 {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 32px,
+    black calc(100% - 32px),
+    transparent
+  );
+}
+
+/* Shorter 24px band — same directional behavior as the `-32` set above, for
+   consumers that want a tighter edge fade (the Reportes tab strip). */
+.mask-fade-right-24 {
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent);
+}
+.mask-fade-left-24 {
+  mask-image: linear-gradient(to right, transparent, black 24px);
+}
+.mask-fade-both-24 {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 24px,
+    black calc(100% - 24px),
+    transparent
+  );
+}
+
+/* Vertical progressive fade — top→bottom alpha mask for a backdrop-blur scrim
+   that should dissolve toward its lower edge instead of cutting off hard.
+   Consumer: the mobile pinned KPI bar's frosted backdrop
+   (`src/app/pages/mobile-kpi-strip.tsx`), paired with
+   `backdrop-blur-[var(--overlay-blur)]` + `bg-overlay-subtle` so the blur AND
+   the tint fade together (progressive frost). Solid up to a fixed 32px soft edge
+   at the bottom (matching the `mask-fade-*-32` band convention), so the scrim
+   stays fully frosted across the nav band + cards regardless of its height and
+   only dissolves at the very bottom edge. */
+.mask-fade-down {
+  mask-image: linear-gradient(to bottom, black calc(100% - 32px), transparent);
+}
+
+/* Full-length vertical fade-in — a top→bottom alpha mask that runs the WHOLE
+   height: fully transparent at the top edge (0% opacity) and fully opaque at the
+   bottom edge (100% opacity), with no solid plateau (unlike the 32px-band
+   `mask-fade-*` set above). Fades the element IN as it descends. Consumer: the
+   SideNav desktop rail's right-edge divider
+   (`src/app/components/shell/side-nav.tsx`), where a vertical `Separator`
+   hairline carries this mask so the nav↔content boundary appears faint at the top
+   and firms up toward the bottom, giving the otherwise-flat desktop rail subtle
+   definition without a hard full-height rule. */
+.mask-fade-top {
+  mask-image: linear-gradient(to bottom, transparent, black);
+}
+
+/* ─── Noise grain texture ───
+   Shared grayscale film-grain, sourced ONCE here and reused by every surface
+   that wants the "shader" grain. The AiInsight / Card shader
+   (`.bg-gradient-ai-insight` below) and the masked chart-grain overlays
+   (`.bg-texture-noise-gauge`, `.bg-texture-noise-donut`) all reference this same
+   `--texture-noise-grain` data-URL, so the texture has a single source of truth.
+   The grain is a static
+   `fractalNoise` SVG desaturated to gray (rect opacity 0.85 baked in);
+   consumers decide how to size and blend it.
+
+   `--gauge-arc-mask` is the alpha mask used by `.bg-texture-noise-gauge` to clip
+   the grain to the semicircle arc band only (the gauge box is otherwise mostly
+   empty corners). It strokes the SAME path the ProfitabilityGauge SVG draws
+   (viewBox 0 0 120 70, r=50, stroke-width 10, round caps) — keep it in sync with
+   `GAUGE_PATH` in `clients-gauge.tsx`. */
+:root {
+  --texture-noise-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.85'/%3E%3C/svg%3E");
+  --gauge-arc-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 70'%3E%3Cpath d='M 10 60 A 50 50 0 0 1 110 60' fill='none' stroke='black' stroke-width='10' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Gauge grain overlay — the SAME shared grain (`--texture-noise-grain`) as the
+   other masked noise overlays (identical image, size, repeat and overlay blend),
+   but masked to the semicircle arc band
+   so it paints only over the gauge stroke, not the empty rectangular corners of
+   the gauge box. The mask (`--gauge-arc-mask`) shares the gauge's viewBox, so at
+   `mask-size: 100% 100%` it aligns 1:1 with the rendered arc. Single consumer:
+   the absolutely-positioned grain layer in `ProfitabilityGauge`. */
+.bg-texture-noise-gauge {
+  background-image: var(--texture-noise-grain);
+  background-size: 140px 140px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  -webkit-mask-image: var(--gauge-arc-mask);
+          mask-image: var(--gauge-arc-mask);
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+}
+
+/* Donut grain overlay — the SAME shared grain (`--texture-noise-grain`) as the
+   other masked noise overlays (identical image, size, repeat and overlay blend),
+   but clipped with a radial ring mask to
+   the donut band only, so it paints over the colored arc and never the empty
+   corners, the wide side margins, or the center hole of the chart box — where,
+   over the dark card, the overlay blend would otherwise leave a visible speckle
+   bleeding off the ring. The band is driven by two custom properties the consumer
+   sets (via `[--donut-grain-*:NNpx]` classes on the ChartContainer wrapper) to
+   mirror its `<Pie>` radii exactly: `--donut-grain-inner` = `innerRadius`,
+   `--donut-grain-outer` = `outerRadius`. With both unset it falls back to a
+   full-bleed no-op. Center stays at the box center (`circle at center`), matching
+   Recharts' default pie center, so the ring aligns at any container width. Single
+   consumer family: the donut compositions routed through `ChartContainer
+   grain="ring"` (BucketDonut, DistributionDonut, CompositionDonut). Static. */
+.bg-texture-noise-donut {
+  /* The two radii are NOT declared here on purpose: declaring them on this element
+     would override the value the consumer sets on the ChartContainer wrapper (a
+     directly-matched declaration beats inheritance), collapsing the mask to its
+     fallback. Instead they inherit from the wrapper's `[--donut-grain-*:NNpx]`
+     classes, with a safe full-bleed fallback baked into each `var(…, …)` below so
+     the utility no-ops gracefully when a consumer forgets to set them. */
+  background-image: var(--texture-noise-grain);
+  background-size: 140px 140px;
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+  opacity: 0.5;
+  -webkit-mask-image: radial-gradient(
+    circle at center,
+    transparent calc(var(--donut-grain-inner, 0px) - 1px),
+    black var(--donut-grain-inner, 0px),
+    black var(--donut-grain-outer, 9999px),
+    transparent calc(var(--donut-grain-outer, 9999px) + 1px)
+  );
+          mask-image: radial-gradient(
+    circle at center,
+    transparent calc(var(--donut-grain-inner, 0px) - 1px),
+    black var(--donut-grain-inner, 0px),
+    black var(--donut-grain-outer, 9999px),
+    transparent calc(var(--donut-grain-outer, 9999px) + 1px)
+  );
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+}
+
+/* AI-insight prominent surface — a light SURFACE base (surface-flat, both themes)
+   lit by two soft Kivan EMERALD radial glows (--brand-emerald): the emerald sibling
+   of the daytime lime tab. Single consumer: AiInsight `variant="prominent"`. Because the
+   base stays the flat surface (not a reverse base), text stays the default dark polarity
+   (fg-high-contrast / fg-default), never fg-reverse. The class is unlayered plain CSS, so
+   it outranks the layered base surface bg a Card already carries.
+   The glows are translucent (color-mix with transparent) so the surface shows through.
+   Oversized background (200%) + a slow position drift gives a subtle "shader" shimmer;
+   the drift is gated behind prefers-reduced-motion so it falls back to a static gradient.
+
+   A single emerald across every insight — the per-tone `[data-tone]` re-hueing was RETIRED
+   (along with the AiInsight `tone` / Card `shaderTone` props). Emerald strength is the two
+   `--ai-emerald-*` knobs, softened in dark. */
+.bg-gradient-ai-insight {
+  --ai-emerald-a: 46%; /* light — primary glow (top-left) */
+  --ai-emerald-b: 32%; /* light — secondary glow (bottom-right) */
+  background-color: var(--surface-flat-bg);
+  background-image:
+    var(--texture-noise-grain),
+    radial-gradient(
+      120% 120% at 0% 0%,
+      color-mix(in srgb, var(--brand-emerald) var(--ai-emerald-a), transparent) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      120% 120% at 100% 100%,
+      color-mix(in srgb, var(--brand-emerald) var(--ai-emerald-b), transparent) 0%,
+      transparent 62%
+    );
+  /* grain tiles statically; the two glow layers are oversized so they can drift */
+  background-size: 140px 140px, 200% 200%, 200% 200%;
+  background-repeat: repeat, no-repeat, no-repeat;
+  background-position: 0 0, 0% 0%, 0% 0%;
+  /* overlay makes the grayscale grain perceptible over the emerald-tinted surface */
+  background-blend-mode: overlay, normal, normal;
+}
+:root[data-theme="dark"] .bg-gradient-ai-insight {
+  --ai-emerald-a: 38%; /* dark — softened over the dark surface */
+  --ai-emerald-b: 26%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bg-gradient-ai-insight {
+    animation: ai-insight-drift 14s ease-in-out infinite alternate;
+  }
+}
+@keyframes ai-insight-drift {
+  from { background-position: 0 0, 0% 0%, 0% 0%; }
+  to { background-position: 0 0, 100% 100%, 100% 100%; }
+}
+
+/* ─── Kivan brand shader (pre-auth) ───
+   The branded pre-auth panel behind the /login + /recuperar-contrasena split
+   (AuthSplitLayout). Same "shader" construction as .bg-gradient-ai-insight — a dark
+   ground + the shared noise grain — re-hued to the KIVAN brand. Sourced entirely from
+   the --brand-* anchors (primitives.css) — no raw values. The glow layer is oversized
+   and slowly drifts; the drift is gated behind prefers-reduced-motion and falls back to
+   a static gradient when motion is reduced. Single consumer: AuthSplitLayout — NOT a
+   re-hue of the shared ai-insight shader, so the AiInsight prominent surface is
+   untouched.
+
+   The ground is FIXED POLARITY: dark in both themes. It used to read `--bg-reverse`,
+   which flips to a PALE --gray-400 in dark — so the brand panel inverted, the emerald
+   glow washed out to a pastel over the light ground, and the panel became the
+   brightest surface on a dark screen. The content that sits on it is pinned to match
+   by `.on-brand-panel` (semantics-brand.css); the two must be changed together.
+
+   ── ONE glow, not two, and why the lime is gone ──
+
+   This panel used to carry a second radial: a --brand-lime hint anchored at 100% 100%.
+   It was never visible in any breakpoint. `.bg-gradient-brand` sits on the <main>, which
+   spans the FULL width, and the form panel is laid on top of it — so on desktop the
+   bottom-right quadrant is behind the form, and on mobile it is behind the card. The
+   layer was paid for on every paint and never reached an eye. It is deleted rather than
+   relocated: the lime is the LOGO's accent, and letting it be the only saturated colour
+   on the screen is the point of this treatment, not an omission.
+
+   The remaining glow is deliberately WIDE (150% at 10% -12%) and LOW (52%), and its
+   falloff passes through --brand-deep-teal rather than degrading straight to the ground.
+   Both choices answer the same defect: the old glow was anchored at the vertex (0% 0%),
+   so its saturated peak was clipped off-screen and what rendered was almost entirely a
+   desaturated falloff — the muddy band. Pulling the anchor inside the panel and routing
+   the falloff through a saturated deep green keeps the colour alive to the edge.
+
+   The glow is theme-INDEPENDENT; only the ground flips. The emerald reads correctly over
+   both the neutral (--gray-1700) and the green-black (--brand-ink) grounds at this
+   strength, so there is nothing for a dark block to re-tune but the canvas underneath. */
+.bg-gradient-brand {
+  /* The one knob that still varies by theme; the dark block below re-tunes it. */
+  --brand-panel-ground: var(--gray-1700);
+  --brand-glow-emerald: 52%;
+  --brand-glow-deep-teal: 40%;
+  background-color: var(--brand-panel-ground);
+  background-image:
+    var(--texture-noise-grain),
+    /* the single brand glow — anchored just off the top-left corner so its peak lands
+       ON the panel, and carried into the field by the deep-teal mid stop */
+    radial-gradient(
+      150% 150% at 10% -12%,
+      color-mix(in srgb, var(--brand-emerald) var(--brand-glow-emerald), transparent) 0%,
+      color-mix(in srgb, var(--brand-deep-teal) var(--brand-glow-deep-teal), transparent) 40%,
+      transparent 74%
+    );
+  /* grain tiles statically; the glow layer is oversized so it can drift */
+  background-size: 140px 140px, 200% 200%;
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, 0% 0%;
+  /* overlay makes the grayscale grain perceptible over both ground polarities */
+  background-blend-mode: overlay, normal;
+}
+/* Dark — the ground drops to the green-tinted near-black night canvas (--brand-ink) so
+   nothing on the panel is brighter than the glow. The glow itself is unchanged: it is
+   the same light on a darker room, which is the whole idea of a fixed-polarity panel. */
+:root[data-theme="dark"] .bg-gradient-brand {
+  --brand-panel-ground: var(--brand-ink);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bg-gradient-brand {
+    animation: brand-glow-drift 14s ease-in-out infinite alternate;
+  }
+}
+/* Only the glow layer moves; the grain (0 0) holds position. Both lists carry exactly as
+   many entries as `background-image` has layers — drop one and the drift silently stops
+   animating the wrong layer. */
+@keyframes brand-glow-drift {
+  from { background-position: 0 0, 0% 0%; }
+  to { background-position: 0 0, 100% 100%; }
+}
+
+/* Score stripe — vertical fade from a score-tier stop color to white.
+   3-tier closed enum switched via `data-state` on the consumer. Used by
+   ScorecardReportPage's ScoreSummaryCard and TeamTab's TeamStatsCard.
+   Sourced from --score-stripe-{success,warning,danger} tokens defined
+   in theme.css. */
+.score-stripe {
+  background-image: linear-gradient(to bottom, var(--score-stripe) 0%, var(--surface-flat-bg) 18%);
+}
+.score-stripe[data-state="success"] { --score-stripe: var(--score-stripe-success); }
+.score-stripe[data-state="warning"] { --score-stripe: var(--score-stripe-warning); }
+.score-stripe[data-state="danger"]  { --score-stripe: var(--score-stripe-danger); }
+
+/* Pinned-actions leading-edge fade — when DataTable's actions column is pinned
+   right during horizontal overflow (`pinActionsColumn`), this paints a soft
+   gradient band just LEFT of the sticky cell so the data columns scrolling under
+   it fade out instead of being hard-cut by the opaque `bg-page` cell body. While
+   the pin is engaged this band IS the grid's trailing-edge cue: Table drops its
+   own trailing mask there (`edges: 'leading'`), because a container mask fades
+   sticky cells too and would wash out the very `⋯` trigger the pin exists to keep
+   reachable. Painted on a `::before` band (NOT a `mask-image` on the cell) for the
+   same reason, one level down: a real mask would fade the trigger, while this keeps
+   the cell body fully opaque and readable and only fades the gap to its left. The
+   band fades `transparent → var(--pin-surface)` to seam exactly into the cell's own
+   `bg-pin-surface` fill — the SAME variable, so the two can never drift apart. That
+   variable resolves to the page by default and to the host container's fill when a
+   Card declares `pin-surface-flat` (see `semantics-surface.css`), which is why a
+   table inside a card no longer punches a page-colored strip through it. Applied to
+   every pinned `<th>`/`<td>` (header + body) so it reads
+   as one continuous strip down the column's leading edge; `pointer-events: none` so
+   it never blocks the controls. The class is only on the cells while pinned (toggled
+   off when the table fits), so the band vanishes with the pin — and Table's trailing
+   mask comes back with it. `position: sticky` on the cell is the containing block
+   for this absolute `::before` — no extra wrapper element. */
+.pinned-actions-fade::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: -24px;
+  width: 24px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--pin-surface));
+}
+
+/* ─── Daytime hero wash ───
+   The dashboard hero background — a single DAY variant: a soft color wash + two
+   ANIMATED diagonal sun-rays + a gentle overhead sun-bloom. (An earlier night
+   variant was dropped — the effect is day-only now.) Colors come from the Kivan
+   brand palette via the --daytime-* tokens (theme.css); alpha is always color-mix
+   (never raw rgba). This utility owns only the VISUAL background stack; the layer
+   geometry, mask and scroll-driven fade live in .daytime-hero
+   (src/styles/daytime.css). Recipe: the convention.
+
+   Consumer: <div class="daytime-hero bg-gradient-daytime" data-moment="day">
+   rendered by DaytimeHero (src/app/daytime/daytime-hero.tsx). */
+
+/* Registered so the day rays can be animated: the two rays read these lengths in
+   their stop positions, so animating them sways ONLY the rays (the wash + stars stay
+   put). Unsupported browsers fall back to the 0px initial value → static rays. */
+@property --daytime-ray-a {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+@property --daytime-ray-b {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+.bg-gradient-daytime {
+  /* Knobs — the [data-moment] blocks below override these; defaults resolve to day.
+     The three ALPHA knobs (--daytime-{wash,beam,flourish}-strength) are theme-owned
+     and live in theme.css, declared per theme, so light and dark can be dialed
+     independently. Do not re-introduce a hard-coded alpha literal in this file: it
+     would be shared by both themes and could not be tuned for one without the other. */
+  --daytime-color: var(--daytime-day);
+  --daytime-beam-angle: 84deg;
+  --daytime-beam-2-angle: 96deg;
+  /* Optional radial flourish (day sun-bloom). No-op transparent layer by default so
+     the background stack keeps a stable slot count. */
+  --daytime-flourish: linear-gradient(transparent, transparent);
+
+  --daytime-wash: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--daytime-color) var(--daytime-wash-strength), transparent) 0%,
+    transparent 62%
+  );
+  /* Two rays of different intensity (beam vs beam*0.55) and sway (ray-a/-b animate
+     on day, at different amplitudes), so they read as moving light. */
+  --daytime-beams:
+    linear-gradient(
+      var(--daytime-beam-angle),
+      transparent calc(40% + var(--daytime-ray-a)),
+      color-mix(in srgb, var(--daytime-beam) var(--daytime-beam-strength), transparent) calc(49% + var(--daytime-ray-a)),
+      transparent calc(58% + var(--daytime-ray-a))
+    ),
+    linear-gradient(
+      var(--daytime-beam-2-angle),
+      transparent calc(60% + var(--daytime-ray-b)),
+      color-mix(in srgb, var(--daytime-beam) calc(var(--daytime-beam-strength) * 0.55), transparent) calc(67% + var(--daytime-ray-b)),
+      transparent calc(74% + var(--daytime-ray-b))
+    );
+
+  /* Layer order (top → bottom): rays over the flourish, over the color wash that
+     fades into the page ground. */
+  background-image: var(--daytime-beams), var(--daytime-flourish), var(--daytime-wash);
+  background-repeat: no-repeat;
+  background-position: center top;
+}
+
+/* day — bright wash, animated rays, soft overhead sun-bloom */
+.bg-gradient-daytime[data-moment="day"] {
+  --daytime-color: var(--daytime-day);
+  --daytime-flourish: radial-gradient(
+    90% 60% at 50% -8%,
+    color-mix(in srgb, var(--daytime-beam) var(--daytime-flourish-strength), transparent),
+    transparent 60%
+  );
+}
+@media (prefers-reduced-motion: no-preference) {
+  /* DARK only. The rays exist only in dark — light runs `--daytime-beam-strength: 0%`,
+     because at the alpha they used to carry (6.3% lime on near-white) they moved no
+     measurable pixel and appeared in no capture. Drifting them in light would repaint the
+     full-bleed hero every frame, forever, to animate two fully transparent layers. */
+  :root[data-theme="dark"] .bg-gradient-daytime[data-moment="day"] {
+    animation: daytime-ray-drift 9s ease-in-out infinite alternate;
+  }
+}
+
+/* Rays sway by different amounts (a further/faster than b) for varied movement;
+   combined with their different baseline alpha, they read as moving light. */
+@keyframes daytime-ray-drift {
+  from { --daytime-ray-a: -18px; --daytime-ray-b: 9px; }
+  to   { --daytime-ray-a: 16px;  --daytime-ray-b: -7px; }
+}
+
+/* Daytime KPI tab — the SELECTED dashboard KPI card WHILE the daytime wash is
+   active. A single translucent Kivan LIME glow on the light surface base
+   (from the --brand-lime anchor) over the shared noise grain — no second accent and
+   no continuous drift (it grows in once when the card becomes selected — see the
+   select-in animation below), so the selected card reads as a calm brand-lit surface
+   rather than a moving shader. The base stays the light surface, so the card keeps its dark text
+   (DashboardMetricCard keeps `reverse=false` while daytime is active). Unlayered
+   plain CSS, so it outranks the Card's layered
+   `data-[selected=true]:bg-alpha-subtle-selected` fill. Consumer: DashboardMetricCard
+   (dashboard-health-summary.tsx) when useDaytime().isActive. */
+/* Registered so the lime wash can GROW IN on select: the select-in animation below
+   interpolates --tab-glow-spread (the radial's transparent stop) from 0 to the resting
+   value. Unsupported browsers fall back to the 0% initial value → the wash simply appears. */
+@property --tab-glow-spread {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+.bg-gradient-daytime-tab {
+  /* Accent strength — LIGHT reads the Kivan lime STRONGER than the white surface
+     (per design: the accent should dominate, not the card surface). Dark softens it
+     (the accent already reads over the dark surface). */
+  --tab-glow-lime: 60%;
+  /* Spread — the selected card's resting lime wash: a near-full-card fill (light fills the
+     card; dark eased). Hover adds only a subtle alpha tint on top (no second lime layer). */
+  --tab-glow-spread: 100%;
+  background-color: var(--surface-flat-bg);
+  background-image:
+    var(--texture-noise-grain),
+    radial-gradient(
+      120% 120% at 0% 0%,
+      color-mix(in srgb, var(--brand-lime) var(--tab-glow-lime), transparent) 0%,
+      transparent var(--tab-glow-spread)
+    );
+  background-size: 140px 140px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  background-position: 0 0, 0% 0%;
+  background-blend-mode: overlay, normal;
+  /* Select-in reveal: when the class is applied (the card becomes selected), the lime wash
+     grows in by animating its registered radial spread from 0 up to the resting value. The
+     to-frame is implicit, so each theme animates to its own declared spread (100% / 68%).
+     Entrance only — deselect drops the class and the wash clears. Reduced motion strips it. */
+  animation: daytime-tab-select-in var(--motion-duration-modal) var(--motion-ease-in-out);
+}
+:root[data-theme="dark"] .bg-gradient-daytime-tab {
+  --tab-glow-lime: 40%;
+  --tab-glow-spread: 68%;
+}
+@keyframes daytime-tab-select-in {
+  from {
+    --tab-glow-spread: 0%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-gradient-daytime-tab {
+    animation: none;
+  }
+}
+
+/* Daytime KPI tab REST surface — the UNSELECTED card WHILE the daytime wash is active.
+   Pins the card background to the flat surface (unlayered plain CSS, so it outranks the
+   base Card's layered `hover:bg-alpha-subtle-hover`, which would otherwise REPLACE the
+   surface with translucent ink composited over the colorful daytime page — the card would
+   look like it lost its fill on hover). With the surface held, the subtle alpha hover tint
+   is layered ON TOP by the overlay span in DashboardMetricCard, so hover reads as
+   "surface + alpha" rather than a surface swap. Sibling of .bg-gradient-daytime-tab (the
+   selected wash), which pins the same surface under its lime glow. Consumer:
+   DashboardMetricCard unselected card when useDaytime().isActive. */
+.bg-daytime-tab-rest {
+  background-color: var(--surface-flat-bg);
+}
+

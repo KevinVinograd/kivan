@@ -1,0 +1,85 @@
+/* ─── Semantic Form-Control Tokens ───
+   Maps the form-control visual contract (chrome bg, border, fg roles,
+   on / off / readonly states) onto existing primitives, so DS form
+   primitives (Input, Textarea, Select trigger, Checkbox, Switch,
+   RadioGroup) stop hand-rolling 5–10 semantic-token references inline.
+
+   Tokens emit through the existing PR A wildcard utilities by registering
+   `--color-bg-control-*`, `--color-border-control-*`, `--color-fg-control-*`
+   theme entries. Class shape at call-sites:
+
+     bg-control              — default shell bg (Input, Textarea, Select trigger)
+     bg-control-readonly     — read-only shell bg (Input, Textarea)
+     bg-control-off          — empty/off chrome (Checkbox)
+     bg-control-on           — selected/on chrome (Checkbox, Switch on-track)
+     border-control          — default chrome border
+     border-control-on       — selected/on border (Checkbox + Radio on-state)
+     fg-control-placeholder  — placeholder text + Select empty-value
+     fg-control-icon         — Select trigger chevron
+     fg-control-on           — Checkbox checkmark color
+
+   Carve-outs (intentionally not in this family):
+     • focus ring → ring-focus (3px halo, no border swap)
+       (semantic primitive shared across non-control focusables)
+     • aria-invalid → fg-danger / border-fg-danger (semantic primitive)
+     • disabled → opacity-50 utility (no bg change today)
+     • Switch off-track gray (--switch-background, #cbced4) stays in
+       theme.css as a Switch-local outlier — value diverges from
+       --bg-surface-recessed and has no peer consumer.
+     • Switch thumb bg-surface-flat (thumb is decorative-on-control,
+       not part of the control chrome contract).
+     • Input selection styling (selection:bg-primary-emphasis +
+       selection:fg-reverse) is a cross-cutting text-selection concern,
+       not a control concern.
+   ────────────────────────────────────────────── */
+
+:root {
+  /* ── Background roles ── */
+  --control-bg:          var(--surface-flat-bg);     /* surface-subtle fill (white light; gray-1800 dark — overridden below) */
+  --control-bg-readonly: var(--surface-recessed-bg); /* ink-100 via primitive chain */
+  --control-bg-off:      var(--surface-flat-bg);     /* surface-subtle fill; Checkbox/Radio empty chrome (gray-1800 dark — overridden below) */
+  --control-bg-on:       var(--bg-primary-default); /* neutral brand */
+
+  /* ── Border roles ── */
+  --control-border:       var(--border-alpha-subtle);       /* ink-200 */
+  --control-border-hover: var(--border-alpha-subtle-hover); /* ink-300 — hover step on the subtle resting border */
+  --control-border-on:    var(--border-primary-emphasis);   /* blue-700 */
+
+  /* ── Foreground roles ── */
+  /* A placeholder is live text in an ENABLED field, so it may not borrow the disabled token:
+     ink-700 lands at 2.85:1 on the light input surface and 3.83:1 on the dark one, both under
+     the 4.5:1 floor, and it makes a perfectly usable field read as switched off. ink-700 stays
+     reserved for controls that really are disabled. ink-800 measures 5.74:1 / 6.90:1. */
+  --control-fg-placeholder: var(--fg-subtle);    /* ink-800 */
+  --control-fg-icon:        var(--fg-subtle);    /* ink-800; Select chevron */
+  --control-fg-on:          var(--fg-reverse);   /* white; Checkbox checkmark */
+}
+
+:root[data-theme="dark"] {
+  /* Control chrome bg deepens past surface-flat (gray-1700) to gray-1800 in
+     dark, so form-control fills sit a step below cards/panels. Light theme is
+     unchanged — it stays on surface-flat (white) from the :root block above. */
+  --control-bg:     var(--gray-1800);
+  --control-bg-off: var(--gray-1800);
+}
+
+@theme inline {
+  /* Background — emits `bg-control`, `bg-control-readonly`,
+     `bg-control-off`, `bg-control-on` via the PR A `@utility bg-*` rule. */
+  --color-bg-control:          var(--control-bg);
+  --color-bg-control-readonly: var(--control-bg-readonly);
+  --color-bg-control-off:      var(--control-bg-off);
+  --color-bg-control-on:       var(--control-bg-on);
+
+  /* Border — emits `border-control`, `border-control-hover`, `border-control-on`
+     via the PR A `@utility border-*` rule. */
+  --color-border-control:       var(--control-border);
+  --color-border-control-hover: var(--control-border-hover);
+  --color-border-control-on:    var(--control-border-on);
+
+  /* Foreground — emits `fg-control-placeholder`, `fg-control-icon`,
+     `fg-control-on` via the PR A `@utility fg-*` rule. */
+  --color-fg-control-placeholder: var(--control-fg-placeholder);
+  --color-fg-control-icon:        var(--control-fg-icon);
+  --color-fg-control-on:          var(--control-fg-on);
+}

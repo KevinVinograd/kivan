@@ -1,0 +1,51 @@
+name: Backend CI
+
+# Lint/typecheck/build/test the backend workspace (apps/api + packages/*). The
+# integration tests spin up real Postgres via Testcontainers (Docker is present
+# on the GitHub-hosted runners). Path-filtered so front-only changes don't run it.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    branches: ["**"]
+    paths:
+      - "apps/api/**"
+      - "packages/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  backend:
+    name: typecheck · build · test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install (backend subtree)
+        run: pnpm install --frozen-lockfile --filter "api..."
+
+      - name: Generate Prisma client
+        run: pnpm --filter @hold/db generate
+
+      - name: Build packages + api
+        run: pnpm --filter @hold/shared --filter @hold/config --filter @hold/db build && pnpm --filter api build
+
+      - name: Typecheck api
+        run: pnpm --filter api typecheck
+
+      - name: Test (unit + Testcontainers integration)
+        run: pnpm --filter @hold/shared --filter @hold/config --filter @hold/db --filter api test

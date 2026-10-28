@@ -1,0 +1,40 @@
+/* ─── Semantic Overlay Tokens ───
+   Backdrop overlays for modals, drawers, and panels.
+   Usage: `bg-overlay-default`, `bg-overlay-subtle`
+
+   Rules:
+   - SideDrawer uses NO overlay by default (preserves context).
+     Only add `overlay-subtle` to SideDrawer when explicitly required.
+   - Modals / Dialogs always use `overlay-default`.
+   ────────────────────────────────────────────── */
+
+:root {
+  /* Default — modals, dialogs, command palette */
+  --overlay-default: var(--ink-800); /* rgba(0,0,0,0.60) */
+
+  /* Subtle — optional drawer backdrop, secondary panels */
+  --overlay-subtle: var(--ink-500); /* rgba(0,0,0,0.23) */
+
+  /* Subtle REVERSE — a frost that LIGHTENS (not darkens) the surface behind it.
+     Light theme = white-alpha (ink-reverse); the dark block below flips it to
+     black-alpha so a frosted panel keeps a dark ground and its light text stays
+     legible. Consumer: the daytime-frosted SideNav over the hero wash. */
+  --overlay-subtle-reverse: var(--ink-reverse-500);
+
+  /* Backdrop blur — backdrop-filter radius applied alongside the scrim color so
+     content behind a modal reads as fully dissolved, not just dimmed. Theme-
+     independent. Consumed via `backdrop-blur-[var(--overlay-blur)]`. */
+  --overlay-blur: 8px;
+}
+
+:root[data-theme="dark"] {
+  /* Reverse frost flips to black-alpha in dark, so a frosted surface still reads as
+     a dark panel (its light text stays legible) instead of washing out to light. */
+  --overlay-subtle-reverse: var(--ink-500);
+}
+
+@theme inline {
+  --color-overlay-default: var(--overlay-default);
+  --color-overlay-subtle: var(--overlay-subtle);
+  --color-overlay-subtle-reverse: var(--overlay-subtle-reverse);
+}
