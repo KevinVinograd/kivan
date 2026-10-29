@@ -23,26 +23,17 @@ const CHANNEL_LABEL: Record<SendChannel, string> = {
   cuenta_corriente: 'Cuenta corriente',
 }
 
-// No real delivery integration exists yet, so the toast says "marcada como
-// enviada" rather than asserting the document actually reached the client.
 const SENT_TOAST: Record<SendChannel, string> = {
   factura: 'Factura marcada como enviada',
   cuenta_corriente: 'Cuenta corriente marcada como enviada',
 }
 
-/**
- * Enviar factura o cuenta corriente (§9.8). No real delivery integration exists,
- * so the MVP prepares the message and lets the user copy it or mark it as sent
- * (a local mutation to the "Factura enviada" state). Copy uses the real clipboard;
- * a PDF download is intentionally omitted rather than faked.
- */
 export function CobrosEnviarFacturaDialog({
   receivable,
   onSend,
   onClose,
 }: {
   receivable: Receivable
-  /** Persist the sent state (POST /receivables/:id/invoice/sent). */
   onSend: (id: string) => Promise<void>
   onClose: () => void
 }) {

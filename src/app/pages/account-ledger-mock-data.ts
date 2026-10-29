@@ -9,38 +9,16 @@ import type {
 import { type Payment } from './pagos-mock-data'
 import type { LedgerEntry } from './account-ledger-types'
 
-/**
- * The live team reads the colaboradora ledger derives from — structurally the
- * subset of the `useTeamData()` (`TeamDataProvider`) value the ledger needs, so a
- * payment approved or registered on /team is reflected in cuentas corrientes. The
- * provider's `paymentHistoryForMember(id)` defaults to count 5, matching the
- * prior snapshot-based derivation exactly.
- */
 export type TeamLedgerSource = {
   members: TeamMember[]
   statementForMember: (id: string) => MonthlyTeamStatement | undefined
   paymentHistoryForMember: (id: string) => TeamPaymentRecord[]
 }
 
-/** Normalize a period to the `'YYYY-MM-01'` convention (guards against `'YYYY-MM'`). */
 function normalizePeriod(p: string): string {
   return p.length === 7 ? `${p}-01` : p
 }
 
-/**
- * Sort an entity's movements by date and assign each a running balance IN ITS OWN LANE.
- *
- * One accumulator per lane, not one accumulator. It used to be a single `running`
- * summed over every movement whatever its currency, so an entity holding a peso cobro
- * and a dollar cobro carried a "saldo" that subtracts dollars from pesos — a figure in
- * no currency at all, printed under a "$". It is not even the same
- * kind of quantity: those are fund shares, not money.
- *
- * The rows stay interleaved in date order, because they are one entity's history and
- * splitting them would hide a movement behind a lane filter. Only the accumulation is
- * per lane, so each row's balance answers "how much does this entity owe IN THIS LANE
- * as of this date" — which is the only version of the question that has an answer.
- */
 export function withRunningBalance(movements: LedgerEntry[]): LedgerEntry[] {
   movements.sort((a, b) => a.date.localeCompare(b.date))
   const running = new Map<Currency, number>()
@@ -52,17 +30,10 @@ export function withRunningBalance(movements: LedgerEntry[]): LedgerEntry[] {
   return movements
 }
 
-/** Stable client id — the receivables mock keys clients by name. */
 function clientKey(r: Receivable): string {
   return r.clientName
 }
 
-/**
- * Derive per-client movements from receivables. Each receivable yields a charge
- * (`totalAmount` → debit) on its due date and, when any amount was collected, a
- * collection (`collectedAmount` → credit) on its last-activity date. Movements
- * are grouped per client and assigned a cumulative running balance.
- */
 export function clientLedgerEntries(receivables: Receivable[]): LedgerEntry[] {
   const byClient = new Map<string, Receivable[]>()
   for (const r of receivables) {
@@ -114,21 +85,10 @@ export function clientLedgerEntries(receivables: Receivable[]): LedgerEntry[] {
   return out
 }
 
-/** Distinct client entity ids (the client names), ordered. */
 export function clientEntityIds(receivables: Receivable[]): string[] {
   return [...new Set(clientLedgerEntries(receivables).map((m) => m.entityId))].sort()
 }
 
-// ── Colaboradoras ────────────────────────────────────────────────────────────
-
-/**
- * Derive per-colaboradora movements from the live team statements. The current
- * month comes from `statementForMember` (generated = `totalAmount` → debit, paid
- * = `paidAmount` → credit). Prior months come from the deterministic
- * `paymentHistoryForMember` (count 5), each a settled month (the paid `amount`
- * booked as both generated and payment, so the historical balance returns to
- * zero).
- */
 export function teamLedgerEntries(team: TeamLedgerSource): LedgerEntry[] {
   const out: LedgerEntry[] = []
   for (const member of team.members) {
@@ -144,9 +104,6 @@ export function teamLedgerEntries(team: TeamLedgerSource): LedgerEntry[] {
         period,
         type: 'generated',
         referenceId: statement.id,
-        // A payout has no lane of its own: `PayoutStatement` carries seven money columns
-        // and no currency column, and `TeamMember.currency` is settable and read by
-        // nothing. Pesos, stated rather than assumed — payroll lanes are their own work.
         currency: 'ARS',
         description: 'Liquidación del mes',
         debit: statement.totalAmount,
@@ -210,33 +167,14 @@ export function teamLedgerEntries(team: TeamLedgerSource): LedgerEntry[] {
   return out
 }
 
-/** Distinct colaboradora entity ids that have at least one movement. */
 export function teamEntityIds(team: TeamLedgerSource): string[] {
   return [...new Set(teamLedgerEntries(team).map((m) => m.entityId))]
 }
 
-/** Display name for a colaboradora id, resolved from the live team members. */
 export function teamMemberName(members: TeamMember[], id: string): string {
   return members.find((m) => m.id === id)?.name ?? id
 }
 
-// ── Proveedores ──────────────────────────────────────────────────────────────
-
-/**
- * Derive per-proveedor movements from the outgoing pagos (`/pagos`). Providers are
- * payees, so each payment yields a charge (`totalAmount` → debit) on its expected
- * date — the provider's invoice to the studio — and, when any amount was paid, a
- * payment (`paidAmount` → credit) on its payment date. Cancelled pagos are not a
- * live liability and are excluded. Movements are grouped by `recipientName` and
- * assigned a cumulative running balance.
- *
- * The grouping key is a NAME, and that is now the gap. `Payment` carries a real
- * `providerId` (added with the /pagos detail panels), and the server keeps its own
- * append-only ledger keyed by that uuid — which `/pagos` reads directly. This page
- * still derives its own movements in the browser, so the two can disagree: two
- * providers sharing a name collapse into one account here and stay separate there.
- * Migrating this page onto `GET /ledger` is its own item.
- */
 export function providerLedgerEntries(payments: Payment[]): LedgerEntry[] {
   const byProvider = new Map<string, Payment[]>()
   for (const p of payments) {
@@ -288,14 +226,10 @@ export function providerLedgerEntries(payments: Payment[]): LedgerEntry[] {
   return out
 }
 
-/** Distinct proveedor entity ids (the recipient names) that have a movement. */
 export function providerEntityIds(payments: Payment[]): string[] {
   return [...new Set(providerLedgerEntries(payments).map((m) => m.entityId))].sort()
 }
 
-/** All movements across every entity type. Client, colaboradora, and provider
- *  ledgers all derive from the live stores (Receivables / Team / Payments),
- *  passed in by `useAccountLedger`. */
 export function allLedgerEntries(
   receivables: Receivable[],
   payments: Payment[],

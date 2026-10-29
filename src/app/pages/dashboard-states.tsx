@@ -2,15 +2,12 @@ import { Button, Skeleton } from '@/app/components/components'
 import { buildTrailHref } from '@/app/lib/nav-trail'
 import { DashboardCta } from './dashboard-cta'
 
-// The dashboard is the trail root, so the state CTAs carry a back-trail crumb to
-// the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const OPERATION_CTA_HREF = buildTrailHref(
   '/operacion-mensual',
   { label: 'Dashboard', to: '/dashboard' },
   new URLSearchParams(),
 )
 
-/** Loading state: KPI tiles over a few section blocks. Skeletons, not a spinner. */
 export function DashboardLoading() {
   return (
     <div className="flex flex-col gap-4 md:gap-6" aria-hidden>
@@ -29,7 +26,6 @@ export function DashboardLoading() {
   )
 }
 
-/** Empty state when the selected month has no loaded data. */
 export function DashboardEmptyMonth() {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 md:px-6 lg:px-8 desktop:px-10 py-16 text-center">
@@ -44,7 +40,6 @@ export function DashboardEmptyMonth() {
   )
 }
 
-/** Page-level error state with retry + a path into Operación mensual. */
 export function DashboardError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 md:px-6 lg:px-8 desktop:px-10 py-16 text-center">

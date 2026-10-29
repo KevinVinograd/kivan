@@ -41,13 +41,6 @@ import {
 import { canInvoice } from './cobros-invoice'
 import type { Receivable } from './cobros-mock-data'
 
-/**
- * Cobro detail (§10) — read-only panel in the master-detail split, on the
- * scroll-reveal scaffold (a centered hero scrolls away to a compact sticky bar).
- * The §9 facturación actions live in the summary card and the Facturación section;
- * the body stacks the §10.2 sections. Sub-data is synthesized locally from the
- * receivable. Mutations are owned by the tab; this panel only invokes callbacks.
- */
 export function CobrosDetail({
   receivable,
   allReceivables,
@@ -59,16 +52,12 @@ export function CobrosDetail({
   periodControl,
 }: {
   receivable: Receivable | null
-  /** Every receivable the store holds, across periods — the Cuenta corriente block reads
-   *  this client's EARLIER unpaid cobros off it. Passed in rather than fetched here so the
-   *  detail stays presentational, and so the figure comes from the same rows the list shows. */
   allReceivables: Receivable[]
   onClose: () => void
   onGenerateInvoice: (receivable: Receivable) => void
   onAssociateInvoice: (receivable: Receivable) => void
   onMarkCollected: (receivable: Receivable) => void
   onEditFiscalData: () => void
-  /** Compact period picker shown in the detail header (reachable on mobile). */
   periodControl?: ReactNode
 }) {
   if (!receivable) return null
@@ -99,7 +88,6 @@ export function CobrosDetail({
       <KpiSummaryCard
         figures={[
           { id: 'monto-total', label: 'Monto total', value: formatMoney(r.totalAmount, r.currency) },
-          // §6 detail focal → the one type-metric hero; keeps its saldoTone.
           { id: 'saldo', label: 'Saldo', value: formatMoney(balance, r.currency), tone: saldoTone },
         ]}
         heroId="saldo"
@@ -129,17 +117,11 @@ export function CobrosDetail({
         <DetailRow label="Período" value={formatMonthYear(r.period)} />
         <DetailRow label="Servicio" value={r.service} />
         <DetailRow label="Monto original" value={formatMoney(r.baseAmount, r.currency)} />
-        {/* Where the peso figure came from, when the retainer is priced in dollars. Kept
-            TERTIARY on purpose: the protagonist of this panel is the Saldo, and this line
-            is orientation, not a figure to read first. It is also the only place the rate
-            survives, because next month's rate replaces this one everywhere else. */}
         {r.originalCurrency && r.originalAmount !== undefined && r.fxRate !== undefined ? (
           <DetailRow
             label="Cotización"
             value={
               <span className="type-caption tabular-nums fg-subtle">
-                {/* PRECISE on both halves. The line's job is to let the operator multiply
-                    it out against the total; rounded to whole units it does not reconcile. */}
                 {formatMoneyPrecise(r.originalAmount, r.originalCurrency)} a{' '}
                 {formatExchangeRate(r.fxRate)}
               </span>
@@ -222,13 +204,6 @@ export function CobrosDetail({
                 <div key={payment.id} className="flex items-center justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <LeadingIcon icon={ICON.payment} />
-                    {/* Date, destination and comprobante are all Tertiary orientation on
-                        this page: `fg-subtle`, never read
-                        first. The amount to the right is what the row is about. The
-                        account is the medio de pago this row never really had — the slot
-                        used to hold one picked from the digits of the receivable id, and
-                        it stays EMPTY when nothing recorded a destination rather than
-                        showing a plausible default. */}
                     <div className="flex min-w-0 flex-col">
                       <span className="type-body-2 fg-subtle">
                         {formatShortDate(payment.iso)}
@@ -253,10 +228,6 @@ export function CobrosDetail({
       </section>
 
       <DetailSection title="Cuenta corriente">
-        {/* `receivableLedger` accumulates only rows in this cobro's own lane, so the
-            balance IS in that lane and must be printed in it. The peso formatter here was
-            the last "$" left on this screen, under a "Monto total" that carries the
-            row's own unit. */}
         <DetailRow label="Saldo anterior" value={formatMoney(ledger.previousBalance, r.currency)} />
         <DetailRow label="Cobros del período" value={formatMoney(ledger.periodAmount, r.currency)} />
         <DetailRow label="Pagos recibidos" value={formatMoney(ledger.settledAmount, r.currency)} />

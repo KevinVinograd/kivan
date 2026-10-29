@@ -1,15 +1,3 @@
-/**
- * "Cobrar" a one-time service: bill part of its price (an anticipo, an etapa) or all of
- * what is left. The studio's case: "le hemos cobrado el 50% de anticipo de la Etapa 1".
- *
- * The browser proposes an amount; the SERVER prices it. It re-reads the line, refuses
- * anything above what is left, applies the client's standing discount and converts a
- * dollar price at the month's rate — this dialog's figures are a preview of that, computed
- * with the same floor-the-discount rule so the two agree to the centavo.
- *
- * The cobro's month is the month of its vencimiento: an anticipo belongs to the month it
- * is due, and asking for both invites a cobro dated in one month and due in another.
- */
 import { useState } from 'react'
 import type { Currency } from '@hold/shared'
 
@@ -42,7 +30,6 @@ export function ServiceLineChargeDialog({
   line: ClientServiceDto
   currency: Currency
   discountPercentBp: number | null | undefined
-  /** Resolves once the server confirmed the cobro; rejects with the server's error. */
   onCharge: (input: { amountMinor: string; period: string; dueDate: string }) => Promise<void>
   onClose: () => void
 }) {
@@ -65,8 +52,6 @@ export function ServiceLineChargeDialog({
       await onCharge({ amountMinor: toMinor(amount), period: `${dueDate.slice(0, 7)}-01`, dueDate })
       onClose()
     } catch (err) {
-      // The server's refusal is specific ("supera lo que falta cobrar", "falta la
-      // cotización del dólar"): show it, never a generic message.
       setError(err instanceof ApiError && err.message ? err.message : 'No pudimos generar el cobro. Probá de nuevo.')
     } finally {
       setPending(false)

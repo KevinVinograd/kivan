@@ -2,21 +2,13 @@ import { Button } from '@/app/components/components'
 import type { TeamMember } from './clients-mock-data'
 
 export type TeamBulkActionsProps = {
-  /** The currently selected members; the bar hides itself when empty. */
   members: TeamMember[]
   onGenerateStatements: (members: TeamMember[]) => void
   onChangeStatus: (members: TeamMember[]) => void
   onExport: (members: TeamMember[]) => void
-  /** Optional "Limpiar" affordance to clear the selection. */
   onClear?: () => void
 }
 
-/**
- * Selection bulk-action bar shared by the table toolbar and the master-detail
- * list, so the count + Generar cuentas / Cambiar estado / Exportar actions live
- * in one place instead of being duplicated per view. Renders nothing when the
- * selection is empty. Styled as a reverse (dark) bar with inverse controls.
- */
 export function TeamBulkActions({
   members,
   onGenerateStatements,

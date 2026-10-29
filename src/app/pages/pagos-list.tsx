@@ -51,9 +51,6 @@ function PagosListItem({
   )
 }
 
-/** Compact pagos navigator shown in the left panel while a pago is open. Search
- *  only (the full filter set lives on the table); selecting an item drives the
- *  detail panel. */
 export function PagosList({
   payments,
   selectedId,

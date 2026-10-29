@@ -1,11 +1,3 @@
-/**
- * Bridges the real Monthly-operation plan bundle (GET /months/:period/plan) to the
- * front's `MonthlyOperationData`. The backend carries money in minor units and a
- * few concepts that diverge from the front's view-model, so this maps enums and
- * fills the display-only fields the bundle doesn't source (services, assigned team,
- * teamCost/productionCost) with safe defaults. Cobro/pago actuals stay overlaid by
- * the finance-bridge on top (receivables/payments are already API-backed).
- */
 import type {
   ProductionDto,
   ExpenseDto,
@@ -64,16 +56,6 @@ const PAYMENT_FROM_COLLECTION: Record<string, MoPaymentStatus> = {
   pending: 'pending',
   cancelled: 'pending',
 }
-/**
- * The statement status now passes through unmapped — the view model speaks the
- * API's own lifecycle. It is still `pick`ed rather than cast: the bundle is the one
- * payout read with no response schema, so the value arrives unchecked.
- *
- * The fallback is `draft` (the least-advanced state) on purpose. Falling back
- * forward would render "Confirmada" for a status we failed to recognize — claiming
- * money reached someone on the strength of a string we could not parse. Under-claiming
- * costs a refused transition; over-claiming costs a payment nobody made.
- */
 const STATEMENT_STATUSES: StatementStatus[] = ['draft', 'approved', 'dispatched', 'confirmed']
 
 function clientFromReceivable(
@@ -98,28 +80,10 @@ function clientFromReceivable(
     productionsAmount,
     paidAmount: toMajor(r.collectedAmountMinor),
     paymentStatus: PAYMENT_FROM_COLLECTION[r.status] ?? 'pending',
-    // The day the money actually arrived. It was collected by the Registrar-pago
-    // dialog, stored, and returned by the API as `collectedAt` — and then dropped
-    // HERE, which made the month impossible to close for anybody.
-    //
-    // `closeBlockers` raises `payment_incomplete` ("Cobros sin monto o fecha") for any
-    // client marked paid or partial whose `paymentDate` is missing. With it never
-    // mapped, that blocker fired for EVERY collected client, on EVERY month, and could
-    // not be resolved from the UI: the operator is told to fix a date that is already
-    // there. Reported from production by an operator at 94% collected, being sent to
-    // correct cobros one by one that had nothing wrong with them.
-    //
-    // `.slice(0, 10)`, not `new Date(...)`: the API serializes this one as a UTC
-    // midnight instant (`...T00:00:00.000Z`), so at UTC-3 any local formatting renders
-    // the PREVIOUS day. The front's contract for a day-column is the date part.
     ...(r.collectedAt ? { paymentDate: r.collectedAt.slice(0, 10) } : {}),
     ...(r.effectiveDate ? { effectiveDate: r.effectiveDate } : {}),
     invoiceStatus: INVOICE_FROM_BILLING[r.billingStatus] ?? 'not_issued',
     monotributo: pick(r.emitterCode, MONOTRIBUTOS, 'monotributo_1'),
-    // The bundle does not source per-client assignment-cost allocation yet, so the
-    // payroll share of this client is UNKNOWN, not zero: `null` keeps that distinct
-    // so the margin derivations render "-" instead of silently overstating profit.
-    // Studio-level payroll is still exact — `summarize` takes it from the payouts.
     teamCost: null,
     productionCost,
     ...(r.planNotes ? { notes: r.planNotes } : {}),
@@ -147,14 +111,6 @@ function payoutFromDto(p: PayoutStatementDto, memberById: Map<string, { name: st
     statementStatus: pick(p.statementStatus, STATEMENT_STATUSES, 'draft'),
     payoutStatus: paid >= total && total > 0 ? 'paid' : paid > 0 ? 'partial' : 'pending',
     paidAmount: paid,
-    // The day the statement records. Without this the "Fecha de pago" an operator enters
-    // in THIS page's Registrar pago dialog was sent, stored, returned by the API — and
-    // dropped here, so the detail showed "—" for a day just entered. `/team` closed the
-    // loop; this did not. `payoutDate` was simply always undefined on the API path:
-    // `overlayTeamPayout` in the finance bridge does set it, and no page calls that
-    // module. If it is ever wired up it will OVERWRITE this, unconditionally, with
-    // `latestPayoutDate` of the matching Payment rows — undefined when none of them
-    // carries a `paymentDate`.
     ...(p.paidAt ? { payoutDate: p.paidAt } : {}),
     ...(p.bankProfile ? { bank: p.bankProfile } : {}),
   }
@@ -186,8 +142,6 @@ export function productionFromDto(d: ProductionDto): ProductionRecord {
     receivableId: d.receivableId ?? null,
     accountManagerId: d.accountManagerId ?? null,
     ...(d.accountManagerName ? { accountManagerName: d.accountManagerName } : {}),
-    // The content creator is the production's lead — the one row the form writes. A row
-    // from before the form picked people by id falls back to its first attribution.
     creatorId: (d.attribution.find((a) => a.role === 'responsible') ?? d.attribution[0])?.teamMemberId ?? null,
     viaticsPaidAt: d.viaticsPaidAt ?? null,
     ...(d.receipt ? { receipt: d.receipt } : {}),
@@ -240,26 +194,17 @@ function monotributoFromDto(d: PlanBundleDto['monotributo'][number]): Monotribut
   }
 }
 
-/** Map the plan bundle onto the front MonthlyOperationData view-model. */
 export function bundleToMonthData(bundle: PlanBundleDto): MonthlyOperationData {
   const memberById = new Map(bundle.members.map((m) => [m.id, { name: m.name, role: m.role }]))
-  // Per-client rollups from the productions: billable amount (feeds the total to
-  // bill) and total cost (feeds profitability). Keyed by clientId.
   const prodBillable = new Map<string, number>()
   const prodCost = new Map<string, number>()
   for (const p of bundle.productions) {
     if (!p.clientId) continue
-    // A production already on a cobro is inside that cobro's base, which this row reads
-    // as its fee. Adding it again here billed it twice in "Total a facturar".
     if ((p.billable === 'billable' || p.billable === 'both') && !p.receivableId) {
       prodBillable.set(p.clientId, (prodBillable.get(p.clientId) ?? 0) + toMajor(p.billAmountMinor))
     }
-    // What the people on it were paid AND their viáticos: both are what the shoot cost.
     prodCost.set(p.clientId, (prodCost.get(p.clientId) ?? 0) + toMajor(p.totalCostMinor) + toMajor(p.viaticsMinor))
   }
-  // The rollups belong to the CLIENT, and a client can carry several cobros in a month
-  // (the retainer plus a one-time anticipo). Attached to every row they were counted once
-  // per cobro; they go on ONE row — the generated retainer when there is one.
   const rollupRow = new Map<string, ReceivableDto>()
   for (const r of bundle.receivables) {
     const chosen = rollupRow.get(r.clientId)
@@ -282,12 +227,7 @@ export function bundleToMonthData(bundle: PlanBundleDto): MonthlyOperationData {
     alerts: bundle.alerts.map(alertFromDto),
     monotributo: bundle.monotributo.map(monotributoFromDto).filter((m): m is MonotributoWatch => m !== null),
     checklist: bundle.checklist as MonthlyOperationData['checklist'],
-    // `?? false`, so an API that predates the flag reads as complete — the answer it has
-    // always given. Defaulting the other way would raise a close blocker on every month
-    // the moment the browser updates ahead of the API.
     truncated: bundle.truncated ?? false,
-    // `?? []`, so a browser ahead of the API reads a month with no outflows: what the
-    // screen showed before this existed, rather than a crash.
     paymentTotals: (bundle.paymentTotals ?? []).map((t) => ({
       recipientType: t.recipientType as PaymentTotal['recipientType'],
       total: toMajor(t.totalMinor),

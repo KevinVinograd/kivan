@@ -10,16 +10,6 @@ import {
   Switch,
 } from '@/app/components/components'
 
-/**
- * Shared form primitives for the Configuración sections. These are page-scoped
- * helpers (they live under `pages/`, not `components/`), so each settings
- * section composes the same labelled-field, titled-group and toggle-row idioms
- * without repeating the markup seven times. They wrap approved components only
- * (Card, Switch) and own no business logic.
- */
-
-/** Labelled field: a caption label stacked above its control. Mirrors the
- *  `Field` idiom used across the page dialogs. */
 export function Field({
   label,
   htmlFor,
@@ -37,8 +27,6 @@ export function Field({
   )
 }
 
-/** A titled settings group rendered as an outlined Card. Groups related controls
- *  under a heading inside a section's PanelContent. */
 export function SettingGroup({
   title,
   description,
@@ -62,8 +50,6 @@ export function SettingGroup({
   )
 }
 
-/** A label/description on the left and a Switch on the right — the row used for
- *  boolean preferences (notifications, operation flags, methods of cobro). */
 export function ToggleRow({
   label,
   description,

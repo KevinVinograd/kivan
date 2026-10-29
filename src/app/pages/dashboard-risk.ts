@@ -1,18 +1,7 @@
-/**
- * Owner Dashboard — client risk score (§2).
- *
- * A simple, local, additive risk model over the REAL per-client profitability for
- * the period (margin, months since increase, uncharged extras, scope overrun, team
- * overload, outstanding collection). Each signal that fires adds its weight and a
- * human-readable reason; the total maps to a band (Saludable 0-2 / Atención 3-5 /
- * Riesgo alto 6+). With no billed clients the list is empty — no invented risk.
- * Pure: no mutation, no mock.
- */
 import type { PaymentStatus } from './clients-mock-data'
 import type { ClientProfitabilityReportItem, TeamCapacityReportItem } from './reports-types'
 import type { ClientRisk, RiskLevel } from './dashboard-types'
 
-/** Signal weights (§2 scoring model). */
 const WEIGHT = {
   overdue: 3,
   noIncrease: 2,
@@ -31,10 +20,6 @@ export function riskLevelOf(score: number): RiskLevel {
   return 'saludable'
 }
 
-/**
- * Scores every billed client for the period from its real profitability item.
- * `capacity` supplies the overloaded-member set for the team-overload signal.
- */
 export function computeClientRisks(
   profitability: ClientProfitabilityReportItem[],
   capacity: TeamCapacityReportItem[],
@@ -95,7 +80,6 @@ export function computeClientRisks(
   })
 }
 
-/** Sort: highest score, then overdue, then lowest margin (§2). */
 export function sortRisks(risks: ClientRisk[]): ClientRisk[] {
   return [...risks].sort(
     (a, b) =>

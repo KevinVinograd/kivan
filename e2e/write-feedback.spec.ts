@@ -3,20 +3,6 @@ import { test, expect } from '@playwright/test'
 import { applyRole } from './fixtures/role'
 import { stubRoute } from './fixtures/api-mock'
 
-/**
- * A write that failed must not report success.
- *
- * The structural guard proves the
- * `await` is present in the source. These two tests prove what the user actually experiences on
- * either side of it, which no amount of reading the source can: that a 500 leaves the dialog
- * standing with the typed amount intact and no green toast, and that a 200 still closes it.
- *
- * On the negative assertion: the success toast is checked with `.count()` AFTER the error toast
- * has rendered, never with `not.toBeVisible()`. Playwright auto-waits, so a negative visibility
- * assertion run before the write resolves would pass while the request was still in flight — it
- * would pass for the wrong reason, and keep passing after the bug came back.
- */
-
 const RECEIVABLE = {
   id: 'rec-1',
   clientId: 'cli-1',
@@ -53,7 +39,6 @@ async function openCollectDialog(page: import('@playwright/test').Page) {
   await page.goto('/operacion-mensual', { waitUntil: 'domcontentloaded' })
   await expect(page.locator('main')).toBeVisible()
 
-  // "Clientes y cobros" ships collapsed; the table (and its row actions) mount on expand.
   await page.getByRole('button', { name: /Clientes y cobros/ }).click()
 
   await page.getByRole('button', { name: 'Acciones del cliente' }).first().click()
@@ -69,7 +54,6 @@ test('a failed collect keeps the dialog open, preserves the amount, and never to
 }) => {
   await applyRole(page, 'owner', { bundle: { receivables: [RECEIVABLE] } })
 
-  // The write fails the way a real outage does: the POST 500s.
   await stubRoute(page, '/receivables/*/collect', (route) =>
     route.fulfill({
       status: 500,
@@ -82,12 +66,8 @@ test('a failed collect keeps the dialog open, preserves the amount, and never to
   await dialog.getByLabel('Monto cobrado (ARS)').fill('1234')
   await dialog.getByRole('button', { name: 'Registrar cobro' }).click()
 
-  // The failure surfaces. Waiting on this first is what makes the assertions below meaningful:
-  // by the time it renders, the write has resolved and the handler has had its chance to lie.
   await expect(page.getByText('No se pudo guardar el cambio')).toBeVisible()
 
-  // It did not. The dialog is still standing, the typed amount survived, and nothing claimed
-  // the cobro was registered.
   await expect(dialog).toBeVisible()
   await expect(dialog.getByLabel('Monto cobrado (ARS)')).toHaveValue('1234')
   expect(await page.getByText('Cobro registrado').count()).toBe(0)

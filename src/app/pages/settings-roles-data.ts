@@ -1,63 +1,28 @@
 import type { Role } from '@/app/lib/use-role'
 
-/**
- * Roles y permisos — the permission catalogue the role editor renders.
- *
- * CATALOGUE FIXTURE. This is a read-only description of the grant keys and their
- * enforceability; the roles themselves persist via `/roles` and are assigned to
- * members in Miembros y roles. Enforcement IS live: a custom role's grants ride
- * the JWT (`permissions`), the backend gates the catalogue with `requirePermission`
- * (alongside the built-in `requireRole`), and the front narrows nav/pages/actions
- * via `canAccessPath` + `canDo`. Enforcement only NARROWS a built-in role, never
- * escalates. What still VARIES is per-permission enforceability — see `Enforcement`
- * below: `enforced` (the API refuses/withholds), `display_only` (a real UI-only
- * effect the API does not back), and `inert` (no route/column/control yet) — so the
- * editor never implies a boundary a given permission does not hold.
- */
-
-/**
- * How much of a promise a permission can actually keep today. The whole point of
- * showing all of them is that the difference is visible, so a studio owner never
- * mistakes a cosmetic toggle for a boundary the system will hold.
- */
 export type Enforcement =
-  /** The API refuses the request or withholds the field. A real boundary. */
   | 'enforced'
-  /** A real UI effect exists, but the API does not enforce it. Hides, does not prevent. */
   | 'display_only'
-  /** No route, no column, no control. Granting or denying it changes nothing at all. */
   | 'inert'
 
-/** The three product levels: reach a page, see something inside it, or do something. */
 export type PermissionLevel = 'page' | 'section' | 'action'
 
 export type PermissionDef = {
-  /** `resource.action`, the scheme the catalogue and the future engine share. */
   key: string
   label: string
-  /** One sentence of consequence, in the studio's language. */
   help: string
   level: PermissionLevel
   enforcement: Enforcement
-  /**
-   * Enforced, and still useless: the permission holds, but the data it scopes to
-   * never arrives. Nothing writes `User.teamMemberId`, so every self-scoped read
-   * returns an empty list. Its own species of broken promise, so it gets its own
-   * notice rather than hiding inside `enforced`.
-   */
   blockedBy?: string
 }
 
 export type AreaDef = {
   id: string
   label: string
-  /** Mirrors the nav wording, so the owner recognises the area without translating. */
   description: string
   permissions: PermissionDef[]
 }
 
-/** The four access stops an area collapses to. Materialized into permissions on
- *  save, never stored as a level, so a preset can never drift from its grants. */
 export type AccessLevel = 'none' | 'view' | 'edit' | 'full'
 
 export const ACCESS_LEVELS: { id: AccessLevel; label: string; help: string }[] = [
@@ -67,13 +32,6 @@ export const ACCESS_LEVELS: { id: AccessLevel; label: string; help: string }[] =
   { id: 'full', label: 'Control total', help: 'Suma las acciones sensibles del área.' },
 ]
 
-/**
- * The four cross-cutting money switches. They cut across every page, so
- * expressing them per area would be both tedious and wrong. These are exactly the
- * four `Capability` values the backend already enforces today (`ROLE_CAPABILITIES`
- * in `packages/shared`), which is why they are the only switches here that are
- * real end to end.
- */
 export const MONEY_SWITCHES: PermissionDef[] = [
   {
     key: 'client.profitability.read',
@@ -105,7 +63,6 @@ export const MONEY_SWITCHES: PermissionDef[] = [
   },
 ]
 
-/** The eleven areas, in nav order, so the rail and this editor agree. */
 export const AREAS: AreaDef[] = [
   {
     id: 'inicio',
@@ -248,13 +205,9 @@ export type RoleDef = {
   id: string
   name: string
   description: string
-  /** System roles ship with the product and cannot be edited or deleted. */
   isSystem: boolean
-  /** Which built-in role this maps to, for the ones that already exist. */
   systemRole?: Role
-  /** Per-area access, keyed by area id. */
   access: Record<string, AccessLevel>
-  /** The four money switches. */
   money: Record<string, boolean>
 }
 
@@ -264,13 +217,6 @@ const allAreas = (level: AccessLevel): Record<string, AccessLevel> =>
 const allMoney = (on: boolean): Record<string, boolean> =>
   Object.fromEntries(MONEY_SWITCHES.map((permission) => [permission.key, on]))
 
-/**
- * The three roles that ship with the product, expressed in this model. They are
- * derived from what the code actually grants today, NOT from what the old
- * documentation claimed: `ROLE_CAPABILITIES` gives admin every money capability
- * (commit `7a583af`, "give admin the owner's visibility"), so admin and owner
- * differ here only in account governance.
- */
 export const SYSTEM_ROLES: RoleDef[] = [
   {
     id: 'owner',
@@ -307,14 +253,6 @@ export const SYSTEM_ROLES: RoleDef[] = [
   },
 ]
 
-/**
- * What an access level grants within an area, before any manual override.
- *
- * Lives here rather than in the row component because it is domain logic used by
- * BOTH directions: the UI renders from it, and `materializeGrants` writes the
- * stored permission keys from it. Two copies would drift, and the drift would be
- * silent — a role would display one thing and store another.
- */
 export function grantedByLevel(permission: PermissionDef, level: AccessLevel): boolean {
   if (level === 'none') return false
   if (level === 'view') return permission.level !== 'action'
@@ -322,14 +260,6 @@ export function grantedByLevel(permission: PermissionDef, level: AccessLevel): b
   return true
 }
 
-/**
- * Flatten the editor's state into the explicit permission keys that get stored.
- *
- * The four-stop level is an AUTHORING affordance and is deliberately not
- * persisted: if a preset were retuned later, every role that had been saved "at
- * that level" would silently change meaning. Storing the keys freezes what was
- * actually granted.
- */
 export function materializeGrants(
   access: Record<string, AccessLevel>,
   money: Record<string, boolean>,
@@ -350,14 +280,6 @@ export function materializeGrants(
   return keys
 }
 
-/**
- * The inverse: read stored keys back into the editor's state.
- *
- * An area resolves to a level only when the stored set matches EXACTLY what that
- * level would produce; otherwise the area is reported as customised, with each
- * permission's true value, so the row shows `Personalizado` instead of a preset
- * it is not really on.
- */
 export function deriveUiState(grants: string[]): {
   access: Record<string, AccessLevel>
   money: Record<string, boolean>
@@ -383,17 +305,6 @@ export function deriveUiState(grants: string[]): {
   return { access, money, overrides }
 }
 
-/**
- * The editor's view of a role, from whatever is the real source of its authority.
- *
- * A CUSTOM role stores its permission keys, so its view is read back from `grants`.
- * A SYSTEM role stores `grants: []` on purpose — its authority is the built-in
- * capability table, not a stored copy — so its view comes from `SYSTEM_ROLES` (the
- * same matrix reconciled against `ROLE_CAPABILITIES`). Deriving a system role from its
- * empty grants rendered every area "Sin acceso" and every money switch off, which both
- * contradicted the dialog's promise to "mirar todo lo que permite" AND made "Duplicar
- * para editar" copy an empty role instead of the role's real access.
- */
 export function roleEditorState(role: { key: string | null; isSystem: boolean; grants: string[] }): {
   access: Record<string, AccessLevel>
   money: Record<string, boolean>
@@ -406,7 +317,6 @@ export function roleEditorState(role: { key: string | null; isSystem: boolean; g
   return deriveUiState(role.grants)
 }
 
-/** Counts for the honesty summary. Derived, never hand-maintained. */
 export function enforcementTally() {
   const all = [...MONEY_SWITCHES, ...AREAS.flatMap((area) => area.permissions)]
   return {

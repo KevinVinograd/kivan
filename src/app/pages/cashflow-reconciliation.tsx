@@ -18,7 +18,6 @@ import {
 } from './treasury-view'
 import { CashflowLaneSelect } from './cashflow-lane-select'
 
-/** A signed net cell: "+" for positive, red for negative, muted "-" when null. */
 function NetCell({ value, currency }: { value: number | null; currency: Currency }) {
   if (value === null) {
     return <TableCell className="text-right fg-subtle">-</TableCell>
@@ -30,14 +29,6 @@ function NetCell({ value, currency }: { value: number | null; currency: Currency
   )
 }
 
-/**
- * Conciliación tab — projected-vs-actual reconciliation for the selected currency
- * lane. For each elapsed week it compares the realized cobros/pagos net against
- * what the committed register alone predicted (the plan) and surfaces the variance;
- * future weeks show the plan only. The summary strip rolls the closed weeks into
- * realized vs planned and their gap. Only the ARS lane carries cobros/pagos
- * actuals; other lanes reconcile their manual plan against an empty realized.
- */
 export function CashflowReconciliation({
   rows,
   summary,
@@ -56,7 +47,6 @@ export function CashflowReconciliation({
     <div className="flex flex-col gap-4 md:gap-6">
       <CashflowLaneSelect lane={lane} lanes={lanes} onChange={onLaneChange} />
 
-      {/* §6 Conciliación focal → Variación vs plan (the single card's 52px hero). */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <KpiSummaryCard figures={kpis} heroId="variance" collapsible storageKey="cashflow-reconciliation" />
       </div>

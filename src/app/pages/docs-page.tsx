@@ -2,22 +2,6 @@ import type { ReactNode } from 'react'
 
 import { PageContent, PageHeader, Panel } from '@/app/components/templates'
 
-/**
- * Guía de uso (`/docs`) — documentación viva servida DENTRO de la app, para que
- * esté siempre disponible y se actualice en cada deploy (en vez de vivir en un
- * documento suelto que se desactualiza). Abierta a TODO rol, incluidos los roles
- * custom (ver PAGE_ACCESS + su ausencia deliberada en PATH_PERMISSION).
- *
- * EXCEPCIÓN i18n DELIBERADA: el cuerpo es un texto largo pensado para el equipo
- * del estudio (español). El repo tiene la política "código en inglés / copy de UI
- * en español"; esto es copy de UI. Las clases visuales SÍ salen de tokens del DS
- * (nada de colores crudos), así hereda el light/dark del resto de la app.
- *
- * ⚠️ REGLA: cada vez que se agrega o cambia algo visible en la UI (una pantalla,
- * un flujo, un campo obligatorio, un comportamiento), actualizá esta guía en el
- * mismo cambio. Es lo que ve el equipo; si queda vieja, miente.
- */
-
 function DocSection({
   n,
   eyebrow,
@@ -43,7 +27,6 @@ function DocSection({
   )
 }
 
-/** Bloque destacado (aviso / tip). `tone` elige la superficie del token. */
 function Callout({
   tone = 'accent',
   label,
@@ -65,7 +48,6 @@ function Callout({
   )
 }
 
-/** Lista de pasos numerados. */
 function Steps({ items }: { items: ReactNode[] }) {
   return (
     <ol className="flex flex-col gap-2">
@@ -81,7 +63,6 @@ function Steps({ items }: { items: ReactNode[] }) {
   )
 }
 
-/** Lista simple con viñetas. */
 function Bullets({ items }: { items: ReactNode[] }) {
   return (
     <ul className="flex flex-col gap-1.5">
@@ -95,7 +76,6 @@ function Bullets({ items }: { items: ReactNode[] }) {
   )
 }
 
-/** Fila de la tabla de roles: rol + descripción de qué puede hacer. */
 function RoleRow({ role, children }: { role: string; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-1 rounded-container bg-surface-recessed px-4 py-3">
@@ -105,10 +85,6 @@ function RoleRow({ role, children }: { role: string; children: ReactNode }) {
   )
 }
 
-/**
- * Guía de uso del estudio. Documenta TODO lo que se puede hacer en la app,
- * módulo por módulo. Editar acá cuando cambie la UI, así la Guía queda al día.
- */
 export function DocsPage() {
   return (
     <>
@@ -160,13 +136,6 @@ export function DocsPage() {
                 recuperación a tu correo. Y desde <strong>Configuración → Apariencia</strong>{' '}
                 cambiás entre modo claro y oscuro cuando quieras.
               </Callout>
-              {/* Not a hypothetical: a translated page produced three separate bug reports on
-                  the same day (a frozen screen, a save button stuck on "Guardando", and a
-                  full-screen "Algo salió mal"). The app now asks the browser not to translate
-                  it, which settles Chrome's own translator for everyone who signs in from here
-                  on. An EXTENSION ignores that request, so the one case left is worth naming:
-                  the symptoms look like three unrelated app bugs, and without this note the
-                  next person to hit it will report them as such. */}
               <Callout tone="accent" label="¿Se traba la app o te aparece “Algo salió mal”?">
                 Fijate si tenés alguna <strong>extensión del navegador que traduzca páginas</strong>{' '}
                 activada. Al traducir, reescribe la pantalla por debajo y la app deja de responder:

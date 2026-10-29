@@ -37,7 +37,6 @@ import { LogProductionItem } from './log-production-item'
 
 const MAX_CLIENTS = 2
 
-/** Human labels for the "Ver columnas" visibility menu (keyed by column id). */
 export const COLUMN_LABELS: Record<string, string> = {
   person: 'Persona',
   clients: 'Clientes asignados',
@@ -51,7 +50,6 @@ export const COLUMN_LABELS: Record<string, string> = {
   lastUpdated: 'Última actualización',
 }
 
-/** Row action handlers, supplied by the page (dialogs / selection live there). */
 export type TeamRowActions = {
   onView: (member: TeamMember) => void
   onEdit: (member: TeamMember) => void
@@ -201,8 +199,6 @@ export function teamColumns(
     {
       id: 'productions',
       header: 'Producciones',
-      // Low-priority on a narrow container: collapses below 1152px so pay / estado
-      // de pago / datos bancarios are never clipped; restored on a wide container.
       meta: { hideOnNarrow: true },
       accessorFn: (member) => td.productionsCountForMember(member.id),
       cell: ({ row }) => {
@@ -255,8 +251,6 @@ export function teamColumns(
       meta: { mobile: 'secondary' },
       accessorFn: (member) => td.estimatedPayForMember(member.id),
       cell: ({ row }) => {
-        // A member with no plan for the month has no estimate — the dash, not $0,
-        // which would read as a real amount of nothing owed.
         const statement = td.statementForMember(row.original.id)
         return (
           <span className="type-button fg-default tabular-nums">
@@ -347,9 +341,6 @@ export function teamColumns(
                   }}
                 >
                   <ICON.approvePayment aria-hidden />
-                  {/* Disabled has two very different reasons and the label must say which:
-                      the payment is finished, or there is no plan to act on this month.
-                      Both used to read "Marcar pago aprobado" — an action, greyed out. */}
                   {paymentAction?.label ?? (statement ? 'Pagado' : 'Sin plan del mes')}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -365,9 +356,6 @@ export function teamColumns(
     },
   ]
 
-  // Role-gated columns: the employee sees a read-only view of their own row (no
-  // bulk selection, no row actions); a role without the `teamBankDetails` capability
-  // loses the banking column.
   if (role === 'employee') return columns.filter((column) => column.id !== 'select' && column.id !== 'actions')
   if (!hasCapability(capabilities, 'teamBankDetails')) return columns.filter((column) => column.id !== 'bank')
   return columns

@@ -26,7 +26,6 @@ import type { Receivable } from './cobros-mock-data'
 
 type Step = 'review' | 'emitter' | 'confirm'
 
-/** Selectable emisor card (§9.5): name, CUIT/PV, estado, nivel de uso. */
 function EmitterOption({
   emitter,
   selected,
@@ -37,7 +36,6 @@ function EmitterOption({
   onSelect: (emitter: RealEmitter) => void
 }) {
   const badge = EMITTER_ALERT_BADGE[emitter.alert]
-  // Usage % from the emisor's real numbers; no declared ceiling → 0 (never "full").
   const pct = emitter.monthlyLimit > 0 ? Math.round((emitter.monthlyUsed / emitter.monthlyLimit) * 100) : 0
   return (
     <button
@@ -71,20 +69,6 @@ function EmitterOption({
   )
 }
 
-/**
- * What the operator is told when generating a factura fails.
- *
- * The bare `catch {}` this replaces discarded every server refusal for one generic
- * sentence, so an emisor the dialog had just badged `Disponible` could 409 on a cap no
- * screen ever showed and the operator learned only that it did not work — the defect WF004
- * ratchets against.
- *
- * But forwarding `error.message` verbatim is not the fix either: the API speaks English and
- * some of its messages carry an internal id (`Invoice emitter <uuid> not found`), so the
- * operator would read a raw UUID on a Spanish screen. The two refusals that are ACTIONABLE
- * get a Spanish sentence each; everything else keeps the generic one, which loses nothing
- * the operator could have acted on.
- */
 function generateErrorMessage(error: unknown): string {
   if (!(error instanceof ApiError) || error.status !== 409) {
     return 'No se pudo generar la factura'
@@ -99,14 +83,6 @@ function generateErrorMessage(error: unknown): string {
   return 'No se pudo generar la factura'
 }
 
-/**
- * Generar factura (§9.6) — a three-step flow inside one Dialog: revisar la
- * información, seleccionar el monotributo emisor (§9.5) y confirmar. Generation calls
- * the real endpoint (POST /receivables/:id/invoice/generate) through `onGenerate`, which
- * reserves emisor quota and allocates the comprobante sequence server-side. A blocking
- * emisor (límite alcanzado / error de conexión) stops the step, a near limit only warns
- * (§9.5 product rule). Missing fiscal data (§9.4) blocks step 1.
- */
 export function CobrosGenerarFacturaDialog({
   receivable,
   onGenerate,
@@ -114,20 +90,15 @@ export function CobrosGenerarFacturaDialog({
   onEditFiscalData,
 }: {
   receivable: Receivable
-  /** Issue the comprobante through the real endpoint. Resolves on success, rejects on failure. */
   onGenerate: (receivableId: string, emitterId: string) => Promise<void>
   onClose: () => void
   onEditFiscalData: (receivable: Receivable) => void
 }) {
   const readiness = invoiceReadiness(receivable)
-  // The store owns the emisores read + its error gate (SE001): a failed fetch must not read
-  // as "no monotributos" on a money surface, so the emitter step surfaces it with a retry.
   const { emitters, isLoading: emittersLoading, isError: emittersFailed, refetch } = useInvoiceEmitters()
   const [step, setStep] = useState<Step>('review')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
-  // The selected emisor: the user's pick, else the receivable's own profile when it can still
-  // issue, else the first that can, else the first — recomputed as the async list resolves.
   const emitter = useMemo<RealEmitter | null>(() => {
     const picked = selectedId ? emitters.find((e) => e.id === selectedId) : undefined
     return picked ?? emitterFor(emitters, receivable.taxProfileId) ?? emitters[0] ?? null

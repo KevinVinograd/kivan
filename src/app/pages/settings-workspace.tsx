@@ -18,9 +18,6 @@ import { LANES, LANE_PICKER_LABEL } from '@/lib/currency'
 import { queryKeys } from '@/queries/keys'
 import { Field, SettingGroup } from './settings-fields'
 
-// Timezone is a free string server-side; the option VALUES are the IANA names the
-// backend stores (its default is 'America/Argentina/Buenos_Aires'), so a saved value
-// round-trips into the Select without a translation layer.
 const TIMEZONES = [
   { value: 'America/Argentina/Buenos_Aires', label: 'Argentina (GMT-3)' },
   { value: 'America/Santiago', label: 'Chile (GMT-3)' },
@@ -28,35 +25,17 @@ const TIMEZONES = [
   { value: 'Europe/Madrid', label: 'España (GMT+1)' },
 ]
 
-// DERIVED, not hand-written. As a literal array this was the drift `@/lib/currency` exists
-// to prevent: a lane added to the `Currency` enum compiled cleanly here while this Select
-// went on offering two, so a workspace could never be defaulted to the new lane and the
-// whole suite stayed green. `LANES` and `LANE_PICKER_LABEL` are both derived from an
-// exhaustiveness-checked `Record<Currency, string>` in that leaf — `LANE_NOUN` for the one
-// and `LANE_PICKER_LABEL` for the other, so a new lane is two entries there and none here.
 const CURRENCIES = LANES.map((value) => ({ value, label: LANE_PICKER_LABEL[value] }))
 
 
-/**
- * Espacio de trabajo — owner/admin section for the studio identity and the regional
- * defaults. Backed by the real `GET`/`PUT /workspace` endpoint: it loads the current
- * values and persists name / timezone / defaultCurrency (the fields the Workspace
- * model carries). Website and date-format were dropped — the model has no column for
- * them, so showing them would be a fake save.
- */
 export function SettingsWorkspace() {
   const queryClient = useQueryClient()
   const workspaceQuery = useQuery({ queryKey: queryKeys.workspace.current, queryFn: workspaceApi.get })
 
   const [name, setName] = useState('')
   const [timezone, setTimezone] = useState(TIMEZONES[0].value)
-  // `string`, not `Currency`: the value round-trips through `workspaceApi`, whose
-  // `defaultCurrency` is a plain string, and the Select's `onValueChange` hands one back.
-  // Narrowing here would only move the cast, not remove it. What guarantees the picker
-  // offers every lane is `LANE_PICKER_LABEL` in `@/lib/currency`, which the compiler checks.
   const [currency, setCurrency] = useState<string>(CURRENCIES[0].value)
 
-  // Seed the form from the server once it loads (and whenever it refetches).
   const loaded = workspaceQuery.data
   useEffect(() => {
     if (!loaded) return

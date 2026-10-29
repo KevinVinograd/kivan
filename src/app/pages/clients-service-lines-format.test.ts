@@ -27,7 +27,6 @@ function line(over: Partial<ClientServiceDto>): ClientServiceDto {
 
 describe('monthlyTotal', () => {
   it('sums the active monthly lines only', () => {
-    // Estudio Calde: only the retainer is a monthly fee.
     const lines = [
       line({ priceMinor: '130000000' }),
       line({ priceMinor: '140000000', billingMode: 'one_time' }),
@@ -52,7 +51,6 @@ describe('remainingOf', () => {
 
 describe('chargeNet', () => {
   it('floors the discount in minor units, like the server', () => {
-    // 5% of 700.000,01 = 35.000,0005 → the discount loses the fraction, the net keeps it.
     expect(chargeNet(700_000.01, 500)).toEqual({ discount: 35_000, net: 665_000.01 })
   })
 

@@ -36,7 +36,6 @@ export type MonthlyTeamDetailProps = {
   onEditBank: (payout: TeamPayout) => void
 }
 
-/** Current-account section — the statement build-up + its lifecycle/export actions. */
 function CurrentAccountSection({
   payout,
   locked,
@@ -47,7 +46,6 @@ function CurrentAccountSection({
   onAdvance: (payout: TeamPayout) => void
 }) {
   const statement = statementBadge(payout.statementStatus)
-  // Same derivation as the row menu: one legal step, or none once confirmed.
   const advance = nextStatementAction(payout.statementStatus)
   return (
     <DetailSection title="Cuenta corriente">
@@ -80,7 +78,6 @@ function CurrentAccountSection({
             {advance.label}
           </Button>
         ) : null}
-        {/* Export is not built yet — disabled rather than faking a success toast. */}
         <Button variant="outlined" color="primary" size="dense" disabled>
           <AFFORDANCE.download className="size-4" aria-hidden />
           Exportar
@@ -122,7 +119,6 @@ export function MonthlyTeamDetail({
         }
       />
       <PanelContent layout="stacked" flushTop>
-        {/* §6 detail focal → the payout total leads as the panel's one type-metric hero. */}
         <KpiSummaryCard
           figures={[
             { id: 'total-a-pagar', label: 'Total a pagar', value: formatCurrency(payoutTotal(payout)) },

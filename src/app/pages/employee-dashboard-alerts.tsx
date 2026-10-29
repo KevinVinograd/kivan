@@ -24,11 +24,6 @@ function EmployeeAlertCard({ alert }: { alert: EmployeeAlert }) {
   )
 }
 
-/**
- * §8 Alertas de mis clientes. Client-scoped operational alerts relevant to the
- * employee's day-to-day (follow-ups, missing hours, overdue tasks, objectives at
- * risk). Never owner/admin-sensitive signals (margin, profitability, ARCA, risk).
- */
 export function EmployeeClientAlerts({ alerts }: { alerts: EmployeeAlert[] }) {
   return (
     <section aria-label="Alertas de mis clientes" className="flex flex-col">

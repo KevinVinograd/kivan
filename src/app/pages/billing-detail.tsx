@@ -34,15 +34,6 @@ import {
 import { canInvoice, emitterById, isBilled } from './cobros-invoice'
 import type { Receivable } from './cobros-mock-data'
 
-/**
- * Facturación detail (§9 / §10.2) — the read-only panel in the Facturación
- * master-detail split. Foregrounds the invoice lifecycle: the facturación state,
- * the emisor, the comprobante data and the actionable Error ARCA recovery. The
- * primary actions are facturación-only (generar / asociar / enviar / editar datos
- * fiscales); collection actions stay on the Cobros page. Mutations are owned by
- * the page; this panel only invokes callbacks. Built on the shared scroll-reveal
- * scaffold + detail primitives.
- */
 export function BillingDetail({
   receivable,
   onClose,
@@ -58,7 +49,6 @@ export function BillingDetail({
   onAssociateInvoice: (receivable: Receivable) => void
   onSend: (receivable: Receivable) => void
   onEditFiscalData: (receivable: Receivable) => void
-  /** Compact period picker shown in the detail header (reachable on mobile). */
   periodControl?: ReactNode
 }) {
   if (!receivable) return null

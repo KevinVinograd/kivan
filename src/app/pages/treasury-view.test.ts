@@ -98,10 +98,6 @@ describe('cashflowKpis', () => {
   it('surfaces a negative 13-week variation by sign, not color', () => {
     const kpis = cashflowKpis(weeks)
     const net = kpis.find((kpi) => kpi.id === 'net')
-    // 600k monthly salary outflow vs 400k monthly retainer inflow → net down.
-    // Variación is a direction, not a threshold alarm: the sign carries it and the
-    // figure stays fg-default (figure-color-restraint). The cash-crunch tint lives on
-    // Cierre proyectado / Semana más baja, not on this variation.
     expect(net?.value).toContain('-')
     expect(net?.tone).toBe('default')
   })
@@ -127,7 +123,6 @@ describe('cashflowMatrix', () => {
     const matrix = cashflowMatrix(weeks)
     expect(matrix.outflowRows.some((row) => row.label === 'Sueldos')).toBe(true)
     expect(matrix.inflowRows.some((row) => row.label === 'Abonos')).toBe(true)
-    // No receivables were supplied, so there is no "Cobros" inflow row.
     expect(matrix.inflowRows.some((row) => row.category === 'collection')).toBe(false)
   })
 
@@ -146,8 +141,6 @@ describe('commitmentSearchText', () => {
     expect(text).toContain('outflow')
   })
 })
-
-// ── Reconciliation (M4) ──────────────────────────────────────────────────────
 
 function makeReceivable(partial: Partial<Receivable>): Receivable {
   return {
@@ -190,16 +183,11 @@ function makePayment(partial: Partial<Payment>): Payment {
   }
 }
 
-// A 450k collection and a 600k salary payout, both realized in early June.
 const realizedReceivables: Receivable[] = [
   makeReceivable({
     totalAmount: 450_000,
     collectedAmount: 450_000,
     status: 'collected',
-    // The day the cash ARRIVED. This fixture used to say "realized in early June" in a
-    // comment and set only `lastActivityAt`, which is the row's createdAt: the engine
-    // read it as the collection date, so the comment happened to describe the behavior
-    // by accident. The engine now reads `collectedAt`, and the fixture says it outright.
     collectedAt: '2026-06-08',
     lastActivityAt: '2026-06-02T09:00:00',
   }),
@@ -235,7 +223,6 @@ const TODAY = '2026-06-20'
 describe('weekRealizedNet', () => {
   it('nets only the actual-basis lines (collected − paid), ignoring committed/projected', () => {
     const total = reconciledWeeks.reduce((sum, week) => sum + weekRealizedNet(week), 0)
-    // 450k collected − 600k paid across the window.
     expect(total).toBe(-150_000)
   })
 })
@@ -254,7 +241,6 @@ describe('reconciliationRows', () => {
   })
 
   it('keeps the still-open current week (containing today) out of the elapsed set', () => {
-    // 2026-06-20 falls in the ISO week starting Mon 2026-06-15, which ends 06-22.
     const current = rows.find((row) => row.weekStart === '2026-06-15')
     expect(current?.isElapsed).toBe(false)
     expect(current?.actualNet).toBeNull()
@@ -277,11 +263,8 @@ describe('reconciliationSummary', () => {
   it('rolls elapsed weeks into realized, planned and their variance', () => {
     const rows = reconciliationRows(reconciledWeeks, planWeeks, TODAY)
     const summary = reconciliationSummary(rows)
-    // June salary (−600k) + retainer (+400k) are the only plan items before 2026-06-20.
     expect(summary.planned).toBe(-200_000)
-    // 450k collected − 600k paid, both realized before 2026-06-20.
     expect(summary.realized).toBe(-150_000)
-    // Collected 50k more than planned.
     expect(summary.variance).toBe(50_000)
     expect(summary.weeksElapsed).toBeGreaterThan(0)
   })

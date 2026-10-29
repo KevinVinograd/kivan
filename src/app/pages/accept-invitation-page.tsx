@@ -9,20 +9,6 @@ import {
   type ProfileField,
 } from './use-accept-invitation-form'
 
-/**
- * Aceptar invitación — the pre-auth set-password surface (route
- * `/aceptar-invitacion?token=…`), rendered outside the AppShell and reached from
- * the invitation email's link. The member chooses a password, which activates
- * their account; then they sign in at `/login`. Reuses `AuthSplitLayout` like the
- * other pre-auth surfaces (login / recuperar-contraseña).
- *
- * Two steps for a first-time invite: the password, then the ficha only this person can
- * fill in. The second step is skipped entirely for a password RESET and for a login with
- * no roster person behind it — the server decides which, and the screen asks.
- */
-/** One labelled field of the ficha. Extracted because the step has six of them and the
- *  label/input/id wiring is the part that is easy to get subtly wrong (a `htmlFor` that
- *  points nowhere reads fine and breaks the screen reader). */
 function ProfileInput({
   idPrefix,
   field,
@@ -146,8 +132,6 @@ export function AcceptInvitationPage() {
               onChange={setProfileField}
               required
             />
-            {/* Optional on purpose: the CBU is the field nobody has to hand, and locking
-                someone out of the app over it just moves the problem to a WhatsApp. */}
             <p className="type-caption fg-subtle">
               Datos bancarios — opcionales, los podés cargar después desde tu perfil.
             </p>

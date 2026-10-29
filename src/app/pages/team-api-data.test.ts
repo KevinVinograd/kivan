@@ -5,7 +5,6 @@ import { dtoToTeamMember, formToTeamInput } from './team-api-data'
 import { bankBadge } from './team-format'
 import type { TeamMemberFormValues } from './team-data'
 
-/** A raw TeamMember entity DTO with neutral defaults; override only what a case asserts. */
 function memberDto(overrides: Partial<TeamMemberDto> = {}): TeamMemberDto {
   return {
     id: 'tm-1',
@@ -30,7 +29,6 @@ function memberDto(overrides: Partial<TeamMemberDto> = {}): TeamMemberDto {
   }
 }
 
-/** Dialog form values with neutral defaults; override only what a case asserts. */
 function formValues(overrides: Partial<TeamMemberFormValues> = {}): TeamMemberFormValues {
   return {
     firstName: 'Micaela',
@@ -55,12 +53,10 @@ describe('dtoToTeamMember', () => {
       firstName: 'Micaela',
       lastName: 'Duarte',
     })
-    // A three-part name keeps everything after the first token as the last name.
     expect(dtoToTeamMember(memberDto({ name: 'Ana Paula Gómez' }))).toMatchObject({
       firstName: 'Ana',
       lastName: 'Paula Gómez',
     })
-    // A single token → no last name.
     const solo = dtoToTeamMember(memberDto({ name: 'Cher' }))
     expect(solo.firstName).toBe('Cher')
     expect(solo.lastName).toBeUndefined()
@@ -94,8 +90,6 @@ describe('dtoToTeamMember', () => {
     expect(m.startDate).toBeUndefined()
   })
 
-  // The bank FIELDS never ride the member DTO, so the badge must read the derived status;
-  // reading `member.bank` made every API-loaded member "Sin datos" whatever was on file.
   it('drives the Datos bancarios badge from the derived bank status', () => {
     const complete = dtoToTeamMember(memberDto({ bankComplete: true, bankStatus: 'complete' }))
     expect(complete.bank).toBeUndefined()

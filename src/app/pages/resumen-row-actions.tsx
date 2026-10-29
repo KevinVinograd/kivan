@@ -16,9 +16,6 @@ import { RESUMEN_CRUMB } from './reports-trail'
 import type { ReportTab } from './reports-tabs-header'
 import type { ClientProfitabilityReportItem, TeamCapacityReportItem } from './reports-types'
 
-/** Trailing "more actions" control shared by the Resumen tables (desktop) and the
- *  mobile card-list: an overflow dropdown that views the entity and links out to
- *  its module. */
 export function RowActionsMenu({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex justify-end">
@@ -35,7 +32,6 @@ export function RowActionsMenu({ label, children }: { label: string; children: R
   )
 }
 
-/** Overflow actions for an at-risk client row (shared desktop table + mobile list). */
 export function RiskClientActions({
   client,
   onTabChange,
@@ -80,8 +76,6 @@ export function RiskClientActions({
         <ICON.monthlyOperation aria-hidden />
         Ver operación mensual
       </DropdownMenuItem>
-      {/* /cobros has no ?open= deep-link, so this one carries no subject (the tab is the
-          subject-less list). Left as a plain link rather than a param the page ignores. */}
       <DropdownMenuItem
         onSelect={() => navigate(buildTrailHref('/cobros', RESUMEN_CRUMB, new URLSearchParams()))}
       >
@@ -92,7 +86,6 @@ export function RiskClientActions({
   )
 }
 
-/** Overflow actions for a most-loaded person row (shared desktop table + mobile list). */
 export function LoadedPersonActions({
   person,
   onTabChange,

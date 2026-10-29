@@ -2,8 +2,6 @@ import { useNavigate } from 'react-router'
 
 import { Button, Skeleton } from '@/app/components/components'
 
-/** Loading state: KPI tiles over a chart + table skeleton. Shown while the
- *  period dataset resolves; shared across tabs. */
 export function ReportsLoading() {
   return (
     <div className="flex flex-col gap-4 md:gap-6" aria-hidden>
@@ -23,7 +21,6 @@ export function ReportsLoading() {
   )
 }
 
-/** Page-level error state with retry + reset-to-current-period. */
 export function ReportsError({
   onRetry,
   onResetPeriod,
@@ -49,7 +46,6 @@ export function ReportsError({
   )
 }
 
-/** Empty state when the selected period has no data at all. */
 export function ReportsEmptyPeriod() {
   const navigate = useNavigate()
   return (
@@ -59,13 +55,6 @@ export function ReportsEmptyPeriod() {
         Cuando se carguen horas, cobros, pagos o producciones en Operación mensual, los reportes se van a
         generar automáticamente.
       </p>
-      {/* A real Button + navigate, not an <a> carrying `buttonVariants`. That anchor was
-          broken twice over. Visually: `buttonVariants` is a cva with NO size variant —
-          height and padding come from `buttonSize[size]`, which only `Button` applies
-          (button.tsx) — so the anchor rendered as bare inverted text with no padding.
-          Behaviourally: an href forces a full document reload, dropping SPA state and
-          re-running auth bootstrap, on the one CTA of this surface that used it. Its two
-          twins in the dashboards already do it this way. */}
       <Button variant="solid" color="primary" onClick={() => navigate('/operacion-mensual')}>
         Ir a operación mensual
       </Button>
@@ -73,7 +62,6 @@ export function ReportsEmptyPeriod() {
   )
 }
 
-/** No-results state for an over-filtered table; rendered inside the table body. */
 export function ReportsNoResults({ onClearFilters }: { onClearFilters: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">

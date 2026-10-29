@@ -113,7 +113,6 @@ function alertColumns(
   ]
 }
 
-/** Alertas tab — actionable monthly alerts with status changes. */
 export function AlertsTab() {
   const op = useMonthlyOperation()
   const columns = alertColumns(async (alert, status) => {

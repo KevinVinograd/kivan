@@ -1,12 +1,3 @@
-/**
- * Admin / Operations Dashboard — formatting + status display helpers.
- *
- * Pure functions that turn derived admin values into labels and Badge variants.
- * Currency / percent / date formatting and most status vocabularies are reused
- * from the shared Operación mensual and cobranza helpers so the whole product
- * speaks one money / date / status language. Formatting never lives in the data
- * layer.
- */
 import type { BadgeVariant } from '@/app/components/components'
 import type {
   AdminSeverity,
@@ -31,7 +22,6 @@ export { formatShortDate, formatRelativeDate, formatHours } from './dashboard-fo
 
 export type StatusBadge = { label: string; variant: BadgeVariant }
 
-// ── §2 severity ──────────────────────────────────────────────────────────────
 const SEVERITY: Record<AdminSeverity, StatusBadge> = {
   alta: { label: 'Alta', variant: 'danger' },
   media: { label: 'Media', variant: 'warning' },
@@ -42,7 +32,6 @@ export function severityBadge(severity: AdminSeverity): StatusBadge {
   return SEVERITY[severity]
 }
 
-/** Sort rank for severities (alta first). */
 export const SEVERITY_RANK: Record<AdminSeverity, number> = { alta: 0, media: 1, baja: 2 }
 
 export const PENDING_TYPE_LABEL: Record<PendingType, string> = {
@@ -58,7 +47,6 @@ export const PENDING_TYPE_LABEL: Record<PendingType, string> = {
   produccion: 'Producción',
 }
 
-// ── §3 hours person status ───────────────────────────────────────────────────
 const HOURS_STATUS: Record<HoursPersonStatus, StatusBadge> = {
   completo: { label: 'Completo', variant: 'success' },
   incompleto: { label: 'Incompleto', variant: 'warning' },
@@ -69,7 +57,6 @@ export function hoursStatusBadge(status: HoursPersonStatus): StatusBadge {
   return HOURS_STATUS[status]
 }
 
-// ── §4 viáticos status ───────────────────────────────────────────────────────
 const VIATICO_STATUS: Record<ViaticoStatus, StatusBadge> = {
   sin_cargar: { label: 'Sin cargar', variant: 'neutral' },
   sin_pagar: { label: 'Sin pagar', variant: 'warning' },
@@ -80,7 +67,6 @@ export function viaticoStatusBadge(status: ViaticoStatus): StatusBadge {
   return VIATICO_STATUS[status]
 }
 
-// ── §5 team-payment status ───────────────────────────────────────────────────
 const TEAM_PAY_STATUS: Record<TeamPayStatus, StatusBadge> = {
   listo: { label: 'Listo para pagar', variant: 'success' },
   pendiente: { label: 'Pendiente', variant: 'neutral' },
@@ -92,7 +78,6 @@ export function teamPayStatusBadge(status: TeamPayStatus): StatusBadge {
   return TEAM_PAY_STATUS[status]
 }
 
-// ── §6 collection status ─────────────────────────────────────────────────────
 const COLLECTION_STATUS: Record<CollectionStatus, StatusBadge> = {
   pagado: { label: 'Pagado', variant: 'success' },
   pendiente: { label: 'Pendiente', variant: 'neutral' },
@@ -104,7 +89,6 @@ export function collectionStatusBadge(status: CollectionStatus): StatusBadge {
   return COLLECTION_STATUS[status]
 }
 
-// ── §7 monotributo alert + billing item status ───────────────────────────────
 const MONOTRIBUTO_ALERT: Record<MonotributoAlert, StatusBadge> = {
   normal: { label: 'Normal', variant: 'success' },
   atencion: { label: 'Atención', variant: 'warning' },
@@ -125,7 +109,6 @@ export function billingItemStatusBadge(status: BillingItemStatus): StatusBadge {
   return BILLING_ITEM_STATUS[status]
 }
 
-// ── §8 expense status ────────────────────────────────────────────────────────
 const EXPENSE_STATUS: Record<ExpenseStatus, StatusBadge> = {
   registrado: { label: 'Registrado', variant: 'success' },
   pendiente: { label: 'Pendiente', variant: 'neutral' },

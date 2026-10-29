@@ -3,20 +3,6 @@ import { Tabs as TabsPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Tabs — shadcn/ui (new-york) Radix tabs, token-adapted. A segmented control: the
- * list is an inset `bg-alpha-subtle` track, the active trigger lifts onto a
- * `bg-surface-flat` chip with a soft shadow. Inactive triggers inherit the track's
- * `fg-subtle` and fill with `bg-alpha-transparent-hover` on hover; the active one
- * swaps to `fg-default`. Focus uses the shared `ring-focus` halo. Theme is handled
- * by the tokens (no `dark:` overrides).
- *
- * The `variant="naked"` mode on `TabsList` + `TabsTrigger` drops all of that
- * chrome so the parts become an unstyled, layout-agnostic tablist: the consumer
- * lays the list out (e.g. a card grid) and pairs each `TabsTrigger variant="naked"
- * asChild` with a visual child (typically an interactive `Card selected=…`). Radix
- * still owns roles, roving focus, arrow keys and `aria-selected`/`aria-controls`.
- */
 function Tabs({
   className,
   ...props
@@ -30,7 +16,6 @@ function Tabs({
   )
 }
 
-/** Visual variant for the list + trigger parts. */
 type TabsVariant = "segmented" | "naked"
 
 function TabsList({

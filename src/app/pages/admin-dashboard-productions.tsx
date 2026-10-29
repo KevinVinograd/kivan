@@ -8,8 +8,6 @@ import { formatCompactCurrency, formatCurrency, formatShortDate, viaticoStatusBa
 import { MetricTile } from './admin-dashboard-ui'
 import type { ProductionRow, ProductionsAndExpenses } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const PRODUCTIONS_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=equipo',
   { label: 'Dashboard', to: '/dashboard' },
@@ -45,13 +43,6 @@ function ProductionCard({ row }: { row: ProductionRow }) {
   )
 }
 
-/**
- * §4 Producciones y viáticos. Tracks the production work that feeds payments and
- * the monthly close: the month's production + viáticos totals, plus a list of
- * productions still needing attention (one card each, mirroring Clientes en
- * riesgo: viáticos to validate, no client, or billable not defined). Includes the
- * count of viáticos still to validate (the §1 metric folded into this section).
- */
 export function ProductionsAndExpensesCard({ productions }: { productions: ProductionsAndExpenses }) {
   return (
     <section aria-label="Producciones y viáticos" className="group/producciones flex flex-col">

@@ -32,20 +32,14 @@ import {
 import { FilterFieldsAccordion } from './clients-filters'
 import { ClientsBulkActions } from './clients-bulk-actions'
 
-/** Compact navigation list shown in the left panel while a record is open (§8). */
 export type ClientsListProps = {
   clients: Client[]
   selectedId: string | null
   onSelect: (id: string) => void
-  /** Contextual breadcrumb shown above the panel title (deep-link from dashboard). */
   breadcrumb?: ReactNode
-  /** List filter state, owned by the page so a deep-link can seed it (e.g. risk). */
   filters: ClientListFilters
   onFiltersChange: (filters: ClientListFilters) => void
-  /** Resolves a client's derived risk band, for the `risk` list filter. `null` when the
-   *  band is unknown — such a client matches no risk filter rather than passing as healthy. */
   riskOf: (client: Client) => RiskLevel | null
-  /** Shared multi-select (client ids), owned by the page so it stays in sync with the table. */
   picked: Set<string>
   onTogglePick: (id: string) => void
   onClearPicked: () => void
@@ -54,7 +48,6 @@ export type ClientsListProps = {
   onBulkExport: (clients: Client[]) => void
 }
 
-/** List-panel sort (local to the navigation list; the table owns its own sort). */
 type ListSortField = 'name' | 'profitability' | 'lastMeeting' | 'monthlyFee'
 type ListSort = { field: ListSortField; dir: 'asc' | 'desc' }
 
@@ -65,7 +58,6 @@ const SORT_OPTIONS: { field: ListSortField; label: string; defaultDir: 'asc' | '
   { field: 'monthlyFee', label: 'Fee mensual', defaultDir: 'desc' },
 ]
 
-/** Comparator for the list sort. Missing values sort last regardless of direction. */
 function compareClients(a: Client, b: Client, sort: ListSort): number {
   const dir = sort.dir === 'asc' ? 1 : -1
   switch (sort.field) {
@@ -86,7 +78,6 @@ function compareClients(a: Client, b: Client, sort: ListSort): number {
   }
 }
 
-/** Icon-triggered sort popover for the list panel; the second list toolbar action. */
 function ListSortPopover({
   sort,
   onChange,
@@ -180,7 +171,6 @@ function ClientsListItem({
         active ? 'bg-alpha-subtle-active' : 'hover:bg-alpha-subtle-hover',
       )}
     >
-      {/* Leading slot: avatar by default, checkbox on hover or when picked (mirrors the table). */}
       <div className="flex size-6 shrink-0 items-center justify-center">
         <Avatar
           size="sm"
@@ -252,14 +242,9 @@ export function ClientsList({
     return clientMatchesListFilters(client, filters, riskOf(client))
   })
   const sorted = sort ? [...filtered].sort((a, b) => compareClients(a, b, sort)) : filtered
-  // Slide rows from old to new position when the sort changes (reorder-FLIP), so a
-  // record the operator is reading visibly travels to its new slot instead of
-  // teleporting. Reduced-motion is honored inside the hook (instant jump).
   const listRef = useFlipReorder<HTMLDivElement>(sorted.map((client) => client.id))
   const pickedClients = clients.filter((client) => picked.has(client.id))
 
-  // Filter + sort: section-header actions on desktop, trailing controls beside
-  // the search on mobile (where the section header is dropped as redundant).
   const filterCount = Object.values(filters).filter(Boolean).length
   const filterSort = (
     <>
@@ -273,33 +258,15 @@ export function ClientsList({
     </>
   )
   const searchLabel = 'Buscar clientes'
-  // The long placeholder names every field the search covers — right on a wide row, and
-  // impossible on a 390px one: beside the filter and sort controls the field has ~260px and
-  // the text is cut mid-word. A phone gets the short form; the full one returns from `md` up,
-  // where it fits. The accessible name stays the same at every width.
   const searchPlaceholder = isMobile ? 'Buscar cliente' : 'Buscar por nombre, CUIT o email'
 
   return (
     <>
-      {/* On mobile the page-level PageHeader already supplies the "Clientes"
-          title, so the redundant section header is dropped and its filter/sort
-          controls move inline beside the search (below). On md+ the section
-          header hosts them. */}
       {isMobile ? null : (
         <SectionHeader title="Clientes" breadcrumb={breadcrumb} actions={filterSort} />
       )}
       <PanelContent layout="stacked" flushTop>
         {isMobile ? (
-          // Toolbar owns the row: search + filter + sort on ONE line at every phone width.
-          // This list used to hand-roll it — a `flex flex-wrap` container around a search that
-          // resolved to `w-full shrink-0` (Input's own base is already `w-full min-w-0`, so the
-          // `shrink-0` was all it took) — which is the exact shape Toolbar exists to prevent,
-          // and it pushed filter and sort onto a second row on every phone. The rule filed both
-          // master lists as deliberate non-adopters; they were not, they were un-migrated, and
-          // the adoption check could not see them because they never wrote the `sm:w-72` token
-          // it looks for.
-          // The `md`+ relocation into the SectionHeader is a LAYOUT decision and stays here —
-          // Toolbar owns one row, not where the controls live.
           <Toolbar
             search={{
               value: query,

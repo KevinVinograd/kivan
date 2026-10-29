@@ -3,13 +3,6 @@ import { Separator as SeparatorPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Separator — shadcn/ui (new-york) Radix separator, token-adapted. A thin
- * divider (horizontal or vertical) colored with the canonical hairline token
- * `--border-alpha-subtle` (the same value table dividers use). That token has no
- * `bg-*` utility of its own, so the fill is applied via the lint-safe
- * arbitrary-property form, matching the Button token pattern.
- */
 function Separator({
   className,
   orientation = "horizontal",

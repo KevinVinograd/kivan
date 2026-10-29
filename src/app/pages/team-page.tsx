@@ -47,24 +47,12 @@ import { TeamEmptyFiltered, TeamEmptyGeneral, TeamError, TeamLoading } from './t
 
 type LoadStatus = 'loading' | 'ready' | 'error'
 
-/**
- * Team module (PRD). The shared `TeamDataProvider` is mounted once at the router
- * root (above Clients + Team), so the roster, activity entries, assignments and
- * payment status are one mutable source of truth: logging hours/viáticos/extras,
- * editing or adding people, assigning members and approving payments all recompute
- * carga, pago estimado and the statuses live across both modules. The vista tabla
- * (toolbar + DataTable) switches to a master-detail list + detail on row open.
- */
 export function TeamPage() {
   return <TeamPageContent />
 }
 
 function TeamPageContent() {
   const { role, capabilities, canDo } = useRole()
-  // Which roster people already hold a login. Offering "Invitar" to someone who has one
-  // would just 409 at the API (`User.teamMemberId` is unique), so the offer is only made
-  // where it can succeed. Its own query: a failure here must not take the page down — it
-  // simply hides the offer, and Configuración remains the way in.
   const canInvite = role === 'owner' || role === 'admin'
   const linkedUsers = useQuery({
     queryKey: queryKeys.users.all,
@@ -80,9 +68,6 @@ function TeamPageContent() {
   const td = useTeamData()
   useRevalidateTeamOnOpen()
   const members = td.members
-  // The employee perspective is their own profile only; owner/admin see the full
-  // roster. Anchored to the signed-in employee's `teamMemberId`; an unlinked login
-  // sees no rows (fails closed) rather than the whole roster.
   const roleMembers = useMemo(
     () =>
       role === 'employee'
@@ -92,33 +77,15 @@ function TeamPageContent() {
   )
   const [searchParams, setSearchParams] = useSearchParams()
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  // Effective master-detail mode reported by MasterDetailLayout. It trails the
-  // panel exit (stays 'split' until the split actually collapses), so the
-  // PageHeader fades back in lockstep with the exit instead of mid-exit.
   const [mode, setMode] = useState<'table' | 'split'>('table')
-  // Below desktop the detail opens in a covering bottom Sheet, so the header must
-  // NOT dissolve behind it — it stays put as the Sheet's page context.
   const belowDesktop = useIsBelowDesktop()
-  // While the split is open the content layer fills the whole region over the
-  // faded header, so the table dissolving out is offset back down by the header
-  // height (published as `--md-table-offset`, consumed by the table slot) to stay
-  // anchored — no lurch as it fades. The list/detail still fill from the top.
   const [headerRef, regionRef] = useHeaderOffset<HTMLDivElement, HTMLDivElement>()
   const [query, setQuery] = useState('')
   const [filters, setFilters] = useState<TeamFilters>({})
   const [dialog, setDialog] = useState<TeamDialogState>({ kind: 'none' })
-  // The bulk "Cambiar estado" dialog target (the selected members); null when closed.
   const [changeStatusTarget, setChangeStatusTarget] = useState<TeamMember[] | null>(null)
-  // Single selection source of truth (keyed by member id) shared by the table
-  // and the master-detail list, so picks persist across the view switch.
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
 
-  // The load status comes from the roster fetch this page reads, not from a timer. It used
-  // to be `setTimeout(() => setStatus('ready'), 500)`, which flipped to ready whether the
-  // fetch had succeeded, was still in flight, or had failed — so `TeamError` was unreachable
-  // and a failed `GET /team-members` rendered the "no members yet" empty state instead.
-  // isLoading BEFORE isError: the store keeps isError true through a `refetch`, so testing
-  // the error first would freeze the error screen and the retry would look inert.
   const status: LoadStatus = td.isLoading ? 'loading' : td.isError ? 'error' : 'ready'
 
   const pickedIds = useMemo(
@@ -139,9 +106,6 @@ function TeamPageContent() {
     setRowSelection({})
   }
 
-  // ── Bulk actions (header operates on the filtered set; the selection bar on the
-  // picked members). All synchronous local-state, so no loading/error path
-  // (feedback Section 5); each confirms with a success toast (Section 4).
   const exportTeam = useCallback(
     (list: TeamMember[]) => {
       if (list.length === 0) {
@@ -179,28 +143,15 @@ function TeamPageContent() {
     setChangeStatusTarget(list)
   }, [])
 
-  // Contextual back-trail accumulated in the URL (`?trail=`): every step the user
-  // passed through to deep-link into a member here, so they can step back to any of
-  // them. `trailToHere` collapses a loop back to this page so it never duplicates
-  // the leaf and a round trip does not leave a misleading parent chain.
   const trail = trailToHere(searchParams, '/team')
 
-  // Initial TeamDetail tab from a `?tab=` deep-link (the employee-dashboard CTAs
-  // land on the relevant panel, e.g. Carga). Unknown/absent values coerce to
-  // undefined and TeamDetail falls back to its default Resumen tab.
   const initialTab = coerceTeamDetailTab(searchParams.get('tab'))
 
-  // Open a member's detail when deep-linked with ?open=<id> (e.g. from the
-  // Employee Dashboard activity feed). The `?trail=` param stays in the URL so the
-  // accumulated back-breadcrumb persists.
   useEffect(() => {
     const open = searchParams.get('open')
     if (open) setSelectedId(open)
   }, [searchParams])
 
-  // Open the new-member dialog when arriving from the global "Nuevo" launcher
-  // (?new=1), then strip the param so it fires once. Owner/admin only — the
-  // employee uses disjoint ?new=<token> work-log tokens (effect below).
   useEffect(() => {
     if (role === 'employee') return
     if (!searchParams.has('new')) return
@@ -215,8 +166,6 @@ function TeamPageContent() {
     )
   }, [role, searchParams, setSearchParams])
 
-  // Employee "Nuevo" self-creates: a disjoint ?new=<token> set deep-links to the
-  // matching self work-log dialog for the signed-in member, then strips the param.
   useEffect(() => {
     if (role !== 'employee') return
     const token = searchParams.get('new')
@@ -285,10 +234,6 @@ function TeamPageContent() {
       <TeamEmptyGeneral onNewMember={() => setDialog({ kind: 'new' })} />
     ) : (
       <div className="flex flex-col gap-4 md:gap-6">
-        {/* Roster summary row above the toolbar (owner/admin table view only —
-            the employee perspective renders its own profile, not this row).
-            The gap between the KPI row and the toolbar is the page's card rhythm:
-            16px on a phone, 24px from `md`. */}
         <TeamSummaryKpis members={members} td={td} />
         <DataTable
         columns={columns}
@@ -324,13 +269,9 @@ function TeamPageContent() {
       </div>
     )
 
-  // The employee perspective renders its own self-profile directly (below), so it
-  // never enters the owner/admin master-detail view even via an ?open= deep-link.
   const inDetail =
     role !== 'employee' && status === 'ready' && hasData && selectedId != null && selected != null
 
-  // Renders in the PageHeader overline (table view) and the list panel's
-  // SectionHeader (detail view, where the PageHeader is hidden).
   const breadcrumbNode = trail.length > 0 ? (
     <Breadcrumb>
       <BreadcrumbList>
@@ -351,15 +292,8 @@ function TeamPageContent() {
     </Breadcrumb>
   ) : null
 
-  // Employee perspective: a member only ever sees themselves, so render their own
-  // profile directly in the `self` perspective — the four self work-tracking
-  // actions (Cargar horas/producción/viático/extra) reuse the same dialogs and
-  // mutations as owner/admin; manager actions stay absent.
   if (role === 'employee') {
     const me = roleMembers[0] ?? null
-    // No PageHeader here: TeamDetail's own hero (avatar + name + role) already
-    // heads this self-profile view, so a "Mi trabajo" page title would only
-    // repeat it.
     return (
       <TooltipProvider>
         <PageContent>
@@ -398,19 +332,6 @@ function TeamPageContent() {
     )
   }
 
-  // Desktop-only: while the master-detail split is open the PageHeader dissolves
-  // IN PLACE (blur + fade + scale-recede) and no longer collapses its height, so
-  // nothing below it reflows — just a fade, nothing moves. The content region
-  // then extends up to fill the whole area over the covered header band, so the
-  // split still reaches full height with no empty gap. Below desktop the detail
-  // opens in a bottom Sheet, so the header stays put (never dissolves) there.
-  //
-  // Two flags: `dissolved` (LAYOUT) trails the exit via `mode` so the content
-  // layer stays lifted until the split finishes collapsing. `headerDissolved`
-  // (the VISUAL fade) instead drops the moment the selection clears, so the
-  // header's dissolve-IN starts at close and — with the `content-dissolve` delay
-  // tuned to `md-content-in` — fades the header back in IN LOCKSTEP with the
-  // returning table rather than trailing it.
   const dissolved = (inDetail || mode === 'split') && !belowDesktop
   const headerDissolved = inDetail && !belowDesktop
 
@@ -429,9 +350,6 @@ function TeamPageContent() {
             breadcrumb={breadcrumbNode ?? undefined}
             title="Equipo"
             description="Gestioná carga de trabajo, pagos, asignaciones y productividad del equipo."
-            // Header bulk actions operate on the current filtered set. On mobile
-            // export + generar cuentas collapse into the overflow menu and
-            // "Agregar persona" stays as the primary (plus) action.
             actions={[
               {
                 key: 'export',
@@ -480,11 +398,6 @@ function TeamPageContent() {
                 </div>
               }
               list={
-                // Gated on `status` exactly like `tableContent` above. Without this
-                // the list branch renders straight from `roleMembers`, which is []
-                // on a failed fetch, so below `md` (where MasterDetailLayout shows
-                // the list, not the table) a 500 read as "No encontramos personas":
-                // the roster reported itself empty when it had simply never loaded.
                 status === 'loading' ? (
                   <TeamLoading />
                 ) : status === 'error' ? (

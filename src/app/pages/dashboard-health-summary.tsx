@@ -7,26 +7,16 @@ import type { KpiTone } from './cobranza-format'
 import { formatCompactCurrency, formatPercent } from './dashboard-format'
 import type { HealthKpis } from './dashboard-types'
 
-/** The five health-summary KPIs, each owning a section of the dashboard below. */
 export type MetricId = 'risk' | 'income' | 'margin' | 'operation' | 'overload'
 
 type Metric = {
   id: MetricId
   label: string
-  /** Formatted figure, or `null` for the "No disponible" incomplete state. */
   value: string | null
-  /** Data-derived fact under the figure. Empty when the month has no data behind it. */
   supporting?: string
   tone: KpiTone
 }
 
-/**
- * Resting figure tone. Only the attention states (danger / warning) color the
- * number at rest, so a problem is what pops when the owner scans the strip; a
- * healthy or neutral figure stays fg-default (a healthy 0 must not read as loud
- * as an alarming 3). The selected state still overrides with the full-contrast
- * foreground (via `kpiTabFg`).
- */
 const RESTING_FIGURE_FG: Record<KpiTone, string> = {
   default: 'fg-default',
   success: 'fg-default',
@@ -81,17 +71,6 @@ function buildMetrics(kpis: HealthKpis): Metric[] {
   ]
 }
 
-/**
- * One KPI tile, rendered as a naked `TabsTrigger` wrapping the shared
- * `KpiTabCard` chrome (lime wash when selected, flat surface + alpha hover
- * otherwise). Radix owns role, roving focus, arrow keys and `aria-selected`;
- * the card is purely visual. Text flips to `fg-high-contrast` when selected
- * (via `kpiTabFg`) and rests on a subtle label / tone-colored figure.
- *
- * `compact` (mobile, pinned strip) drops the supporting line and sizes the card
- * to ~40% width so 2.5 cards peek in the horizontal-scroll bar — label + figure
- * only.
- */
 function DashboardMetricCard({
   metric,
   selected,
@@ -102,8 +81,6 @@ function DashboardMetricCard({
   compact: boolean
 }) {
   const incomplete = metric.value === null
-  // Rendered only when there is something to say: an absent supporting line must
-  // drop the node, not emit an empty span (which would still eat the flex gap).
   const caption = incomplete ? 'Faltan datos para calcularlo.' : metric.supporting
   return (
     <TabsTrigger value={metric.id} variant="naked" asChild>
@@ -130,15 +107,6 @@ function DashboardMetricCard({
   )
 }
 
-/**
- * §1 Owner health summary. The headline KPI strip doubles as the dashboard's
- * filter: it is the naked `TabsList` of a radio card group (one card always
- * active). Selecting a card surfaces the section it owns below; the active card
- * paints the lime wash, and a tone-colored resting figure lets the figure's
- * tendency read at a glance without a CTA. The `Tabs` root (value +
- * onValueChange) lives in the page so the same
- * selection drives the panels.
- */
 export function DashboardHealthSummary({
   kpis,
   selectedId,
@@ -149,9 +117,6 @@ export function DashboardHealthSummary({
   onSelect: (id: MetricId) => void
 }) {
   const metrics = buildMetrics(kpis)
-  // Mobile: a compact, horizontally-scrollable row (label + figure, ~2.5 cards
-  // visible) that pins to the top as a fixed overlay once it scrolls away;
-  // desktop keeps the grid.
   const compact = useIsMobile()
   const triggers = metrics.map((metric) => (
     <DashboardMetricCard

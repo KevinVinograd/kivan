@@ -14,16 +14,6 @@ import { cn } from "@/app/lib/utils"
 import { motionClass } from "@/app/lib/motion"
 import { buttonVariants, type ButtonVariant } from "@/app/components/components/button"
 
-/**
- * Calendar — shadcn/ui (new-york) react-day-picker calendar, token-adapted and
- * reworked onto the governed Button contract. Nav/day cells borrow the frozen
- * `buttonVariants` cva (`transparent` = shadcn's old "ghost"); selected/range
- * days fill with the neutral brand (`bg-primary-default` + `fg-reverse`), range
- * middle / today use `bg-alpha-subtle`. Day cells are native `<button>`s (not the
- * `Button` component) so react-day-picker's focus ref attaches — our Button is
- * not `forwardRef` and has no `size="icon"`. Radius maps to role tokens; muted
- * chrome to `fg-subtle`. Theme is handled by the tokens (no `dark:` overrides).
- */
 function Calendar({
   className,
   classNames,

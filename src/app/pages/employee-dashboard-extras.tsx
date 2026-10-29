@@ -31,11 +31,6 @@ function ExtraCard({ item }: { item: ExtraItem }) {
   )
 }
 
-/**
- * §7 Extras y viáticos. Helps declare work outside scope and production expenses:
- * pending/declared counts plus per-item status. Status + link only, no payment or
- * reimbursement behavior (those workflows live elsewhere).
- */
 export function ExtrasAndExpensesSnapshot({ extras }: { extras: ExtrasSummary }) {
   return (
     <section aria-label="Extras y viáticos" className="flex flex-col">

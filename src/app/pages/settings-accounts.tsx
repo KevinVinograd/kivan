@@ -43,16 +43,6 @@ import {
 import { CashflowAccountDialog } from './cashflow-account-dialog'
 import { SettingsAccountsError, SettingsAccountsLoading } from './settings-states'
 
-/**
- * One account row: name with partner, type, reserve badge and note beneath it, per-lane
- * balances, and an overflow menu for the actions.
- *
- * Partner and type ride under the name instead of owning columns, and Editar/Eliminar sit
- * behind the same menu the commitments table uses: six columns plus two text buttons could
- * not fit the 600px settings card and pushed the balances behind the trailing fade. The note
- * wraps on the inner block (`whitespace-normal`), not on the cell, because overriding
- * TableCell's own `whitespace-nowrap` through `className` is not guaranteed to win.
- */
 function AccountRow({
   account,
   onEdit,
@@ -116,14 +106,6 @@ function AccountRow({
   )
 }
 
-/**
- * Cashflow settings — the treasury accounts manager (owner/admin). Replaces the
- * single opening-balance editor: the admin maintains the multi-account,
- * multi-currency Saldos here (the Posición reads them, and the operating ARS total
- * anchors the projection's opening). The position's as-of date is also set here.
- * Edits go through the real `useTreasury` store, so the `/cashflow` Posición and
- * Proyección reflow on the next render.
- */
 export function SettingsAccounts() {
   const { account, accounts, updateAccount, addAccount, applyAccount, removeAccount, isFetching, isError, refetch } =
     useTreasury()
@@ -144,13 +126,6 @@ export function SettingsAccounts() {
     }
   }
 
-  // Loading first, then error — react-query keeps `isError` true through a refetch, so testing
-  // error first would freeze the error state and make "Reintentar" look inert.
-  //
-  // The header's "Agregar cuenta" goes with them. Offering to create, edit or delete accounts
-  // against a store that failed to load is worse than a dead list: the writes would land on top
-  // of a client-seeded anchor the user cannot see, and the calm short list they are editing is
-  // an outage wearing an empty state's clothes.
   if (isFetching) {
     return (
       <>

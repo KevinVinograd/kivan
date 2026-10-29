@@ -4,7 +4,6 @@ import { monthlyApi } from '@/api/monthly'
 import { queryKeys } from '@/queries/keys'
 import { productionFromDto } from './monthly-operation-api-data'
 
-/** One client's productions over the last six months, newest first (owner/admin). */
 export function useClientProductions(clientId: string, enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.clients.productions(clientId),

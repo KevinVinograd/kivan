@@ -23,8 +23,6 @@ import { billingStatusBadge, receivableInvoiceDate } from './cobros-format'
 import { canInvoice, isBilled } from './cobros-invoice'
 import type { Receivable } from './cobros-mock-data'
 
-/** Contextual row actions on the Facturación table. All open the §9 subflow
- *  dialogs the page owns; collection/cancel actions stay on the Cobros page. */
 export type BillingRowActions = {
   onView: (receivable: Receivable) => void
   onGenerateInvoice: (receivable: Receivable) => void
@@ -36,7 +34,6 @@ export type BillingRowActions = {
 const equalsFilter: FilterFn<Receivable> = (row, columnId, value) =>
   !value || row.getValue(columnId) === value
 
-/** The monotributo the factura was issued from when present, else the assigned one. */
 function emitterShortLabel(receivable: Receivable): string {
   return TAX_PROFILE_SHORT_LABEL[receivable.emitterTaxProfile ?? receivable.taxProfileId]
 }
@@ -75,9 +72,6 @@ export function billingColumns(actions: BillingRowActions): ColumnDef<Receivable
       ),
     },
     {
-      // Hidden by default; it exists so the Moneda filter has a column id to target.
-      // The lane is already on every `Monto` cell, so it is not shown as its own column
-      // — same decision as the /cobros and /pagos twins.
       accessorKey: 'currency',
       id: 'currency',
       header: 'Moneda',

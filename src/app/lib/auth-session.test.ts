@@ -17,10 +17,6 @@ describe('deriveMeStatus', () => {
   })
 
   it('still surfaces the error after the api client cleared the dead token', () => {
-    // The trap. A failed refresh clears the token from inside the failing request, so by
-    // the time /auth/me rejects there is no token left. If token presence won, this would
-    // read as `disabled` — and the expired-session bootstrap, which keys on `error`, would
-    // never fire. The user would sit on /login exactly where auto-login was meant to help.
     expect(deriveMeStatus({ hasToken: false, isSuccess: false, isError: true })).toBe('error')
   })
 
@@ -29,7 +25,6 @@ describe('deriveMeStatus', () => {
   })
 })
 
-/** A resolved, production-shaped session; each test perturbs only what it is about. */
 function input(overrides: Partial<AuthSessionInput> = {}): AuthSessionInput {
   return {
     bootstrapConfigured: false,
@@ -86,8 +81,6 @@ describe('deriveAuthSession — dev bootstrap, cold start (fresh port, no token)
   it('starts the bootstrap and holds the splash instead of redirecting to /login', () => {
     const state = deriveAuthSession(cold())
     expect(state.shouldStartBootstrap).toBe(true)
-    // The whole point: a disabled query reports isLoading:false, so without this the user
-    // is bounced to /login before the boot login has even been attempted.
     expect(state.isLoading).toBe(true)
   })
 
@@ -142,8 +135,6 @@ describe('deriveAuthSession — dev bootstrap, expired session (token present bu
   })
 
   it('holds the splash through the recovery refetch, which react-query leaves in `error`', () => {
-    // After an error the query never returns to `pending`, so only `isFetching` proves the
-    // retry is live. Reading the status alone redirects to /login mid-recovery.
     const state = deriveAuthSession(
       expired({ bootstrapStatus: 'succeeded', meStatus: 'error', meIsFetching: true }),
     )
@@ -185,9 +176,6 @@ describe('deriveAuthSession — the boot login is strictly one-shot', () => {
   )
 
   it('does not log the user back in after an explicit logout', () => {
-    // Logout clears the token and writes `null` onto the me query, which leaves it in
-    // `success` — NOT `error` — so neither bootstrap arm can match. The login page must
-    // stay reachable while the flag is on.
     const state = deriveAuthSession(
       input({
         bootstrapConfigured: true,
@@ -204,10 +192,6 @@ describe('deriveAuthSession — the boot login is strictly one-shot', () => {
 
 describe('deriveAuthSession — a request in flight with no user is UNDECIDED', () => {
   it('holds the splash while the api client is mid-recovery, token already cleared', () => {
-    // Measured, not theorised. The api client clears the dead token from INSIDE the
-    // failing /auth/me request, so there is a window with no token and an unsettled
-    // query. A rule that required a token here read it as "resolved, anonymous" and
-    // flashed the login screen before the recovery login landed.
     const state = deriveAuthSession(
       input({
         bootstrapConfigured: true,

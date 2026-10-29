@@ -22,9 +22,6 @@ import type { ReportDataset, TeamCapacityReportItem } from './reports-types'
 const globalFilterFn: FilterFn<TeamCapacityReportItem> = (row, _columnId, value) =>
   capacitySearchText(row.original).includes(String(value).toLowerCase())
 
-/** Carga de equipo tab (§4): workload + utilization by person, with the read-only
- *  person workload report in the detail drawer. The KPIs and the table stay on screen
- *  behind it — the person is read against the team's totals. */
 export function CargaEquipoTab({
   dataset,
   selectedRef,
@@ -107,8 +104,6 @@ export function CargaEquipoTab({
 
   const tableInner = (
     <div className="flex flex-col gap-4 md:gap-6">
-      {/* §6 Carga focal → Horas totales del equipo; the sobrecargadas/subutilizadas
-          risk counts stay toned Secondary (page-context sanctions their state color). */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <KpiSummaryCard
           figures={kpis}

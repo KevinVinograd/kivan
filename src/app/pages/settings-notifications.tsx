@@ -8,18 +8,6 @@ import { notificationsApi, type NotificationPrefs } from '@/api/notifications'
 import { queryKeys } from '@/queries/keys'
 import { SettingGroup, ToggleRow } from './settings-fields'
 
-/**
- * Notificaciones — open to every role, and PER PERSON: these are the caller's own
- * preferences (`GET`/`PUT /me/notification-preferences`), so two admins can want
- * different notices.
- *
- * Notices are IN-APP only: they appear in the app's own inbox, which is why there is no
- * channel picker any more. The section used to offer Email and WhatsApp toggles and a
- * "Recordatorios de cobro" event, none of which existed — no mailer was wired to this, no
- * WhatsApp integration exists, and a time-based reminder needs a scheduler the deployment
- * does not have. Offering them was the fabricated promise this rewrite removes; the three
- * events below are the ones the API actually emits.
- */
 const DEFAULT_PREFS: NotificationPrefs = {
   'month.closed': true,
   'payment.approved': true,
@@ -75,7 +63,6 @@ export function SettingsNotifications() {
       />
       <PanelContent layout="stacked">
         {query.isError ? (
-          // Never present the defaults as if they were what this person chose.
           <p className="type-body-2 fg-danger">
             No pudimos cargar tus preferencias. Estás viendo los valores por defecto.
           </p>

@@ -11,17 +11,6 @@ import {
   type PermissionDef,
 } from './settings-roles-data'
 
-/**
- * One area row inside Roles y permisos: the four-stop access control, and the
- * individual permissions underneath it once expanded.
- *
- * The honesty treatment is why this is its own file. A permission the API does
- * not enforce must never read like one that it does, so each carries a chip
- * saying which of the three tiers it is (the legend lives once, in the section
- * header, rather than repeated on every row). See `settings-roles-data.ts`.
- */
-
-/** The chip that tells the truth about a permission, or nothing when it holds. */
 function EnforcementChip({ enforcement }: { enforcement: Enforcement }) {
   if (enforcement === 'enforced') return null
   return enforcement === 'display_only' ? (
@@ -35,7 +24,6 @@ function EnforcementChip({ enforcement }: { enforcement: Enforcement }) {
   )
 }
 
-/** A single permission line: label, help, its honesty chip, and its switch. */
 function PermissionRow({
   permission,
   checked,
@@ -83,7 +71,6 @@ export function AreaRow({
   area: AreaDef
   level: AccessLevel
   expanded: boolean
-  /** Individual permissions the owner has touched, which breaks the preset. */
   overrides: Record<string, boolean>
   onLevelChange: (next: AccessLevel) => void
   onToggleExpanded: () => void
@@ -92,10 +79,6 @@ export function AreaRow({
   const Chevron = expanded ? AFFORDANCE.collapseValue : AFFORDANCE.expand
   const isCustom = area.permissions.some((permission) => permission.key in overrides)
 
-  // `grantedByLevel` is domain logic and lives in `settings-roles-data.ts`,
-  // because the save path materializes stored permission keys from the same
-  // rule. A second copy here would drift silently: the row would show one thing
-  // and the role would store another.
   const isGranted = (permission: PermissionDef): boolean =>
     permission.key in overrides ? overrides[permission.key] : grantedByLevel(permission, level)
 
@@ -114,9 +97,6 @@ export function AreaRow({
           <span className="flex min-w-0 flex-col gap-0.5">
             <span className="flex flex-wrap items-center gap-2">
               <span className="type-body-2 fg-default">{area.label}</span>
-              {/* Once individual permissions are touched, no preset is true any
-                  more. The chip states what IS true, and the control below shows
-                  nothing selected rather than a stop the role is not on. */}
               {isCustom ? (
                 <Badge variant="outline" shape="pill">
                   {`Personalizado, ${grantedCount} de ${area.permissions.length}`}
@@ -127,8 +107,6 @@ export function AreaRow({
           </span>
         </button>
 
-        {/* The access control is permanently trailing: the row's job is to answer
-            "how much does this role get here", so the answer never moves. */}
         <Tabs
           value={isCustom ? '' : level}
           onValueChange={(next) => onLevelChange(next as AccessLevel)}

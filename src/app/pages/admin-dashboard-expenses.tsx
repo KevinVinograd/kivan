@@ -8,8 +8,6 @@ import { expenseStatusBadge, formatCompactCurrency, formatCurrency, formatSigned
 import { MetricTile } from './admin-dashboard-ui'
 import type { FixedExpenseRow, FixedExpensesSummary } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const EXPENSES_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=equipo',
   { label: 'Dashboard', to: '/dashboard' },
@@ -40,13 +38,6 @@ function ExpenseCard({ row }: { row: FixedExpenseRow }) {
   )
 }
 
-/**
- * §8 Gastos fijos. Tracks the fixed agency expenses that affect profitability and
- * the close: the expected / registered / pending totals (and the month-over-month
- * variation when a prior month exists) plus a list of expenses by status (one
- * card each, mirroring Clientes en riesgo). Secondary to pending data, payments,
- * hours, viáticos and invoicing.
- */
 export function FixedExpensesCard({ expenses }: { expenses: FixedExpensesSummary }) {
   return (
     <section aria-label="Gastos fijos" className="group/gastos flex flex-col">

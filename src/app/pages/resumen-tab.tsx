@@ -15,9 +15,6 @@ import { SectionAccordionCard } from '@/app/components/templates'
 import { useIsMobile } from '@/app/lib/use-is-mobile'
 import { hasCapability, type Capability } from '@hold/shared'
 import { ReportsTabsHeader, type ReportTab } from './reports-tabs-header'
-// Two migrations land together here. From dev: the KPI strip is now `KpiSummaryCard`
-// (imported above), so `ReportKpiGrid` is gone. From this branch: an entity name opens its
-// drawer, so the hover-preview links are gone.
 import { ReportEntityLink } from './reports-detail-ui'
 import { ReportsDetailDrawer } from './reports-detail-drawer'
 import { PersonDetail } from './person-detail'
@@ -58,7 +55,6 @@ const METRIC_LABEL: Record<string, string> = {
   extras: 'Extras fuera de scope',
 }
 
-/** Whether a rising metric is good (true), bad (false) or neutral (null). */
 const HIGHER_IS_BETTER: Record<string, boolean | null> = {
   ingresos: true,
   egresos: false,
@@ -69,12 +65,6 @@ const HIGHER_IS_BETTER: Record<string, boolean | null> = {
 }
 
 function deltaPositive(id: string, delta: MetricDelta | null): boolean | null {
-  // `percent === null` means there is no comparison to make — the previous period was zero,
-  // so a ratio does not exist. It used to fall through to the `absolute` sign, which tinted
-  // "Sin dato anterior" GREEN off `current - 0 > 0`: a gain claimed against a month we know
-  // nothing about. `formatDeltaPercent` and `deltaTone` both already bail on this; this one
-  // did not, and the inconsistency only mattered rarely while most months had no previous
-  // period at all. Now every month has one, and empty ones are common.
   if (!delta || delta.percent === null || delta.absolute === 0) return null
   const higherBetter = HIGHER_IS_BETTER[id]
   if (higherBetter === null) return null
@@ -92,8 +82,6 @@ function buildKpis(dataset: ReportDataset, previous: ReportDataset | null): Kpi[
     const value = formatMetricValue(metric.id, metric.value)
     const tone =
       metric.id === 'rentabilidad' ? (metric.value >= 0 ? 'success' : 'danger') : 'default'
-    // "vs. anterior" is only appended to an actual comparison. Without the guard the
-    // no-comparison case rendered "Sin dato anterior vs. anterior", which is not a sentence.
     const delta = metric.delta
       ? {
           label:
@@ -113,13 +101,6 @@ function buildKpis(dataset: ReportDataset, previous: ReportDataset | null): Kpi[
 
 const MONEY_METRIC_IDS = new Set(['ingresos', 'egresos', 'rentabilidad'])
 
-/**
- * Overlay the live `/reports/summary` money figures onto the owner's Resumen money
- * KPIs (Ingresos / Egresos / Rentabilidad). While the query resolves the tiles read
- * a placeholder; on error they read `NO_VALUE` with a hint. The operational KPIs
- * (horas, clientes, extras) stay mock-derived, and the compare delta drops on the
- * live tiles (single-period fetch; period-over-period is a follow-up).
- */
 function applyLiveMoney(kpis: Kpi[], live: LiveReportsSummary): Kpi[] {
   return kpis.map((kpi) => {
     if (!MONEY_METRIC_IDS.has(kpi.id)) return kpi
@@ -142,30 +123,7 @@ function applyLiveMoney(kpis: Kpi[], live: LiveReportsSummary): Kpi[] {
   })
 }
 
-/**
- * The lane omission, as its own FIGURE rather than a clause inside the "En vivo" hint.
- *
- * `KpiSummaryCard`'s density toggle drops hint sub-lines and PERSISTS that choice in
- * localStorage, so a card left collapsed would state three peso totals and say nothing
- * about the operations they exclude. `tertiary` keeps it reading as a note rather than a
- * fourth money KPI.
- *
- * A COUNT is still right HERE, and the reasoning is no longer the one `pagosKpis` and
- * `cobrosKpis` use — those two stopped carrying a lane figure at all and moved the
- * omission into a second card holding a real per-lane TOTAL, because an operator working
- * that month can act on an amount and cannot act on a count. This tab aggregates across
- * months and clients, where no single lane total exists to show; naming how much is
- * excluded is the count's job and a card would have nothing to put in it.
- *
- * It also stops the count being ATTRIBUTED to figures it does not describe: appended to
- * every money tile's hint, the same number appeared three times, once under a figure
- * ("Rentabilidad") that is a subtraction rather than a set of rows.
- */
 function laneNoteKpi(live: LiveReportsSummary): Kpi | null {
-  // `money` survives a failed REFETCH — react-query keeps the previous data and raises
-  // `isError` beside it — so without this the note would state a stale count next to
-  // money tiles that had already blanked to "Sin conexión" (SE001: never render a store's
-  // figures while its fetch is in error).
   if (live.isError || live.isLoading) return null
   if (!live.money || live.money.otherLaneCount <= 0) return null
   return {
@@ -176,14 +134,6 @@ function laneNoteKpi(live: LiveReportsSummary): Kpi | null {
   }
 }
 
-/**
- * One stacked Resumen disclosure card (≥md): a full-width accordion closed by
- * default whose header carries the section title plus a count badge and the
- * collapsed severity summary, revealing the detail table on open. Stacking the
- * two cards vertically gives each many-column table the full page width that the
- * prior side-by-side layout could not. Each card is its own single-item
- * `collapsible` accordion, so both can stay open (or closed) independently.
- */
 function ResumenDisclosureCard({
   value,
   title,
@@ -195,9 +145,6 @@ function ResumenDisclosureCard({
   summary: ResumenCardSummary
   children: ReactNode
 }) {
-  // Avoid repeating the count: when the leading signal already opens with it
-  // (e.g. every at-risk client is a loss → "6 con pérdida"), drop the chip and
-  // let the text carry the number; otherwise the chip states the total.
   const [leadSignal] = summary.signals
   const showCountBadge = leadSignal === undefined || !leadSignal.startsWith(`${summary.count} `)
   return (
@@ -218,10 +165,6 @@ function ResumenDisclosureCard({
   )
 }
 
-/** Resumen tab (§1): headline KPIs with compare deltas, an insight summary, and
- *  two read-only tables (clients at risk, most-loaded team). On phones the two
- *  tables become a single closed-by-default accordion of card-lists; from md up
- *  each becomes a full-width closed-by-default disclosure card stacked vertically. */
 export function ResumenTab({
   dataset,
   previousDataset,
@@ -243,15 +186,7 @@ export function ResumenTab({
 }) {
   const navigate = useNavigate()
   const isMobile = useIsMobile()
-  // The money band needs the `studioFinancials` capability; a role without it sees the
-  // operational KPIs but not the studio P&L. F6 extends the prior per-client gate
-  // to the period totals and the narrative: admin loses the Ingresos/Egresos del
-  // período and Rentabilidad KPI tiles, the per-client margin column, the rentabilidad
-  // lead sentence in the insight, and the "ver rentabilidad" CTA (that tab is also
-  // hidden for admin), keeping only the operational signals.
   const showProfitability = hasCapability(capabilities, 'studioFinancials')
-  // The three money KPIs come from the real `/reports/summary` endpoint (manager-only,
-  // matching the in-page money gate); the operational KPIs stay mock-derived.
   const live = useReportsSummary(dataset.period, showProfitability)
   const moneyKpis = applyLiveMoney(
     buildKpis(dataset, previousDataset).filter(
@@ -259,16 +194,11 @@ export function ResumenTab({
     ),
     live,
   )
-  // Only where the money figures are actually shown: with no financials capability there
-  // is no peso total on screen for the note to qualify.
   const laneNote = showProfitability ? laneNoteKpi(live) : null
   const kpis = laneNote ? [...moneyKpis, laneNote] : moneyKpis
   const insight = summaryInsight(dataset, previousDataset, showProfitability)
   const risk = riskClients(dataset.profitability).slice(0, 6)
   const loaded = topLoadedTeam(dataset.capacity).slice(0, 6)
-  // Resumen shows a slice (top 6) of each table, but the drawer resolves against the FULL
-  // dataset: the cohort a record is compared to is the whole period, not the six rows the
-  // card happened to show.
   const selectedClient =
     selectedRef?.kind === 'client'
       ? (dataset.profitability.find((client) => client.clientId === selectedRef.id) ?? null)
@@ -284,8 +214,6 @@ export function ResumenTab({
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <ReportsTabsHeader activeTab={activeTab} onTabChange={onTabChange} />
-      {/* §6 Resumen focal: owner → Rentabilidad estimada; admin (money tiles removed)
-          → the first operational KPI. That tile becomes the tab's type-metric hero. */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <KpiSummaryCard
           figures={kpis}

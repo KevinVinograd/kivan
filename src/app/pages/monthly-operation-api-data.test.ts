@@ -87,8 +87,6 @@ function payoutDto(overrides: Partial<PayoutStatementDto> = {}): PayoutStatement
     totalAmountMinor: '80000000',
     paidAmountMinor: '0',
     outstandingMinor: '80000000',
-    // null on both = NOT RECORDED, the default for every statement predating
-    // attribution. Overridden per-test where hours matter.
     hoursTotal: null,
     hourlyRateMinor: null,
     statementStatus: 'draft',
@@ -127,21 +125,14 @@ describe('bundleToMonthData — per-client production rollups', () => {
     const b = bundle({
       receivables: [receivableDto({ clientId: 'cli-1' })],
       productions: [
-        // Billable → contributes to productionsAmount AND cost.
         productionDto({ id: 'p1', clientId: 'cli-1', billable: 'billable', billAmountMinor: '100000', totalCostMinor: '30000' }),
-        // Internal (not billable) → contributes to cost ONLY.
         productionDto({ id: 'p2', clientId: 'cli-1', billable: 'internal', billAmountMinor: null, totalCostMinor: '20000' }),
-        // 'both' also counts toward the billable amount.
         productionDto({ id: 'p3', clientId: 'cli-1', billable: 'both', billAmountMinor: '50000', totalCostMinor: '10000' }),
       ],
     })
     const client = bundleToMonthData(b).clients[0]
-    // productionsAmount = billable(1000) + both(500) = 1500 (internal excluded).
     expect(client.productionsAmount).toBe(1500)
-    // productionCost = 300 + 200 + 100 = 600 (ALL productions).
     expect(client.productionCost).toBe(600)
-    // teamCost is null, not 0: the bundle does not allocate payroll per client, and
-    // "unknown" must stay distinct from "no team cost" or the margin overstates profit.
     expect(client.teamCost).toBeNull()
   })
 
@@ -150,7 +141,6 @@ describe('bundleToMonthData — per-client production rollups', () => {
       receivables: [receivableDto({ id: 'r1', clientId: 'cli-1' }), receivableDto({ id: 'r2', clientId: 'cli-2', clientName: 'Dos' })],
       productions: [
         productionDto({ clientId: 'cli-2', billable: 'billable', billAmountMinor: '70000', totalCostMinor: '5000' }),
-        // No clientId → contributes to nobody.
         productionDto({ clientId: null, billable: 'billable', billAmountMinor: '999999', totalCostMinor: '99999' }),
       ],
     })
@@ -162,7 +152,6 @@ describe('bundleToMonthData — per-client production rollups', () => {
   })
 
   it('does not count a production already billed on a cobro', () => {
-    // Its amount is inside that cobro's base, which the row already shows as its fee.
     const b = bundle({
       receivables: [receivableDto({ clientId: 'cli-1' })],
       productions: [
@@ -174,8 +163,6 @@ describe('bundleToMonthData — per-client production rollups', () => {
   })
 
   it('puts a client rollup on ONE of its cobros, the retainer first', () => {
-    // A client with an anticipo AND the month retainer used to have its productions
-    // counted once per cobro in the month's "Total a facturar".
     const b = bundle({
       receivables: [
         receivableDto({ id: 'anticipo', clientId: 'cli-1', source: 'one_time' }),
@@ -223,12 +210,9 @@ describe('bundleToMonthData — payouts and monotributo', () => {
     expect(payout.name).toBe('Micaela Duarte')
     expect(payout.role).toBe('Contadora')
     expect(payout.statementStatus).toBe('approved')
-    // Fully paid → payoutStatus paid.
     expect(payout.payoutStatus).toBe('paid')
   })
 
-  // The two late states used to collapse into one view value ('sent'), which left the
-  // UI unable to tell which transition the server would accept next.
   it('keeps dispatched and confirmed distinct', () => {
     const dispatched = bundleToMonthData(
       bundle({ payouts: [payoutDto({ statementStatus: 'dispatched' })] }),
@@ -240,12 +224,7 @@ describe('bundleToMonthData — payouts and monotributo', () => {
     expect(confirmed.statementStatus).toBe('confirmed')
   })
 
-  // The bundle is the one payout read with no response schema, so an unrecognized
-  // status must land on the LEAST advanced state. Falling back forward would render
-  // "Confirmada" over a payment nobody made.
   it('falls back to draft for an unknown statement status', () => {
-    // Cast: the DTO type says this cannot happen, and the point of the test is that
-    // the runtime does not trust the type on the one read that is never validated.
     const rogue = payoutDto({ statementStatus: 'zzz' as PayoutStatementDto['statementStatus'] })
     expect(bundleToMonthData(bundle({ payouts: [rogue] })).team[0].statementStatus).toBe('draft')
   })
@@ -268,26 +247,12 @@ describe('bundleToMonthData — payouts and monotributo', () => {
   })
 })
 
-/**
- * The month has to be CLOSEABLE.
- *
- * `closeBlockers` raises `payment_incomplete` ("Cobros sin monto o fecha") for any client
- * marked paid or partial whose `paymentDate` is missing. `clientFromReceivable` never
- * mapped it, so that blocker fired for every collected client, on every month, and could
- * not be resolved from the UI — the operator is told to fix a date that is already stored.
- *
- * The existing suite could not catch it: `monthly-operation-format.test.ts` builds its
- * ClientMonth fixtures by hand WITH a `paymentDate`, so it only ever exercised the blocker
- * against data the mapper does not produce. This test starts from a ReceivableDto — the
- * shape the API actually returns — which is the half that was never covered.
- */
 describe('a collected month can be closed', () => {
   const collected = (over: Partial<ReceivableDto> = {}): ReceivableDto =>
     receivableDto({
       status: 'collected',
       collectedAmountMinor: '150000',
       outstandingMinor: '0',
-      // As the API serializes it: a UTC midnight instant, not a date-only string.
       collectedAt: '2026-06-18T00:00:00.000Z',
       ...over,
     })
@@ -295,21 +260,16 @@ describe('a collected month can be closed', () => {
   it('carries the collection date onto the client month', () => {
     const data = bundleToMonthData(bundle({ receivables: [collected()] }))
     expect(data.clients[0]?.paymentStatus).toBe('paid')
-    // Date part only. Formatting the instant locally at UTC-3 would render the 17th.
     expect(data.clients[0]?.paymentDate).toBe('2026-06-18')
   })
 
   it('raises no payment_incomplete blocker for a collected client', () => {
-    // The regression, stated as the operator experiences it: 94% collected, one
-    // validation open, and no way to clear it.
     const data = bundleToMonthData(bundle({ receivables: [collected()] }))
     const ids = closeBlockers(data).map((b) => b.id)
     expect(ids).not.toContain('payment_incomplete')
   })
 
   it('still raises it when the collection genuinely has no date', () => {
-    // The blocker has to keep working — it is a real condition, just not the one every
-    // collected client was being accused of.
     const data = bundleToMonthData(bundle({ receivables: [collected({ collectedAt: null })] }))
     const ids = closeBlockers(data).map((b) => b.id)
     expect(ids).toContain('payment_incomplete')
@@ -318,9 +278,6 @@ describe('a collected month can be closed', () => {
 
 describe('a truncated month cannot be closed', () => {
   it('blocks the close when the API says the bundle is partial', () => {
-    // Every figure on the page — revenue, profitability, and the OTHER blockers — is
-    // computed over whatever rows arrived. A clean checklist over a subset is a clean
-    // checklist for part of the month, and closing freezes it into a snapshot.
     const data = bundleToMonthData(bundle({ truncated: true }))
     expect(closeBlockers(data).map((b) => b.id)).toContain('bundle_truncated')
   })
@@ -332,8 +289,6 @@ describe('a truncated month cannot be closed', () => {
   })
 
   it('reads an API that predates the flag as complete', () => {
-    // Deploy Web and Deploy API fire independently. Defaulting the other way would raise
-    // this blocker on every month the moment the browser updates ahead of the API.
     const { truncated: _omitted, ...older } = bundle()
     const data = bundleToMonthData(older as PlanBundleDto)
     expect(data.truncated).toBe(false)
@@ -341,19 +296,6 @@ describe('a truncated month cannot be closed', () => {
   })
 })
 
-/**
- * Row identity: `clientId` is NOT unique within a month.
- *
- * `data.clients` is one row per RECEIVABLE, and two cobros for one client in one month are
- * a supported shape (the generator blocks only a second `monthly_fee` row; hand-made
- * duplicates are legitimate). Every mutation on the monthly page therefore has to be keyed
- * on the row `id`. Keyed on `clientId`, the lookup is an `Array.find` over a non-unique
- * field and silently resolves the FIRST row, so a cobro registered against the second one
- * lands on the first, reports success, and leaves the close blocker it was clearing on
- * screen. Both fields are `string`, so nothing in the type system objects.
- *
- * This test pins that premise.
- */
 describe('two cobros for one client in one month', () => {
   const twoRows = bundle({
     receivables: [
@@ -366,7 +308,6 @@ describe('two cobros for one client in one month', () => {
     const data = bundleToMonthData(twoRows)
     expect(data.clients).toHaveLength(2)
     expect(data.clients.map((c) => c.id)).toEqual(['rec-a', 'rec-b'])
-    // The field a mutation must NOT be keyed on.
     expect(new Set(data.clients.map((c) => c.clientId)).size).toBe(1)
   })
 
@@ -377,15 +318,6 @@ describe('two cobros for one client in one month', () => {
   })
 })
 
-/**
- * The month's cost side arrives from the Pagos module.
- *
- * Two fields, and the distinction is the whole point: `paymentTotals` is an exact aggregate
- * computed server-side over every row of the period, and `payments` is a page of rows for
- * display. Deriving money from the ROWS is the defect this shape exists to prevent — the
- * bundle already caps its lists, so a month past the cap would understate its own costs and
- * overstate its profit, on the figure the operator signs off at close.
- */
 describe('payments in the bundle', () => {
   it('maps totals and rows independently', () => {
     const data = bundleToMonthData(
@@ -414,15 +346,12 @@ describe('payments in the bundle', () => {
       { recipientType: 'collaborator', total: 400_000, paid: 150_000, count: 3 },
       { recipientType: 'fixed_expense', total: 90_000, paid: 90_000, count: 2 },
     ])
-    // Five rows recorded, one carried: the totals stay whole.
     expect(data.payments).toHaveLength(1)
     expect(data.payments[0]?.total).toBe(200_000)
     expect(data.payments[0]?.paymentDate).toBe('2026-06-12')
   })
 
   it('reads a bundle without the fields as a month with no outflows', () => {
-    // The deploy-skew window: a browser ahead of the API must render the month it always
-    // rendered, not crash on a field that is not there yet.
     const data = bundleToMonthData(bundle({}))
     expect(data.paymentTotals).toEqual([])
     expect(data.payments).toEqual([])

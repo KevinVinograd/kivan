@@ -1,6 +1,6 @@
 # Attributions
 
-This starter is built on open-source software. Key dependencies:
+Built on open-source software. Key dependencies:
 
 - [React](https://react.dev) — MIT
 - [Vite](https://vitejs.dev) — MIT

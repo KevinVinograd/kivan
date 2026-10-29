@@ -1,12 +1,3 @@
-/**
- * Reportes — chart compositions over the governed Chart chokepoint.
- *
- * Feature-scoped compositions (bar / donut / line) built from
- * `@/app/components/charts`. They own the domain → data-viz token mapping; the
- * primitive stays palette-free. Colors are `var(--color-data-*)` references and
- * axis ticks read `var(--color-fg-subtle)`, per the Chart usage rule. Read-only:
- * charts visualize derived aggregates and never mutate.
- */
 import { useState } from 'react'
 
 import {
@@ -35,14 +26,7 @@ import {
   type CohortRanking,
 } from './reports-aggregations'
 
-/**
- * Static `var(--color-data-*)` fill per data tone. The strings are written out in
- * full (never composed as `var(--color-data-${name})`) so Tailwind v4's content
- * scanner sees each token and keeps it in the build. A dynamically composed name
- * is invisible to the scanner, so those `--color-data-*` custom properties get
- * tree-shaken and the fill falls back to black — which is what made most slices
- * render black. Keep these as literal strings.
- */
+// Literal var() strings only: Tailwind cannot see a composed var(--color-data-${x}) and it renders black.
 export const DATA_FILL = {
   blue: 'var(--color-data-blue)',
   orange: 'var(--color-data-orange)',
@@ -61,12 +45,6 @@ export const DATA_FILL = {
 
 type DataColor = keyof typeof DATA_FILL
 
-/**
- * Categorical palette order, cycled by index for multi-series charts. Leads with
- * the most distinct vibrant hues so adjacent slices stay legible; the darker /
- * more neutral tones (navy, beige, forest, gray) sit last so they only appear
- * once the vibrant set is exhausted.
- */
 export const DATA_PALETTE: readonly DataColor[] = [
   'blue',
   'orange',
@@ -83,48 +61,24 @@ export const DATA_PALETTE: readonly DataColor[] = [
   'gray',
 ]
 
-// Recharts spreads this onto its default tick <Text>, which forwards `className` to the
-// SVG <text> — so the size comes from the type scale (`type-caption` = 12/16) instead of a
-// raw `fontSize: 12`. `fill` stays a prop because SVG paint is not a Tailwind concern here.
 const AXIS_TICK = { fill: 'var(--color-fg-subtle)', className: 'type-caption' }
 
-/**
- * Label style for a reference line, on the same typography token as the axis ticks it sits
- * among. Recharts styles SVG text through props, so this is a module constant carrying a
- * `type-*` class — never an inline `fontSize`, which the typography check rejects.
- */
 const REFERENCE_LABEL = {
   position: 'top' as const,
   fill: 'var(--color-fg-subtle)',
   className: 'type-caption',
 }
 
-/**
- * Plot height for charts that share a card row, so the row stays flush whatever the
- * dataset holds. Opt in by passing it as `height`: it is what a row of cards needs
- * (all three bottom out together) and what a stacked column does NOT — a drawer
- * chart with two bars would just spread them over dead space.
- */
 export const CHART_ROW_HEIGHT = 260
 
-/** Height of one bar's band when the chart sizes itself to its data. */
 const BAR_BAND = 38
 
-/** Leading categories a ranking bar chart draws; the rest collapse into the tail caption. */
 const MAX_BARS = 8
 
-/** Slices a part-to-whole donut draws, counting the "Otros" residual. */
 const MAX_SLICES = 6
 
-/** Bars keep their weight when a series is short, instead of fattening into slabs. */
 const MAX_BAR_SIZE = 22
 
-/**
- * Horizontal bar chart of hours, one bar per category (person / client).
- *
- * A ranking, not a part-to-whole: it shows the leading `MAX_BARS` categories and
- * states the rest as a caption. `tailNoun` names what is being counted there.
- */
 export function HoursBarChart({
   data,
   ariaLabel,
@@ -135,21 +89,13 @@ export function HoursBarChart({
   data: ChartDatum[]
   ariaLabel: string
   color?: DataColor
-  /** Singular / plural noun for the tail caption ("+ 12 clientes · 84 h"). */
   tailNoun: { one: string; many: string }
-  /**
-   * Fixed plot height, for charts that must line up with siblings on a card row
-   * (pass `CHART_ROW_HEIGHT`). Omit it and the chart sizes to its bars — which is
-   * what a chart standing alone in a column wants. The cap bounds it either way.
-   */
   height?: number
 }) {
   if (data.length === 0) {
     return <p className="px-2 py-6 text-center type-caption fg-subtle">Sin datos para graficar</p>
   }
   const { shown, tailCount, tailValue } = topRanked(data, MAX_BARS)
-  // Composed here, not by the caller: only the chart knows what it actually drew, so
-  // the spoken label cannot drift from the plot and promise a set it truncated.
   const label =
     tailCount > 0 ? `${ariaLabel}. ${shown.length} principales de ${data.length}` : ariaLabel
   return (
@@ -173,8 +119,6 @@ export function HoursBarChart({
           <Bar dataKey="value" radius={[0, 4, 4, 0]} fill={DATA_FILL[color]} maxBarSize={MAX_BAR_SIZE} />
         </BarChart>
       </ChartContainer>
-      {/* The caption row is reserved even when there is no tail, so charts sitting
-          side by side in a grid still bottom out together. */}
       <p className="min-h-5 type-caption fg-subtle tabular-nums">
         {tailCount > 0
           ? `+ ${tailCount} ${tailCount === 1 ? tailNoun.one : tailNoun.many} · ${formatHours(tailValue)}`
@@ -184,23 +128,11 @@ export function HoursBarChart({
   )
 }
 
-/**
- * Fill for a slice: its categorical hue, except the "Otros" residual, which stays
- * neutral so it reads as "the rest" rather than as another competing category.
- */
 function sliceFill(slice: ChartDatum, index: number): string {
   if (slice.id === OTHER_BUCKET_ID) return DATA_FILL.gray
   return DATA_FILL[DATA_PALETTE[index % DATA_PALETTE.length]]
 }
 
-/**
- * Donut of how a total splits across categories (task-type distribution).
- *
- * Capped at `MAX_SLICES` with the residual folded into one "Otros" slice, so the
- * ring still sums to the whole. The cap is also what keeps the palette honest: with
- * more categories than hues, the index cycle repeats a color and two categories
- * become indistinguishable.
- */
 export function DistributionDonut({
   data,
   ariaLabel,
@@ -213,14 +145,10 @@ export function DistributionDonut({
     return <p className="px-2 py-6 text-center type-caption fg-subtle">Sin datos para graficar</p>
   }
   const slices = withOtherBucket(data, MAX_SLICES)
-  // Composed here, not by the caller: only the chart knows what it actually drew, so
-  // the spoken label cannot drift from the ring and promise a set it truncated.
   const label =
     slices.length < data.length
       ? `${ariaLabel}. ${slices.length - 1} principales de ${data.length}, el resto agrupado en Otros`
       : ariaLabel
-  // Guard a stale hover index when the slice array shrinks (period switch): an
-  // out-of-range index would dim every slice, so treat it as "none active".
   const activeSlice = activeIndex !== null && activeIndex < slices.length ? activeIndex : null
   return (
     <div className="flex flex-col items-center gap-3">
@@ -267,7 +195,6 @@ export function DistributionDonut({
   )
 }
 
-/** Line chart of a numeric series across periods (margin or hours evolution). */
 export function TrendLineChart({
   data,
   ariaLabel,
@@ -301,21 +228,8 @@ export function TrendLineChart({
   )
 }
 
-/** Bars a cohort comparison draws around the selected entity (see `cohortRanking`). */
 export const COHORT_WINDOW = 8
 
-/**
- * One entity placed against its cohort on a normalized axis (utilization %, margin %).
- *
- * The selected bar is filled `-emphasis`, its peers neutral gray, and the cohort
- * median is a dashed ReferenceLine — so the reader sees position, spread and centre
- * in one glance without a single figure being tinted (figure-color-restraint: the
- * status lives on the drawer's badge, not on these numbers).
- *
- * The window is centred on the selection by `cohortRanking`, never a top-N, so the
- * selected entity is always drawn. The spoken label carries the TRUE rank, which the
- * window may not show.
- */
 export function CohortRankingChart({
   ranking,
   ariaLabel,
@@ -360,8 +274,6 @@ export function CohortRankingChart({
           {ranking.shown.map((datum) => (
             <Cell
               key={datum.id}
-              // Literal token strings only — a composed var(--color-data-${x}) is
-              // invisible to Tailwind v4's scanner and the fill falls back to black.
               fill={
                 datum.id === ranking.selectedId
                   ? 'var(--color-data-blue-emphasis)'
@@ -375,13 +287,6 @@ export function CohortRankingChart({
   )
 }
 
-/**
- * Age band → semantic data-state fill: older money is worse money.
- *
- * The hue MEANS the state here, so these are the data-state tokens rather than the
- * categorical palette. Literal strings, for the Tailwind v4
- * scanner — a composed `var(--color-data-${x})` is invisible to it and renders black.
- */
 const AGING_FILL: Record<string, string> = {
   '0-30': 'var(--color-data-neutral)',
   '31-60': 'var(--color-data-warning)',
@@ -389,13 +294,6 @@ const AGING_FILL: Record<string, string> = {
   '90+': 'var(--color-data-danger-emphasis)',
 }
 
-/**
- * How overdue a bucket's money is, by age band (the Finanzas Estado drawer).
- *
- * A part-to-whole of one bucket's overdue total, so every band is drawn — including the
- * empty ones, which keeps the axis stable across periods instead of growing and shrinking
- * with the data. `agingBuckets` guarantees the four bands and their order.
- */
 export function AgingBarChart({
   data,
   ariaLabel,

@@ -19,15 +19,12 @@ const TONE_FG = {
 } as const
 type Tone = keyof typeof TONE_FG
 
-/** Ranking margin amount foreground per tone: healthy stays neutral; only
- *  below-target tones tint so the exceptions read first (figure-color-restraint). */
 const RANK_FG: Record<'default' | 'warning' | 'danger', string> = {
   default: 'fg-default',
   warning: 'fg-warning',
   danger: 'fg-danger',
 }
 
-/** One line of the profitability waterfall (label + signed amount). */
 function WaterfallRow({
   label,
   value,
@@ -47,18 +44,9 @@ function WaterfallRow({
   )
 }
 
-/**
- * Rentabilidad view — the breakdown behind the estimated profitability figure.
- * A waterfall of its components (revenue minus team cost, production cost and
- * fixed expenses), the estimated margin, and the clients ranked by margin.
- * Read-only: every figure derives from the active month's data.
- */
 export function RentabilidadView() {
   const op = useMonthlyOperation()
   const summary = summarize(op.data)
-  // The month's payroll, taken from the payouts — the same figure `estimatedProfitability`
-  // subtracts, so the waterfall below sums to the profit row it ends on. Summing the
-  // per-client `teamCost` here instead would print "-$0" against the live API.
   const teamCost = summary.totalToPayTeam
   const productionCost = op.data.clients.reduce((sum, client) => sum + client.productionCost, 0)
   const margin =
@@ -66,8 +54,6 @@ export function RentabilidadView() {
   const profitTone: Tone = summary.estimatedProfitability >= 0 ? 'success' : 'danger'
   const donutTone = marginTone(margin)
 
-  // Ranking clients by margin is only meaningful where payroll is allocated per client;
-  // unallocated clients are withheld rather than ranked against a zero-cost margin.
   const rankedClients = op.data.clients
     .map((client) => {
       const percent = clientMarginPercent(client)
@@ -122,8 +108,6 @@ export function RentabilidadView() {
       <div className="flex flex-col gap-3">
         <span className="type-caption fg-subtle">Clientes por rentabilidad</span>
         {rankedClients.length === 0 ? (
-          // "No hay clientes" would be false when the month HAS clients whose payroll simply
-          // is not allocated per client — the two empty causes must not share one message.
           <span className="type-body-2 fg-subtle">
             {op.data.clients.length === 0
               ? 'No hay clientes en este mes'

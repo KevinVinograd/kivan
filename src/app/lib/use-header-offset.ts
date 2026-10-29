@@ -1,25 +1,5 @@
 import { useCallback, useRef } from 'react'
 
-/**
- * Master-detail table-offset compensation.
- *
- * While the split is open the content layer fills the whole region over the
- * faded page header, so the table that is dissolving out must stay anchored
- * where it sat under the header (otherwise it lurches up as it fades). This
- * measures the header wrapper and publishes its height as the `--md-table-offset`
- * CSS variable on the region, for the table slot to consume while dissolved
- * (`pt-[var(--md-table-offset)]`). The list/detail panels do not consume it, so
- * they still fill from the top with no gap.
- *
- * The variable is set imperatively (the `style` prop is forbidden on DOM nodes)
- * and kept live with a ResizeObserver, since the header height changes with the
- * breadcrumb / breakpoint. Both are attached via CALLBACK refs so the observer
- * re-establishes and the variable re-publishes whenever the region/header
- * re-mount (e.g. a page that renders the region only for some roles). Returns
- * `[headerRef, regionRef]`: attach `headerRef` to the header wrapper being
- * measured and `regionRef` to the positioned region that owns the variable (an
- * ancestor of the table slot).
- */
 export function useHeaderOffset<H extends HTMLElement, R extends HTMLElement>() {
   const header = useRef<H | null>(null)
   const region = useRef<R | null>(null)

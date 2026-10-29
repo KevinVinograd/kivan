@@ -27,7 +27,6 @@ type AccountType = Account['type']
 const PARTNER_OPTIONS: Partner[] = ['vicky', 'flor', 'more', 'shared']
 const TYPE_OPTIONS: AccountType[] = ['bank', 'cash', 'investment']
 
-/** Caption label stacked over a control, matching the finance dialog idiom. */
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -37,21 +36,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/**
- * Add / edit a treasury account. `account` present → edit (returns the full
- * `Account` via `onSave`); absent → create (returns `Omit<Account, 'id'>` via
- * `onCreate`, the store mints the id). Balances are entered per currency lane
- * (ARS / USD); a blank lane is omitted from the account's `Money`.
- */
-/**
- * The two modes are mutually exclusive, and the type says so — the same shape
- * `cashflow-commitment-dialog.tsx` uses, for the same reason. Requiring both handlers
- * meant every call site passed one that could never fire: `submit` reaches `onCreate`
- * only when `account` is absent and `onSave` only when it is present. Discriminating on
- * `account` makes the compiler ask for exactly the handler the mode can reach, which is
- * what lets the header launcher open this in create mode without inventing a dead
- * `onSave`.
- */
 type CashflowAccountDialogProps = { onClose: () => void } & (
   | { account: Account; onSave: (next: Account) => Promise<void>; onCreate?: never }
   | { account?: undefined; onCreate: (next: Omit<Account, 'id'>) => Promise<void>; onSave?: never }
@@ -95,19 +79,12 @@ export function CashflowAccountDialog(props: CashflowAccountDialogProps) {
     }
     setSubmitting(true)
     try {
-      // Narrowed on `props`, not the destructured `account`: the union lives on the props
-      // object, so this is what proves to TS that the handler for this mode exists.
       if (props.account) {
         await props.onSave({ ...props.account, ...base })
         toast.success('Cuenta actualizada')
       } else {
         await props.onCreate(base)
         toast.success('Cuenta agregada')
-        // Only after the write landed. `isReserve` clears too, and that one is not
-        // cosmetic: it decides whether the balance counts as operating cash or as wealth,
-        // so a sticky tick would silently drop the NEXT account into the reserve bucket and
-        // move both the Posición and the projection opening. Partner and type stay — those
-        // a batch genuinely shares, and getting them wrong is visible on the row.
         if (keepOpen) {
           setName('')
           setNote('')
@@ -191,15 +168,6 @@ export function CashflowAccountDialog(props: CashflowAccountDialogProps) {
           </div>
 
           <Field label="Observaciones (opcional)">
-            {/* NO `maxLength`, deliberately. `updateAccountSchema` caps `note` at 500 and
-                this dialog resubmits it on every save, so an over-long note does block
-                saving the balance and the name — but `maxLength` answers that by silently
-                truncating a paste and then reporting success, which is the write-honesty
-                failure this repo ratchets against: 200 characters gone and a green toast.
-                A loud 400 loses nothing. The real fix is surfacing the server's reason on
-                the field, which is the `catch {}` below and the same shape as the other
-                sites WF004 tracks. Migration 0028 stays well clear of the cap on its own
-                side (460), so it cannot be what puts an account in that state. */}
             <Input value={note} onChange={(event) => setNote(event.target.value)} aria-label="Observaciones" />
           </Field>
 
@@ -221,7 +189,6 @@ export function CashflowAccountDialog(props: CashflowAccountDialogProps) {
         </div>
 
         <DialogFooter>
-          {/* Create only: "seguir agregando" has no meaning when you are editing one row. */}
           {account ? null : <KeepOpenToggle checked={keepOpen} onCheckedChange={setKeepOpen} />}
           <Button variant="outlined" color="primary" onClick={onClose}>
             Cancelar

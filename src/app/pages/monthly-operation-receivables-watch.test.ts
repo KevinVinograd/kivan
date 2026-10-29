@@ -2,12 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { nextReceivablesWatch } from './monthly-operation-receivables-watch'
 
-/**
- * The guard that keeps `/dashboard` § Pendientes críticos from listing a cobro that was
- * already collected on `/cobros`. Every case below is one of the two ways this can be
- * wrong: refreshing when it must not (a GET per app start), or not refreshing when it
- * must (the reported bug).
- */
 describe('nextReceivablesWatch', () => {
   it('does not refresh while the receivables store has no data', () => {
     expect(nextReceivablesWatch(0, 0)).toEqual({ seen: 0, refresh: false })

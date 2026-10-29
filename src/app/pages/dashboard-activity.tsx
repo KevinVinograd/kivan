@@ -15,7 +15,6 @@ import type { ActivityItem, DashboardActivityEntity } from './dashboard-types'
 import type { ActivityPreviews } from './dashboard-activity-previews'
 import type { ClientProfitabilityReportItem, TeamCapacityReportItem } from './reports-types'
 
-/** Round leading glyph for the timeline (local, mirroring the detail-panel pattern). */
 function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   return (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-alpha-subtle bg-alpha-subtle fg-subtle">
@@ -24,19 +23,6 @@ function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   )
 }
 
-/**
- * Inline trigger for an entity name; the open behavior is owned by the surrounding
- * PreviewSurface, so it forwards its ref for Radix `asChild`.
- *
- * Deliberately raw markup, and deliberately NOT a <button>: a button box is atomic
- * inline-level content, so the browser cannot break a multi-word name across lines —
- * it pushes the whole name onto its own line and leaves the sentence above it ragged.
- * The Button primitive renders a real <button> and exposes no `asChild` to render
- * another tag, so no primitive can express a trigger
- * that flows and breaks like the running text around it. This is the raw-markup
- * escape hatch: a focusable inline span carrying the
- * button role, plus the Enter/Space activation a native button gives for free.
- */
 const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'span'> & { name: string }>(
   function EntityTrigger({ name, className, onKeyDown, ...props }, ref) {
     return (
@@ -63,11 +49,6 @@ const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'sp
   },
 )
 
-/**
- * Team-member preview: the canonical capacity body (role, utilización, horas,
- * clientes activos) when the person resolves in the report data, else a safe
- * avatar + name + role fallback — plus a Ver perfil CTA into the Equipo detail.
- */
 function MemberPreviewContent({
   entity,
   profile,
@@ -106,12 +87,6 @@ function MemberPreviewContent({
   )
 }
 
-/**
- * Client preview: the canonical profitability body (type·service, capability-gated
- * margen/rentabilidad, horas, último aumento) when the client resolves in the
- * report data, else a safe name-only fallback — plus a Ver perfil CTA into the
- * Clientes detail.
- */
 function ClientPreviewContent({
   entity,
   profile,
@@ -139,7 +114,6 @@ function ClientPreviewContent({
   )
 }
 
-/** Renders one activity entity: hover link-text for clients/members, plain for the rest. */
 function ActivityEntityRef({ entity, previews }: { entity: DashboardActivityEntity; previews: ActivityPreviews }) {
   if (entity.kind === 'plain') {
     return <span className="fg-default">{entity.name}</span>
@@ -165,7 +139,6 @@ function ActivityEntityRef({ entity, previews }: { entity: DashboardActivityEnti
 function ActivityRow({ item, isLast, previews }: { item: ActivityItem; isLast: boolean; previews: ActivityPreviews }) {
   return (
     <div className="flex gap-3">
-      {/* Leading icon + timeline connector linking each entry to the next. */}
       <div className="flex flex-col items-center gap-1">
         <LeadingIcon icon={activityIcon(item.activity)} />
         {!isLast ? <span aria-hidden className="flex-1 border-l border-alpha-subtle" /> : null}
@@ -181,15 +154,6 @@ function ActivityRow({ item, isLast, previews }: { item: ActivityItem; isLast: b
   )
 }
 
-/**
- * §8 Actividad reciente. A read-only timeline of recent workspace events
- * (connecting line + leading kind-icon), shared by the Owner and Admin
- * dashboards. Each client/team-member name is hover link-text whose preview
- * shows the canonical client/person body (role-gated facts, resolved from
- * `previews` by entity id) plus an outlined "Ver perfil" CTA; entries without a
- * profile page (e.g. a production) render as plain text. Destinations carry a
- * `Dashboard` trail crumb so the target shows a back-breadcrumb.
- */
 export function RecentActivityList({
   activity,
   previews,
@@ -199,10 +163,6 @@ export function RecentActivityList({
 }) {
   return (
     <section aria-label="Actividad reciente" className="group/activity flex flex-col">
-      {/* "Ver actividad" is hidden on hover-capable pointers and fades in
-          (motion-standard) when the mouse enters the block or the button takes
-          keyboard focus; on touch it stays visible. The section header keeps it
-          on the title row, far right, at every width (the default). */}
       <SectionHeader
         title="Actividad reciente"
         actions={

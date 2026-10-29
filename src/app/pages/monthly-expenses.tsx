@@ -78,8 +78,6 @@ function expenseColumns(actions: ExpenseRowActions, locked: boolean): ColumnDef<
       id: 'category',
       header: 'Categoría',
       accessorFn: (e) => e.category,
-      // A built-in category renders its translated label; a studio-defined one renders as
-      // the studio wrote it (an undefined lookup would print nothing at all).
       cell: ({ row }) => (
         <span className="fg-default">
           {EXPENSE_CATEGORY_LABEL[row.original.category as ExpenseCategory] ?? row.original.category}
@@ -164,7 +162,6 @@ function expenseColumns(actions: ExpenseRowActions, locked: boolean): ColumnDef<
                 <AFFORDANCE.overflow className="size-4" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Disabled on a CLOSED month — the same lock every other mutation here respects. */}
                 <DropdownMenuItem disabled={locked} onSelect={() => actions.onEdit(expense)}>
                   <ICON.edit aria-hidden />
                   Editar
@@ -186,7 +183,6 @@ function expenseColumns(actions: ExpenseRowActions, locked: boolean): ColumnDef<
 const RECURRENCE_OPTIONS = Object.keys(EXPENSE_RECURRENCE_LABEL) as ExpenseRecurrence[]
 const MONOTRIBUTO_OPTIONS: Monotributo[] = ['monotributo_1', 'monotributo_2', 'monotributo_3']
 
-/** A row back into the form it came from. ExpenseInput IS FixedExpense without its id. */
 function toInput(expense: FixedExpense): ExpenseInput {
   const { id: _id, ...input } = expense
   return input
@@ -215,11 +211,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/**
- * Add-expense dialog. Exported so Finanzas can reuse the same form behind its
- * "Agregar gasto" header action (it calls `op.addExpense` on submit), rather than
- * duplicating the field set.
- */
 export function ExpenseForm({
   onClose,
   onSubmit,
@@ -228,19 +219,13 @@ export function ExpenseForm({
   submitLabel = 'Agregar gasto',
 }: {
   onClose: () => void
-  /** Resolves `true` only once the expense is persisted. On `false` the form stays open. */
   onSubmit: (input: ExpenseInput) => Promise<boolean>
-  /** Prefill for an EDIT. Absent means a create — one form for both, so a field cannot be
-   *  added to one and forgotten in the other. */
   initial?: ExpenseInput
   title?: string
   submitLabel?: string
 }) {
   const [values, setValues] = useState<ExpenseInput>(initial ?? emptyExpense)
   const [submitting, setSubmitting] = useState(false)
-  // The studio's own categories (Configuración → Operación mensual). The row being edited
-  // may carry a category the studio has since removed — keep it as an option so correcting
-  // an amount never silently re-files the expense under something else.
   const { rules, isError: rulesFailed } = useMonthlyRules()
   const categoryOptions = rules.expenseCategories.includes(values.category)
     ? rules.expenseCategories
@@ -255,9 +240,6 @@ export function ExpenseForm({
           className="flex flex-col gap-6"
           onSubmit={async (event) => {
             event.preventDefault()
-            // The form used to close on the same tick, which made a second click impossible.
-            // Now that it waits for the write, it stays open long enough to be clicked twice —
-            // so re-entry has to be blocked explicitly or the expense is written twice.
             if (submitting) return
             setSubmitting(true)
             const saved = await onSubmit({
@@ -291,9 +273,6 @@ export function ExpenseForm({
                 </SelectContent>
               </Select>
               {rulesFailed ? (
-                // Say it: these are the built-in categories, not the studio's configured
-                // ones — otherwise the operator files the expense under a list they never
-                // chose and cannot tell why theirs is missing (SE001).
                 <span className="type-caption fg-subtle">
                   No pudimos cargar las categorías del estudio; estás viendo las de por defecto.
                 </span>
@@ -385,8 +364,6 @@ export function ExpenseForm({
   )
 }
 
-/** Gastos tab — fixed-expenses table + the add / edit / delete flows. */
-/** How each recipient type reads on this screen. `/pagos` owns the records; this only labels them. */
 const PAYMENT_RECIPIENT_LABEL: Record<MonthPaymentRecipient, string> = {
   collaborator: 'Colaboradora',
   employee: 'Empleada',
@@ -444,26 +421,12 @@ function paymentColumns(): ColumnDef<MonthPayment>[] {
   ]
 }
 
-/**
- * The month's outflows, as recorded in `/pagos`.
- *
- * Read-only here on purpose: `/pagos` owns these records, and this screen reads them. The
- * list is capped with the rest of the bundle, so it can be SHORTER than what the KPI above
- * reports — the KPI is computed from an exact aggregate, never from these rows, because a
- * short table is visible and a short total is not.
- */
 function MonthPaymentsTable() {
   const op = useMonthlyOperation()
   const columns = useMemo(() => paymentColumns(), [])
   const shown = op.data.payments.length
   const recorded = op.data.paymentTotals.reduce((sum, t) => sum + t.count, 0)
-  // Deliberately NOT folded into `recorded`: that figure reconciles the capped list
-  // against the peso total, and a non-peso pago is in neither. Two different omissions,
-  // so two different sentences.
   const otherLane = op.data.otherLanePaymentCount
-  // A month carrying rows on BOTH sides predates the single-entry rule and is the one shape
-  // that can still double-count. Nothing here can tell whether they are the same alquiler,
-  // so it is reported to the person who can.
   const ownExpenses = op.data.expenses.length
 
   return (
@@ -510,8 +473,6 @@ export function ExpensesTab() {
     setDeleting(true)
     const removed = await op.deleteExpense(deleteTarget.id)
     setDeleting(false)
-    // Hold the dialog open on failure: a dismissed dialog cannot report that the row is still
-    // there, and the user would walk away believing the expense was gone.
     if (!removed) return
     toast.success('Gasto eliminado')
     setDeleteTarget(null)
@@ -526,9 +487,6 @@ export function ExpensesTab() {
         pageSize={25}
         getRowId={(expense) => expense.id}
         toolbar={() => (
-          // The "Agregar gasto" action is gone: `/pagos` is where an outflow is recorded now,
-          // and two entry points for one alquiler is how the same peso gets counted twice.
-          // The rows already here keep their edit and delete actions, so nothing is stranded.
           <Toolbar
             trailing={
               <span className="type-caption fg-subtle">Los gastos nuevos se cargan en Pagos</span>
@@ -549,8 +507,6 @@ export function ExpensesTab() {
         />
       ) : null}
 
-      {/* Keyed on the row id: the form reads its initial values once, so a shared instance would
-          keep showing whichever row was opened first. */}
       {editTarget ? (
         <ExpenseForm
           key={editTarget.id}
@@ -584,8 +540,6 @@ export function ExpensesTab() {
                 color="danger"
                 disabled={deleting}
                 onClick={(event) => {
-                  // Radix dismisses on click by default. Hold it: the write can fail, and a
-                  // dialog that already closed cannot say so.
                   event.preventDefault()
                   void confirmDelete()
                 }}

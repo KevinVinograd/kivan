@@ -16,13 +16,6 @@ import { Field, SettingGroup, ToggleRow } from './settings-fields'
 
 const MONOTRIBUTO_CATEGORIES = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
 
-/**
- * Fiscal y facturación — owner/admin section for the studio's tax data, its ARCA
- * connection, comprobante numbering and the métodos de cobro it accepts. This is
- * the configuration surface behind the Facturación module (comprobantes /
- * monotributo / ARCA). Presentational local state with a save toast; the ARCA
- * connection is a mock status.
- */
 export function SettingsFiscal() {
   const [legalName, setLegalName] = useState('')
   const [taxId, setTaxId] = useState('')

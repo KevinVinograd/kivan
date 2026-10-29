@@ -33,14 +33,11 @@ import {
   type TeamFilters,
 } from './team-format'
 
-/** Compact navigation list shown in the left panel while a record is open (§6). */
 export type TeamListProps = {
   members: TeamMember[]
   selectedId: string | null
   onSelect: (id: string) => void
-  /** Contextual breadcrumb shown above the panel title (deep-link from dashboard). */
   breadcrumb?: ReactNode
-  /** Shared multi-select (member ids), owned by the page so it stays in sync with the table. */
   picked: Set<string>
   onTogglePick: (id: string) => void
   onClearPicked: () => void
@@ -245,14 +242,9 @@ export function TeamList({
     return td.teamMatchesFilters(member, filters)
   })
   const sorted = sort ? [...filtered].sort((a, b) => compareMembers(a, b, sort, td)) : filtered
-  // Slide rows from old to new position when the sort changes (reorder-FLIP), so a
-  // record the operator is reading visibly travels to its new slot instead of
-  // teleporting. Reduced-motion is honored inside the hook (instant jump).
   const listRef = useFlipReorder<HTMLDivElement>(sorted.map((member) => member.id))
   const pickedMembers = members.filter((member) => picked.has(member.id))
 
-  // Filter + sort: section-header actions on desktop, trailing controls beside
-  // the search on mobile (where the section header is dropped as redundant).
   const filterCount = Object.values(filters).filter(Boolean).length
   const filterSort = (
     <>
@@ -266,26 +258,15 @@ export function TeamList({
     </>
   )
   const searchLabel = 'Buscar personas'
-  // Short on a phone, full from `md` up — see the note in `clients-list`: beside the filter
-  // and sort controls a 390px row leaves the field ~260px, and the long placeholder is cut
-  // mid-word. The accessible name is the same at every width.
   const searchPlaceholder = isMobile ? 'Buscar persona' : 'Buscar por nombre, rol o cliente'
 
   return (
     <>
-      {/* On mobile the page-level PageHeader already supplies the "Equipo" title,
-          so the redundant section header is dropped and its filter/sort controls
-          move inline beside the search (below). On md+ the section header hosts
-          them. */}
       {isMobile ? null : (
         <SectionHeader title="Equipo" breadcrumb={breadcrumb} actions={filterSort} />
       )}
       <PanelContent layout="stacked" flushTop>
         {isMobile ? (
-          // Toolbar owns the row: search + filter + sort on ONE line at every phone width.
-          // See the note in `clients-list` — this list hand-rolled the same wrapping row and
-          // reproduced the same second-row defect. The `md`+ relocation into the SectionHeader
-          // is a LAYOUT decision and stays here.
           <Toolbar
             search={{
               value: query,

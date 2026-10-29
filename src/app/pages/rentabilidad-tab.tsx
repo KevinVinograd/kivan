@@ -26,9 +26,6 @@ import type { ClientProfitabilityReportItem, MarginHistoryPoint, ReportDataset }
 const globalFilterFn: FilterFn<ClientProfitabilityReportItem> = (row, _columnId, value) =>
   profitabilitySearchText(row.original).includes(String(value).toLowerCase())
 
-/** Rentabilidad tab (§3): client profitability + margin, with the margin evolution
- *  chart and the client report in the read-only detail drawer. The KPIs, chart and
- *  table stay on screen behind it — the record is read against them. Read-only. */
 export function RentabilidadTab({
   dataset,
   marginHistory,
@@ -49,7 +46,6 @@ export function RentabilidadTab({
   const navigate = useNavigate()
   const items = dataset.profitability
 
-  // Three grouped cards: each pairs a primary value with its related secondary.
   const kpiGroups: ReportKpiGroup[] = useMemo(() => {
     const ingresos = items.reduce((s, i) => s + i.ingresos, 0)
     const costos = items.reduce((s, i) => s + i.costos, 0)
@@ -106,7 +102,6 @@ export function RentabilidadTab({
             new URLSearchParams(),
           ),
         ),
-      // /cobros has no ?open= deep-link — the subject cannot be carried here.
       onGoToFinance: () => navigate(buildTrailHref('/cobros', RENTABILIDAD_CRUMB, new URLSearchParams())),
     }),
     [onSelect, navigate],
@@ -122,13 +117,7 @@ export function RentabilidadTab({
 
   const tableInner = (
     <div className="flex flex-col gap-4 md:gap-6">
-      {/* §6 Rentabilidad focal → Rentabilidad total; the 3 grouped cards keep uniform
-          primary sizes, so its primacy reads through the green tint, not a size hero. */}
       <ReportKpiGroupGrid groups={kpiGroups} />
-      {/* Margin is billed minus PESO area costs, so a non-peso cobro would produce a
-          margin in no currency. Those clients are dropped rather than distorted — and a
-          dropped client is not a zero row, it is no row, which nothing else on this tab
-          would reveal. */}
       {dataset.otherLaneClientCount > 0 ? (
         <p className="type-caption fg-subtle px-4 md:px-6 lg:px-8 desktop:px-10">
           {dataset.otherLaneClientCount === 1
@@ -136,9 +125,6 @@ export function RentabilidadTab({
             : `Hay ${dataset.otherLaneClientCount} clientes facturados en otra moneda, que no aparecen en esta tabla ni en los totales.`}
         </p>
       ) : null}
-      {/* A client with people or productions but no peso cobro in the month has no row:
-          there is no billing to state a margin against. Its cost is real all the same,
-          and leaving it unsaid is what read as "en algunos clientes el costo no se carga". */}
       {dataset.unbilledCost.clientCount > 0 ? (
         <p className="type-caption fg-subtle px-4 md:px-6 lg:px-8 desktop:px-10">
           {dataset.unbilledCost.clientCount === 1

@@ -76,7 +76,6 @@ describe('dtoToCommitment', () => {
   it('narrows direction to inflow/outflow', () => {
     expect(dtoToCommitment(commitmentDto({ direction: 'inflow' })).direction).toBe('inflow')
     expect(dtoToCommitment(commitmentDto({ direction: 'outflow' })).direction).toBe('outflow')
-    // Any unexpected value collapses to outflow (the safe default for a payable register).
     expect(dtoToCommitment(commitmentDto({ direction: 'sideways' })).direction).toBe('outflow')
   })
 
@@ -87,7 +86,6 @@ describe('dtoToCommitment', () => {
     expect(c.category).toBe('other')
     expect(c.recurrence).toBe('monthly')
     expect(c.confidence).toBe('committed')
-    // A null category also collapses to 'other'.
     expect(dtoToCommitment(commitmentDto({ category: null })).category).toBe('other')
   })
 
@@ -109,17 +107,12 @@ describe('fetchTreasuryMovements', () => {
     })
 
     const [movement] = await fetchTreasuryMovements('2026-06-01')
-    // Centavos read raw would annotate a balance with a figure 100× too large, on the
-    // one screen whose whole job is being the true number.
     expect(movement?.amount).toBe(250_000)
     expect(movement?.direction).toBe('outflow')
   })
 
   it('sums the server totals and ignores the paged rows entirely', async () => {
     vi.spyOn(treasuryApi, 'listMovements').mockResolvedValue({
-      // `items` is a paged audit read that stops at the server's limit. Reading it as
-      // the source of the Saldos figure understated the money by however many rows the
-      // page left behind — silently, on the screen whose job is explaining the balance.
       items: [
         {
           id: 'mov-1',
@@ -152,8 +145,6 @@ describe('fetchTreasuryMovements', () => {
       items: [],
       totals: [{ accountId: 'acc-1', lane: 'ARS', direction: 'inflow', amountMinor: '100' }],
     })
-    // The column is a plain string server-side. Narrowing here rather than casting means
-    // an unknown value cannot reach the Saldos note as a third, unrendered direction.
     expect((await fetchTreasuryMovements('2026-06-01'))[0]?.direction).toBe('inflow')
   })
 })

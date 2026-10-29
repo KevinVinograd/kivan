@@ -22,19 +22,11 @@ import {
   SOURCE_LABEL,
 } from './treasury-view'
 
-/** Contextual row actions for the committed-items register. */
 export type CommitmentRowActions = {
   onEdit: (item: CommittedItem) => void
   onDelete: (item: CommittedItem) => void
 }
 
-/**
- * Same predicate the ENGINE uses, not a lookalike. `treasury-netting.ts` requires BOTH
- * halves and derives the kind from (category, direction), so a row carrying an id with no
- * type — or a client id on an outflow — nets on the coarse category key while a check on
- * `linkedEntityId` alone would render it as linked. The badge exists to make exactly that
- * gap legible, so it has to agree with the code it describes.
- */
 function isUnlinked(item: CommittedItem): boolean {
   if (!entityTypeFor(item.category, item.direction)) return false
   return !(item.linkedEntityType && item.linkedEntityId)
@@ -68,11 +60,6 @@ export function committedItemColumns(actions: CommitmentRowActions): ColumnDef<C
       accessorKey: 'category',
       id: 'category',
       header: 'Categoría',
-      // The marker sits HERE, not in its own column, because the category is what decides
-      // whether a link is even possible: the reader is already asking "what kind of thing
-      // is this?" and the answer is what makes the gap legible. A row flagged here still
-      // nets, on the coarser category key, so it is a precision prompt and not a warning:
-      // its money can be matched to the wrong record, never counted twice.
       cell: ({ row }) => (
         <span className="flex items-center gap-2">
           <span className="type-body-2 fg-default">
@@ -89,8 +76,6 @@ export function committedItemColumns(actions: CommitmentRowActions): ColumnDef<C
       id: 'amount',
       header: 'Monto',
       meta: { mobile: 'secondary' },
-      // The commitment dialog asks for the lane; this column used to drop it and print
-      // every amount in pesos, including the USD rows the seed already ships.
       cell: ({ row }) => (
         <span className="tabular-nums fg-default">
           {formatMoney(row.original.amount, row.original.currency)}

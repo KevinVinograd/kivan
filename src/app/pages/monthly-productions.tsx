@@ -58,17 +58,13 @@ const globalFilterFn: FilterFn<ProductionRecord> = (row, _columnId, value) =>
 export type ProductionRowActions = {
   onEdit: (production: ProductionRecord) => void
   onDelete: (production: ProductionRecord) => void
-  /** Viático paid back today, or owed again (null). Allowed on a closed month. */
   onMarkViatic: (production: ProductionRecord, paidAt: string | null) => void
-  /** Approve (true) or send back to pending (false). */
   onApprove: (production: ProductionRecord, approved: boolean) => void
 }
 
 function productionColumns(actions: ProductionRowActions, locked: boolean): ColumnDef<ProductionRecord>[] {
   return [
     {
-      // Any row can be picked: the batch approves productions and settles viáticos, and
-      // each action then applies only to the rows it fits (ProductionsBulkBar).
       id: 'select',
       enableSorting: false,
       enableHiding: false,
@@ -177,8 +173,6 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
           <span className={cn('type-body-2', row.original.billable ? 'fg-default' : 'fg-warning')}>
             {productionBillableLabel(row.original)}
           </span>
-          {/* Hours the client's per-hour service already includes this month bill nothing:
-              without this the row reads as a production nobody is charging for. */}
           {row.original.packHours ? (
             <span className="type-caption fg-subtle">{packCaption(row.original)}</span>
           ) : null}
@@ -191,8 +185,6 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
       meta: { mobile: 'badge' },
       accessorFn: (p) => p.status,
       cell: ({ row }) => {
-        // Billed on a cobro: said in the product's words ("Facturada" would claim an
-        // ARCA factura that may not exist yet).
         if (row.original.receivableId) return <Badge variant="success">En cobro</Badge>
         const badge = productionStatusBadge(row.original.status)
         return <Badge variant={badge.variant}>{badge.label}</Badge>
@@ -214,8 +206,6 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
       enableHiding: false,
       cell: ({ row }) => {
         const production = row.original
-        // A production on a cobro is part of that cobro's amount: the API refuses to edit
-        // or delete it until the cobro is cancelled, so the menu does not offer it.
         const frozen = locked || Boolean(production.receivableId)
         return (
           <div className="flex justify-end" onClick={(event) => event.stopPropagation()}>
@@ -227,13 +217,10 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
                 <AFFORDANCE.overflow className="size-4" aria-hidden />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {/* Disabled on a CLOSED month, the same lock every other mutation here respects:
-                    a closed month is the record of what happened, not a draft to keep editing. */}
                 <DropdownMenuItem disabled={frozen} onSelect={() => actions.onEdit(production)}>
                   <ICON.edit aria-hidden />
                   Editar
                 </DropdownMenuItem>
-                {/* Only approved productions are billed and paid; the lead's "se hizo". */}
                 {production.status !== 'invoiced' ? (
                   <DropdownMenuItem
                     disabled={frozen}
@@ -243,8 +230,6 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
                     {production.status === 'approved' ? 'Quitar aprobación' : 'Aprobar'}
                   </DropdownMenuItem>
                 ) : null}
-                {/* Not frozen by a closed month or a cobro: the viático is paid back
-                    whenever the week's payments go out. */}
                 {production.viatics > 0 ? (
                   <DropdownMenuItem
                     onSelect={() =>
@@ -274,7 +259,6 @@ function productionColumns(actions: ProductionRowActions, locked: boolean): Colu
 }
 
 
-/** Producciones tab — productions table + the add / edit / delete flows. */
 export function ProductionsTab() {
   const op = useMonthlyOperation()
   const { canDo } = useRole()
@@ -338,8 +322,6 @@ export function ProductionsTab() {
     setDeleting(true)
     const removed = await op.deleteProduction(deleteTarget.id)
     setDeleting(false)
-    // The dialog stays open when the write fails: closing it would report a deletion that did
-    // not happen, and the row would still be sitting there behind it.
     if (!removed) return
     toast.success('Producción eliminada')
     setDeleteTarget(null)
@@ -413,9 +395,6 @@ export function ProductionsTab() {
         />
       ) : null}
 
-      {/* Keyed on the row id so switching rows remounts the form with the new prefill — a
-          `useState` initial value is read once, so a shared instance would keep showing the
-          first row you opened. */}
       {editTarget ? (
         <ProductionForm
           key={editTarget.id}
@@ -448,8 +427,6 @@ export function ProductionsTab() {
                 color="danger"
                 disabled={deleting}
                 onClick={(event) => {
-                  // Radix closes the dialog on click by default. Hold it open: the write can
-                  // fail, and a dialog that has already dismissed cannot report that.
                   event.preventDefault()
                   void confirmDelete()
                 }}

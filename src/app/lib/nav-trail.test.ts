@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { appendCrumb, buildTrailHref, parseTrail, trailToHere, type Crumb } from './nav-trail'
 
-/** Parse the `trail` param out of an href the same way the router would (one
- *  percent-decode pass via the URL parser), so round-trip tests mirror runtime. */
 function trailOf(href: string): Crumb[] {
   const params = new URL(`http://h${href}`).searchParams
   return parseTrail(params)
@@ -68,8 +66,6 @@ describe('trailToHere', () => {
   })
 
   it('collapses a loop back to the current page (drops its crumb and everything after)', () => {
-    // Dashboard -> Clientes -> Equipo, then back to /clients: the rendered trail
-    // must be just [Dashboard], not the misleading [Dashboard, Equipo].
     const value = encodeURIComponent(
       JSON.stringify([
         { label: 'Dashboard', to: '/dashboard' },
@@ -117,8 +113,6 @@ describe('appendCrumb', () => {
   })
 
   it('collapses a non-adjacent revisit back to the existing crumb (bounds the URL)', () => {
-    // [Dashboard, Clientes, Equipo] then leaving /clients again -> appends Clientes,
-    // which already exists at index 1, so it collapses to [Dashboard, Clientes].
     const incoming = encodeURIComponent(
       JSON.stringify([
         { label: 'Dashboard', to: '/dashboard' },

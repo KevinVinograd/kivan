@@ -9,7 +9,6 @@ import {
   payoutsByMember,
 } from './team-payout-api-data'
 
-/** A canonical payout row; each test overrides only the field it is about. */
 function dto(overrides: Partial<PayoutStatementDto> = {}): PayoutStatementDto {
   return {
     id: 'payout-1',
@@ -22,8 +21,6 @@ function dto(overrides: Partial<PayoutStatementDto> = {}): PayoutStatementDto {
     totalAmountMinor: '37000000',
     paidAmountMinor: '0',
     outstandingMinor: '37000000',
-    // null on both = NOT RECORDED, the default state for every statement
-    // predating attribution. Overridden per-test where hours matter.
     hoursTotal: null,
     hourlyRateMinor: null,
     statementStatus: 'draft',
@@ -82,11 +79,6 @@ describe('payoutPaymentStatus', () => {
     ).toBe('paid')
   })
 
-  /**
-   * The case the status alone cannot express, and the reason this derivation exists:
-   * the transfer cleared for less than the total. Reading `statementStatus` on its own
-   * would call it "Pagado" and the outstanding balance would disappear from the module.
-   */
   it('reads a short-paid confirmed statement as a difference, never as paid', () => {
     expect(
       payoutPaymentStatus(
@@ -111,12 +103,10 @@ describe('payoutToStatement', () => {
     expect(statement.differenceAmount).toBe(370000)
   })
 
-  /** Every lifecycle call is addressed to this id, so a synthesized one would 404. */
   it('carries the server payout id, not one derived from the member', () => {
     expect(payoutToStatement(dto({ id: 'payout-xyz' }), '2026-07').id).toBe('payout-xyz')
   })
 
-  /** Zero because there is no server model, not because the member earned nothing. */
   it('zeroes the three lines the API does not model', () => {
     const statement = payoutToStatement(dto(), '2026-07')
     expect(statement.hoursAmount).toBe(0)
@@ -138,11 +128,6 @@ describe('payoutToStatement', () => {
     )
   })
 
-  /**
-   * The API records the approval date and no settlement date. Passing `approvedAt`
-   * off as `paidAt` would date the payment on the day it was authorized — and the
-   * colaboradora ledger posts its movement on exactly that field.
-   */
   it('never passes the approval date off as a payment date', () => {
     const settled = payoutToStatement(
       dto({
@@ -172,8 +157,6 @@ describe('payoutsByMember', () => {
     expect(map.m2.id).toBe('p2')
   })
 
-  /** The absence must stay an absence: a zero-filled statement here is what let the
-   *  module show a total for somebody who has no plan for the month. */
   it('leaves a member with no statement absent rather than zeroed', () => {
     const map = payoutsByMember([dto({ teamMemberId: 'm1' })], '2026-07')
     expect(map.m2).toBeUndefined()
@@ -182,12 +165,6 @@ describe('payoutsByMember', () => {
 })
 
 describe('fetchPeriodPayouts', () => {
-  /**
-   * The plan route validates `period must be YYYY-MM` and 400s on the `YYYY-MM-01`
-   * period the rest of the app passes around. Passing the wrong one made every member
-   * read "Sin plan del mes" against a month that had plans — and no route stub could
-   * catch it, because a glob matches both shapes.
-   */
   it('asks for the MONTH id, never the YYYY-MM-01 period', async () => {
     const getBundle = vi
       .spyOn(monthlyApi, 'getBundle')

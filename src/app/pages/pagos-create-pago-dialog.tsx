@@ -28,9 +28,6 @@ import { KeepOpenToggle, useKeepOpen } from './dialog-keep-open'
 import type { CreatePagoInput } from './payments-api-data'
 import type { RecipientType } from './pagos-mock-data'
 
-/** Mirrors `CURRENCY_OPTIONS` in clients-dialogs.tsx and cashflow-commitment-dialog.tsx
- *  (the same two lanes). Repeated locally rather than shared, per the component-rule
- *  policy: each surface governs its own copy. */
 const CURRENCY_OPTIONS: readonly Currency[] = ['ARS', 'USD']
 
 const RECIPIENT_TYPE_OPTIONS: RecipientType[] = [
@@ -44,13 +41,6 @@ const RECIPIENT_TYPE_OPTIONS: RecipientType[] = [
 
 type Option = { id: string; name: string }
 
-/**
- * Nuevo pago — create a payment for the selected period. On submit it persists via
- * `onCreate` (POST /payments). The recipient is resolved by type: proveedor →
- * picked from GET /providers (or created inline via POST /providers);
- * colaboradora/empleado → picked from GET /team-members; the rest (gasto fijo,
- * monotributo, plataforma) take a free-text name.
- */
 export function PagosCreatePagoDialog({
   period,
   onCreate,
@@ -67,23 +57,16 @@ export function PagosCreatePagoDialog({
   const [newProviderName, setNewProviderName] = useState('')
   const [teamMemberId, setTeamMemberId] = useState('')
   const [freeName, setFreeName] = useState('')
-  // The counterparty a gasto fijo / plataforma / monotributo is paid TO. Optional on all
-  // three: it is what lets the projection supersede the matching commitment by identity,
-  // and a pago that names nobody still works exactly as it did.
   const [emitters, setEmitters] = useState<Option[]>([])
   const [linkedProviderId, setLinkedProviderId] = useState('')
   const [invoiceEmitterId, setInvoiceEmitterId] = useState('')
   const [concept, setConcept] = useState('')
   const [amount, setAmount] = useState('0')
-  // The lane, asked here or never: `UpdatePagoInput` has no currency, because the API's
-  // PATCH body does not accept one. It deliberately survives a keep-open reset, like the
-  // recipient and its type: a batch of dollar pagos is one lane, entered several times.
   const [currency, setCurrency] = useState<Currency>('ARS')
   const [expectedDate, setExpectedDate] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { keepOpen, setKeepOpen, fieldsRef, focusFirstField } = useKeepOpen()
 
-  // Load the pickers' options (providers + team members).
   useEffect(() => {
     let cancelled = false
     paymentsApi
@@ -111,10 +94,6 @@ export function PagosCreatePagoDialog({
 
   const needsProvider = recipientType === 'provider'
   const needsMember = recipientType === 'collaborator' || recipientType === 'employee'
-  // Who this is paid to, for the three types that take a free-text name. OPTIONAL, so it
-  // never gates `valid`: a bank fee filed as a gasto fijo genuinely has nobody to name,
-  // and attaching an unrelated proveedor to satisfy a required field would create a live
-  // netting key against that proveedor's real pagos — worse than no link at all.
   const linksProvider = recipientType === 'fixed_expense' || recipientType === 'platform'
   const linksEmitter = recipientType === 'monotributo'
 
@@ -142,10 +121,6 @@ export function PagosCreatePagoDialog({
           const created = await paymentsApi.createProvider({ name: newProviderName.trim() })
           fk.providerId = created.id
           recipientName = created.name
-          // ADOPT it into this dialog's state. The provider list is fetched once with `[]`
-          // deps, so a provider minted here is in neither the dropdown nor the text field
-          // after a keep-open reset — which left the form unsubmittable with no way to pick
-          // the provider just created, and made retyping the same name mint a duplicate.
           setProviders((prev) =>
             prev.some((p) => p.id === created.id) ? prev : [...prev, { id: created.id, name: created.name }],
           )
@@ -159,9 +134,6 @@ export function PagosCreatePagoDialog({
         recipientName = members.find((m) => m.id === teamMemberId)?.name ?? ''
       } else {
         recipientName = freeName.trim()
-        // Sent only when chosen. Both are forwarded EXPLICITLY here rather than spread
-        // from a wider object, so a field added to this form cannot be silently dropped
-        // on the way to the API.
         if (linksProvider && linkedProviderId) fk.providerId = linkedProviderId
         if (linksEmitter && invoiceEmitterId) fk.invoiceEmitterId = invoiceEmitterId
       }
@@ -176,9 +148,6 @@ export function PagosCreatePagoDialog({
         ...fk,
       })
       toast.success('Pago creado')
-      // Only after the write landed. The recipient and its type survive the reset — a batch
-      // is usually several concepts for the same collaborator or provider — and for an
-      // inline-created provider that is only true because it was adopted above.
       if (keepOpen) {
         setConcept('')
         setAmount('0')
@@ -264,12 +233,6 @@ export function PagosCreatePagoDialog({
                 {recipientType === 'employee' ? 'Empleado' : 'Colaboradora'}
               </span>
               <Select value={teamMemberId} onValueChange={setTeamMemberId}>
-                {/* Disabled when there is nothing to pick. A Radix Select with no items
-                    still OPENS on click — an empty popover, which reads as a control that
-                    is broken rather than one that is not ready. The hint below already says
-                    what to do; this is what stops the click from looking like a failure.
-                    Reported from production as "hago click y no me abre" by an operator
-                    loading her first month, before any collaborator existed. */}
                 <SelectTrigger
                   className="w-full"
                   aria-label="Miembro del equipo"
@@ -302,9 +265,6 @@ export function PagosCreatePagoDialog({
             </label>
           )}
 
-          {/* Optional, and labelled as such. The projection uses it to tell "the rent was
-              paid" from "some money went out that week"; without it the pago still counts,
-              just on the coarser category key. */}
           {linksProvider ? (
             <label className="flex flex-col gap-1.5">
               <span className="type-caption fg-subtle">Proveedor (opcional)</span>
@@ -353,8 +313,6 @@ export function PagosCreatePagoDialog({
 
           <label className="flex flex-col gap-1.5">
             <span className="type-caption fg-subtle">Concepto</span>
-            {/* The focus target after a keep-open reset: the recipient is kept, so Concepto
-                is the first field still needing an answer. */}
             <Input
               value={concept}
               onChange={(event) => setConcept(event.target.value)}
@@ -362,10 +320,6 @@ export function PagosCreatePagoDialog({
             />
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {/* A div, not a label: a <label> wrapping BOTH controls would associate its
-                click with the first labelable one, so a click meant for the currency
-                trigger would land on the amount input. Each control carries its own
-                aria-label, so the visible caption is decorative and nothing is lost. */}
             <div className="flex flex-col gap-1.5">
               <span className="type-caption fg-subtle">Monto</span>
               <div className="flex gap-2">

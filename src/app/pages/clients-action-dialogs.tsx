@@ -38,12 +38,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/**
- * Bulk "Cambiar estado" dialog: pick a target status and apply it to the selected
- * clients in one shot. The explicit status choice plus the named count is the
- * confirmation surface for this materially-changing action (feedback Section 7);
- * the page applies the mutation and confirms with a success toast (Section 4).
- */
 export function ClientsChangeStatusDialog({
   clients,
   onConfirm,
@@ -55,9 +49,6 @@ export function ClientsChangeStatusDialog({
 }) {
   const [status, setStatus] = useState<ClientStatus>('active')
   const count = clients.length
-  // Bulk baja is destructive (drops clients from the active portfolio) and must
-  // carry the same danger treatment as the per-client churn confirmation; pausar
-  // is reversible but still worth a caution before applying it in bulk.
   const isChurn = status === 'churned'
   const isPause = status === 'paused'
 
@@ -125,11 +116,6 @@ export function ClientsChangeStatusDialog({
   )
 }
 
-/**
- * "Agregar trabajo extra" dialog: a description + amount for out-of-scope work.
- * The page bills it (adds the amount to the client's current-month due) and records
- * the description in the client's notes, then confirms with a success toast.
- */
 export function ClientAddExtraWorkDialog({
   client,
   onConfirm,
@@ -192,19 +178,7 @@ export function ClientAddExtraWorkDialog({
   )
 }
 
-/**
- * The abono lines of the statement: the contracted fee, and — when the client has a
- * standing discount — what it comes off and what they actually pay.
- *
- * Gross with the discount shown beside it rather than a single net figure. This text is
- * SENT TO THE CLIENT, so it is the one place where a number the counterparty can
- * contradict has to be the number on their contract, with the arithmetic visible.
- */
 function abonoLines(client: Client): string[] {
-  // The CONTRACT's lane, which is what `client.currency` is. These lines are sent to the
-  // client, and they quoted a dollar-priced abono as pesos — a figure the counterparty can
-  // read off their own contract and see is wrong. No aggregate is involved: each line is
-  // one contract amount in one lane, so there is no sibling total to keep in step.
   const money = (amount: number) => formatMoney(amount, client.currency)
   const gross = `Abono mensual: ${money(client.monthlyFee)}`
   if (!client.discountPercentBp) return [gross]
@@ -217,11 +191,8 @@ function abonoLines(client: Client): string[] {
   ]
 }
 
-/** Build the cuenta corriente message body for a client (mock statement). */
 function statementBody(client: Client): string {
   const toName = client.contactName ?? client.name
-  // A client with no cobro this month gets a statement that says so, rather than a
-  // pile of $0 lines that read as a settled account.
   if (client.currentMonthDueAmount == null) {
     return [
       `Hola ${toName},`,
@@ -251,12 +222,6 @@ function statementBody(client: Client): string {
   ].join('\n')
 }
 
-/**
- * "Enviar cuenta corriente" dialog: composes the statement summary and hands it to
- * the OS mail client or WhatsApp (no backend, mirrors the Contactar cliente send
- * pattern). The OS owns the actual send, so the page confirms that a DRAFT opened —
- * not a delivery it cannot observe.
- */
 export function ClientSendStatementDialog({
   client,
   onSent,

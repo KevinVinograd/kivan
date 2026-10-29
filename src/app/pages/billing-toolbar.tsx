@@ -23,17 +23,12 @@ import { BILLING_FILTER_FIELDS } from './billing-format'
 import type { Receivable } from './cobros-mock-data'
 import { Toolbar } from '@/app/components/patterns'
 
-/** Period selector (full Select) for the header controls slot and — in the detail
- *  view, where the PageHeader is dissolved and inert — the navigator section header. The prev/next
- *  stepper chevrons were removed; the dropdown drives all period changes. Full Select
- *  on every viewport (no below-desktop icon collapse). */
 export function BillingPeriodControls({
   selectedPeriod,
   periods,
   onSelectPeriod,
 }: {
   selectedPeriod: CobranzaPeriod
-  /** Derived per render, never a module constant — see `lib/periods.ts`. */
   periods: CobranzaPeriod[]
   onSelectPeriod: (period: CobranzaPeriod) => void
 }) {
@@ -53,8 +48,6 @@ export function BillingPeriodControls({
   )
 }
 
-// Column-visibility menu, mirroring the Cobros/Pagos toolbars. Repeated locally
-// per the design-system 1:1 no-shared-composition policy.
 function BillingColumnsMenu({ table }: { table: Table<Receivable> }) {
   const columns = table.getAllColumns().filter((column) => column.getCanHide())
   return (
@@ -83,8 +76,6 @@ function BillingColumnsMenu({ table }: { table: Table<Receivable> }) {
   )
 }
 
-/** Facturación table toolbar: search + facturación/monotributo/moneda filters + columns
- *  menu. */
 export function BillingToolbar({ table }: { table: Table<Receivable> }) {
   const globalFilter = (table.getState().globalFilter as string | undefined) ?? ''
   return (

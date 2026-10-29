@@ -1,13 +1,3 @@
-/**
- * Admin / Operations Dashboard — heavier section derivations.
- *
- * Pure builders for the three richest sections: team payments (§5), billing +
- * ARCA (§7) and the prioritized critical-pendings list (§2). Split out of
- * `admin-dashboard-data.ts` to keep both derivation files within the file-size
- * budget. All values come from the live Operación mensual record; nothing here
- * mutates or calls a backend. The orchestrator in `admin-dashboard-data.ts`
- * composes these with the lighter section builders.
- */
 import {
   bankComplete,
   clientTotalToBill,
@@ -32,7 +22,6 @@ import { isActiveBilling, ROUTE } from './admin-dashboard-routes'
 import { withDashboardTrail } from './dashboard-trail'
 
 
-// ── §5 Pagos al equipo ───────────────────────────────────────────────────────
 function payState(
   payout: TeamPayout,
   missingHoursNames: Set<string>,
@@ -52,19 +41,6 @@ function payState(
 
 const PAY_RANK: Record<TeamPayStatus, number> = { bloqueado: 0, pendiente: 1, listo: 2, pagado: 3 }
 
-/**
- * The month's payroll for the admin home.
- *
- * The three money figures come from `summarize()` rather than being recomputed here. They
- * used to be `sum(team, payoutTotal)`, which reads PayoutStatements alone — the source that
- * is empty in every workspace whose payroll is recorded in `/pagos`. Both screens agreed
- * while both were blind; the moment `/operacion-mensual` learned to read payments, this one
- * would have kept showing $0 "Total a pagar" to the same admin, one route away, during the
- * work the number exists for.
- *
- * The ROWS stay statement-derived: they carry a per-member lifecycle (bank data, blockers,
- * `payoutStatus`) that a payment has no equivalent for.
- */
 export function buildTeamPayments(
   team: TeamPayout[],
   payroll: { totalToPayTeam: number; paidToTeam: number },
@@ -96,7 +72,6 @@ export function buildTeamPayments(
   }
 }
 
-// ── §7 Facturación y ARCA ────────────────────────────────────────────────────
 function monotributoAlert(pct: number): MonotributoAlert {
   if (pct >= 90) return 'limite'
   if (pct >= 80) return 'atencion'
@@ -146,8 +121,6 @@ export function buildBilling(record: MonthRecord): BillingAndArca {
   }
 }
 
-// ── §2 Pendientes críticos ───────────────────────────────────────────────────
-/** Prioritized list of operational blockers assembled from structural store signals. */
 export function buildPendings(
   record: MonthRecord,
   hours: HoursCompleteness | null,
@@ -156,7 +129,6 @@ export function buildPendings(
   const { clients, team, productions } = record.data
   const out: OperationPending[] = []
 
-  // Missing hours (top 3 by gap).
   for (const row of (hours?.rows ?? []).filter((r) => r.status !== 'completo').slice(0, 3)) {
     out.push({
       id: `hrs-${row.personId}`,
@@ -171,7 +143,6 @@ export function buildPendings(
     })
   }
 
-  // Team payment blocked by missing banking data.
   for (const payout of team.filter((p) => p.payoutStatus !== 'paid' && !bankComplete(p))) {
     out.push({
       id: `bank-${payout.id}`,
@@ -186,7 +157,6 @@ export function buildPendings(
     })
   }
 
-  // Client charges overdue or unregistered.
   for (const client of clients.filter((c) => c.monthStatus !== 'churned')) {
     if (client.paymentStatus === 'overdue') {
       out.push({
@@ -213,7 +183,6 @@ export function buildPendings(
     }
   }
 
-  // Productions with viáticos pending validation.
   const viaticIds = new Set<string>()
   for (const p of productions.filter((p) => p.viatics > 0 && p.status !== 'invoiced')) {
     viaticIds.add(p.id)
@@ -230,7 +199,6 @@ export function buildPendings(
     })
   }
 
-  // Productions not closed (no client or billable undefined), excluding the viáticos rows above.
   for (const p of productions.filter((p) => (p.clientId === '' || p.billable == null) && !viaticIds.has(p.id))) {
     out.push({
       id: `prod-${p.id}`,
@@ -246,7 +214,6 @@ export function buildPendings(
     })
   }
 
-  // Pending invoices.
   for (const client of clients.filter((c) => isActiveBilling(c) && c.invoiceStatus === 'not_issued')) {
     out.push({
       id: `fac-${client.id}`,
@@ -260,7 +227,6 @@ export function buildPendings(
     })
   }
 
-  // ARCA / monotributo near its annual limit.
   for (const mono of billing.monotributos.filter((m) => m.alert === 'limite')) {
     out.push({
       id: `arca-${mono.id}`,

@@ -8,7 +8,6 @@ vi.mock('./team-payout-api-data', () => ({ productionsToEntries: (dtos: unknown[
 
 const { addMemberProductionViaApi } = await import('./team-api-data')
 
-/** A production as the planilla form submits it; override only what a case asserts. */
 function input(overrides: Partial<ProductionInput> = {}): ProductionInput {
   return {
     date: '2026-09-18',
@@ -43,7 +42,6 @@ describe('addMemberProductionViaApi', () => {
   it('returns no entry when nobody worked the production, instead of an undefined one', async () => {
     createProduction.mockResolvedValue({ id: 'p-1', attribution: [] })
     const realMapper = await vi.importActual<typeof import('./team-payout-api-data')>('./team-payout-api-data')
-    // The real mapper, so the empty attribution goes through the code Equipo reads.
     expect(realMapper.productionsToEntries([{ id: 'p-1', attribution: [] } as never])).toEqual([])
     await expect(addMemberProductionViaApi(input({ creatorId: '' }))).resolves.toEqual([{ id: 'p-1', attribution: [] }])
   })

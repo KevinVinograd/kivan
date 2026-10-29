@@ -1,4 +1,3 @@
-/** Time entries (Cargar horas) — thin typed wrappers over the api client. */
 import { z } from 'zod'
 
 import { apiClient } from './client'
@@ -9,8 +8,8 @@ export const TimeEntrySchema = z.object({
   clientId: z.string().nullable(),
   clientName: z.string().nullable(),
   taskType: z.string(),
-  date: z.string(), // YYYY-MM-DD
-  month: z.string(), // YYYY-MM
+  date: z.string(),
+  month: z.string(),
   hours: z.number(),
   description: z.string().nullable(),
   isOutOfScope: z.boolean(),
@@ -20,7 +19,6 @@ export type TimeEntryDto = z.infer<typeof TimeEntrySchema>
 
 export const TimeEntriesSchema = z.array(TimeEntrySchema)
 
-/** `POST /team-members/:id/time-entries` body. */
 export interface CreateTimeEntryInput {
   clientId?: string
   clientName?: string

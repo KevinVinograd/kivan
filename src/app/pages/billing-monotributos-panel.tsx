@@ -4,7 +4,6 @@ import { ArcGauge } from '@/app/components/patterns'
 import { EMITTER_ALERT_BADGE, type EmitterAlertLevel } from './cobros-invoice'
 import { useInvoiceEmitters, type RealEmitter } from './emitters-api-data'
 
-/** Alert level → data-viz gauge token (the value arc color). */
 const EMITTER_GAUGE_FG: Record<EmitterAlertLevel, string> = {
   disponible: 'fg-data-green',
   cerca_limite: 'fg-data-yellow',
@@ -13,17 +12,6 @@ const EMITTER_GAUGE_FG: Record<EmitterAlertLevel, string> = {
   datos_incompletos: 'fg-data-yellow',
 }
 
-/**
- * Monotributos panel — the three emisores (§9.5) the agency invoices from, each as
- * a compact usage gauge (`ArcGauge`) in a single row, with its monthly-usage
- * percentage and ARCA alert badge. Read-only context at the top of the Facturación
- * page; the per-cobro emisor selection happens inside the Generar factura dialog.
- *
- * Read from the workspace's real emisores (`GET /invoice-emitters`). It used to render a
- * hardcoded sample (three made-up monotributos, one "Límite alcanzado") on every workspace,
- * including ones with none loaded: a fake fiscal ceiling on the page people invoice from.
- * Found on the 25/10 review.
- */
 export function BillingMonotributosPanel() {
   const { emitters, isLoading, isError, refetch } = useInvoiceEmitters()
   return (
@@ -70,7 +58,6 @@ export function BillingMonotributosPanel() {
   )
 }
 
-/** Monthly usage as a whole percent; an emisor with no ceiling reads 0, never "full". */
 function usagePct(emitter: RealEmitter): number {
   if (emitter.monthlyLimit <= 0) return 0
   return Math.min(100, Math.round((emitter.monthlyUsed / emitter.monthlyLimit) * 100))

@@ -27,11 +27,6 @@ const TAX_PROFILE_OPTIONS: TaxProfileId[] = [
   'unassigned',
 ]
 
-/**
- * Editar datos fiscales (§9.4) — edit the razón social, CUIT and monotributo a
- * factura needs. Local-state only via `editFiscalData`, which also lifts a
- * "pendiente de datos" cobro to `no_invoice` once the data is complete.
- */
 export function CobrosEditFiscalDataDialog({
   receivable,
   onApply,

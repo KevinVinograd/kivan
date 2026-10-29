@@ -8,12 +8,6 @@ import {
 import type { Currency } from './treasury-mock-data'
 import { LANE_LABEL } from './treasury-position-view'
 
-/**
- * Currency-lane selector for the forward views (Proyección / Conciliación). Shows
- * only the lanes that have an operating projection (passed in by the page), so
- * lanes with no operating cash flow are not offered. Hidden when a single lane is
- * available — there is nothing to switch.
- */
 export function CashflowLaneSelect({
   lane,
   lanes,

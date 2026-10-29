@@ -21,15 +21,6 @@ import {
   type PositionSection,
 } from './treasury-position-view'
 
-/**
- * Per-lane composition-bar hues (one color per currency, three shades for the
- * Saldos / a cobrar / a pagar components). The two inflows that ADD to the cash
- * position (Saldos, a cobrar) carry the lane's own color — ARS aqua/celeste, USD
- * emerald. The outflow that
- * SUBTRACTS from it (a pagar) is red across every lane, so add-vs-subtract reads at
- * a glance. Data-palette tokens, theme-safe. Segment widths are same-currency
- * magnitudes, so they are always comparable — no cross-lane conversion is implied.
- */
 type LaneShade = { bg: string; fill: string }
 const RESTA_SHADE: LaneShade = { bg: 'bg-data-red', fill: 'text-data-red' }
 const LANE_HUE: Record<Currency, { saldos: LaneShade; cobrar: LaneShade; pagar: LaneShade }> = {
@@ -45,11 +36,6 @@ const LANE_HUE: Record<Currency, { saldos: LaneShade; cobrar: LaneShade; pagar: 
   },
 }
 
-/**
- * Right-aligned lane cells (ARS / USD). Row cells dash an absent lane
- * for noise reduction; total / summary cells pass `dashAbsent={false}` so a real
- * figure (including a meaningful 0 or a negative position) always shows.
- */
 function LaneCells({
   money,
   strong = false,
@@ -87,7 +73,6 @@ function LaneCells({
   )
 }
 
-/** Right-aligned lane column headers (ARS / USD). */
 function LaneHeaders() {
   return (
     <>
@@ -100,20 +85,8 @@ function LaneHeaders() {
   )
 }
 
-/** Compact per-lane summary shown in a collapsed section's accordion trigger:
- *  the present lanes only, with a negative lane flagged danger so a cash crunch
- *  stays visible without expanding the card. */
 function LaneSummary({ money }: { money: Money }) {
-  // Only present lanes are shown; a non-empty section whose lanes net to exactly 0
-  // (sumMoney omits zero-sum lanes) still carries a real total, so fall back to an
-  // explicit zero rather than rendering nothing. Callers only invoke this for a
-  // section that has rows or for the Posición breakdown, so an empty lane set
-  // unambiguously means "all lanes zero".
   const lanes = CURRENCIES.filter((currency) => money[currency] != null)
-  // Pin the per-lane totals to `type-body-2`: the trigger that hosts this summary
-  // uses `emphasis="section"` (type-section), and these amount spans would
-  // otherwise inherit that larger/bolder scale — only the section title should be
-  // promoted, not its inline figure.
   return (
     <span className="flex flex-wrap items-center justify-end gap-x-4 gap-y-0.5 type-body-2 tabular-nums">
       {lanes.length === 0 ? (
@@ -132,12 +105,7 @@ function LaneSummary({ money }: { money: Money }) {
   )
 }
 
-/** A single position row: label + context, with installment / reintegro / observation
- *  sub-lines for the manual salary pendientes, then its per-lane amounts. */
 function PositionRowView({ row }: { row: PositionRow }) {
-  // `undefined` when the row's money is in a lane this build does not know, in which case
-  // the sub-lines are omitted rather than printed in a lane nothing can name. The rule and
-  // its reasoning live in `treasury-position-view`, where a test can reach them.
   const lane = rowLane(row.balances)
   return (
     <TableRow>
@@ -168,11 +136,6 @@ function PositionRowView({ row }: { row: PositionRow }) {
   )
 }
 
-/**
- * A collapsible titled section card (Saldos / pendientes / reserva). The trigger
- * carries the title plus a per-lane total summary, so a collapsed card still reads
- * as a one-line figure; expanding reveals the per-row detail under flag headers.
- */
 function SectionCard({
   title,
   section,
@@ -212,8 +175,6 @@ function SectionCard({
   )
 }
 
-/** The collapsible "cómo se compone" breakdown: Saldos + a cobrar - a pagar =
- *  Posición, per lane. The trigger previews the resulting Posición. */
 function PositionBreakdown({ model }: { model: PositionModel }) {
   const rows: { label: string; money: Money; strong?: boolean; danger?: boolean }[] = [
     { label: 'Total saldos', money: model.saldos.total },
@@ -251,21 +212,8 @@ function PositionBreakdown({ model }: { model: PositionModel }) {
   )
 }
 
-/**
- * One currency lane's position as a stacked composition bar: each component's signed
- * contribution to the Posición (Saldos + a cobrar add, a pagar subtracts), sized by
- * absolute magnitude (same currency, so comparable) and shaded in the lane's hue —
- * anything that reduces the position takes the resta colour. Shows the net Posición
- * figure and a per-component legend. No cross-currency total is implied — each lane
- * is its own bar.
- */
 function PositionLaneBar({ currency, model }: { currency: Currency; model: PositionModel }) {
   const hue = LANE_HUE[currency]
-  // Signed contribution of each component to the lane's Posición (saldos + a cobrar
-  // - a pagar). A negative contribution reduces the position, so it takes the resta
-  // colour regardless of which component it is (a pagar always, or an overdrawn
-  // negative saldos); widths are absolute magnitudes, so the bar always reconciles
-  // with the headline figure and no part is silently dropped.
   const parts = [
     { key: 'saldos', label: 'Saldos', contribution: laneAmount(model.saldos.total, currency), shade: hue.saldos },
     { key: 'cobrar', label: 'A cobrar', contribution: laneAmount(model.ingresosPendientes.total, currency), shade: hue.cobrar },
@@ -276,9 +224,6 @@ function PositionLaneBar({ currency, model }: { currency: Currency; model: Posit
   const totalMagnitude = parts.reduce((sum, part) => sum + Math.abs(part.contribution), 0)
   const posicion = laneAmount(model.posicion, currency)
 
-  // Cumulative x offsets so the segments stack left-to-right. Widths are SVG
-  // presentation attributes (0–100, sized within one currency so comparable), not
-  // inline style, per `react/forbid-dom-props` — same technique as Progress.
   let offset = 0
   const segments = parts.map((part) => {
     const width = totalMagnitude > 0 ? (Math.abs(part.contribution) / totalMagnitude) * 100 : 0
@@ -317,9 +262,6 @@ function PositionLaneBar({ currency, model }: { currency: Currency; model: Posit
                   className={segment.fill}
                 />
               ))}
-              {/* 1px separators between segments. `vector-effect=non-scaling-stroke`
-                  keeps them a constant 1 device pixel under the non-uniform viewBox
-                  scale; the card surface colour reads as a gap. */}
               {segments.slice(1).map((segment) => (
                 <line
                   key={`gap-${segment.key}`}
@@ -351,11 +293,6 @@ function PositionLaneBar({ currency, model }: { currency: Currency; model: Posit
   )
 }
 
-/**
- * Unified Posición card: the composition of each currency lane's position as a
- * stacked bar. One card, one bar per present lane (ARS always; other lanes when they
- * carry a balance / pendiente). Currencies are never summed into a single figure.
- */
 function PositionCompositionCard({ model }: { model: PositionModel }) {
   const lanes = CURRENCIES.filter(
     (currency) =>
@@ -378,9 +315,6 @@ function PositionCompositionCard({ model }: { model: PositionModel }) {
   )
 }
 
-/** Total wealth (reserva + posición), shown full-width at the bottom of the snapshot
- *  as a flat (outlined) result line: the label on the left and the per-lane totals
- *  right-aligned. Multi-lane, so it is a bespoke layout rather than a KpiTile. */
 function PatrimonioTile({ model }: { model: PositionModel }) {
   const lanes = CURRENCIES.filter((currency) => laneAmount(model.patrimonio, currency) !== 0)
   return (
@@ -407,16 +341,6 @@ function PatrimonioTile({ model }: { model: PositionModel }) {
   )
 }
 
-/**
- * Posición tab — the treasury position snapshot, a faithful mirror of the account
- * administrator's sheet. The top card shows each currency lane's position as a
- * composition bar (Saldos / a cobrar / a pagar in the lane's hue); below it sit the
- * collapsible detail sections (operating Saldos, Ingresos/Egresos pendientes, the
- * Cómo se compone breakdown, and the Finanzas Hold / Reserva), and finally the total
- * patrimonio. Currency lanes (ARS / USD) are shown side by side and never
- * converted into each other. All figures come from the pure `treasury-position-view`
- * model; this file only composes approved components and maps tones to tokens.
- */
 export function CashflowPosition({ model }: { model: PositionModel }) {
   return (
     <div className="flex flex-col gap-4 md:gap-6">

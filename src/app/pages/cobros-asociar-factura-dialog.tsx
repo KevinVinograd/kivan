@@ -27,13 +27,6 @@ import { formatMoney } from './cobranza-format'
 import { INVOICE_EMITTERS, suggestedEmitter, type EmitterId } from './cobros-invoice'
 import type { Receivable } from './cobros-mock-data'
 
-// `todayIso()` is called per render inside the component below, NOT once at module scope.
-// It used to be the literal '2026-06-16', and `futureDate` gates `valid` — so from 17 June
-// 2026 onwards, entering the invoice's actual emission date tripped "la fecha de emisión no
-// puede ser futura" and the submit never enabled. A module-level `todayIso()` would fix that
-// and then reintroduce it in miniature: this is a long-lived SPA, and a tab left open across
-// midnight would freeze the ceiling on yesterday and refuse today's date.
-
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -43,12 +36,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/**
- * Asociar factura existente (§9.7) — register an externally emitted factura.
- * Validations: número no vacío y no duplicado, fecha de emisión no posterior a hoy,
- * y confirmación explícita si el monto difiere del total del cobro. The result is
- * a local mutation to the "Asociado manualmente" billing state.
- */
 export function CobrosAsociarFacturaDialog({
   receivable,
   existingInvoiceNumbers,
@@ -57,7 +44,6 @@ export function CobrosAsociarFacturaDialog({
 }: {
   receivable: Receivable
   existingInvoiceNumbers: string[]
-  /** Persist the external factura (POST /receivables/:id/invoice/associate). */
   onAssociate: (id: string, invoiceNumber: string, issuedAt: string) => Promise<void>
   onClose: () => void
 }) {
@@ -143,8 +129,6 @@ export function CobrosAsociarFacturaDialog({
             </Select>
           </Field>
 
-          {/* The lane comes from the cobro, which may not be pesos. A hard "(ARS)" here
-              told the operator to enter pesos for a dollar comprobante. */}
           <Field label={`Monto (${receivable.currency})`}>
             <Input
               type="number"

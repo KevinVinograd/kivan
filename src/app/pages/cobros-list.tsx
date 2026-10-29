@@ -45,9 +45,6 @@ function CobrosListItem({
   )
 }
 
-/** Compact cobros navigator shown in the left panel while a cobro is open. Search
- *  only (the full filter set lives on the table); selecting an item drives the
- *  detail panel. */
 export function CobrosList({
   receivables,
   selectedId,

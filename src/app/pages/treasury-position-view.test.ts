@@ -50,14 +50,6 @@ describe('formatCompactLaneAmount', () => {
   })
 })
 
-/**
- * The lane a position row's sub-lines are printed in.
- *
- * This used to be `CURRENCIES.find(...) ?? 'ARS'` inside `PositionRowView`, and that
- * fallback put a peso "$" on a foreign lane's installments while both lane cells showed a
- * dash. No test mounts that component, so the fallback could be restored with the whole
- * suite green — which is why the rule moved here.
- */
 describe('rowLane', () => {
   it('reads the lane the row actually carries', () => {
     expect(rowLane({ ARS: 500 })).toBe('ARS')
@@ -65,10 +57,6 @@ describe('rowLane', () => {
   })
 
   it('is undefined for a lane this build does not know, so nothing borrows a symbol', () => {
-    // The cast reproduces the real path: `treasury-api-data.ts` builds a `CommittedItem`
-    // with `currency: d.currency as Currency` over a DTO field typed `string`, and Deploy
-    // Web ships before Deploy API — so a lane the front has never heard of is reachable by
-    // construction during a deploy.
     const foreign = { FCI: 900 } as unknown as Money
     expect(rowLane(foreign)).toBeUndefined()
   })
@@ -113,7 +101,7 @@ describe('buildPositionModel', () => {
   it('aggregates auto receivables by client (sum, earliest date) and drops fully collected ones', () => {
     const acme = model.ingresosPendientes.rows.find((row) => row.label === 'Acme')
     expect(acme?.balances).toEqual({ ARS: 500 })
-    expect(acme?.detail).toBe('20 jun') // earliest of the two due dates
+    expect(acme?.detail).toBe('20 jun')
     expect(model.ingresosPendientes.rows.some((row) => row.label === 'Paid')).toBe(false)
   })
 
@@ -125,7 +113,7 @@ describe('buildPositionModel', () => {
 
   it('shows a salary pendiente net of "a cuenta" installments, with reintegro + observations', () => {
     const salary = model.egresosPendientes.rows.find((row) => row.id === 'ars-out')
-    expect(salary?.balances).toEqual({ ARS: 300 }) // 900 - 300 - 300
+    expect(salary?.balances).toEqual({ ARS: 300 })
     expect(salary?.installments).toHaveLength(2)
     expect(salary?.reimbursement).toEqual({ amount: 50, note: 'Reintegro' })
     expect(salary?.observations).toBe('Resto a liquidar')
@@ -136,11 +124,9 @@ describe('buildPositionModel', () => {
   })
 
   it('computes Egresos total, Posición and patrimonio per lane', () => {
-    expect(model.egresosPendientes.total).toEqual({ ARS: 400 }) // Bob 100 + salary 300
+    expect(model.egresosPendientes.total).toEqual({ ARS: 400 })
     expect(model.saldosMasACobrar).toEqual({ ARS: 2_000, USD: 2_050 })
-    // Posición = saldos + a cobrar - a pagar
     expect(model.posicion).toEqual({ ARS: 1_600, USD: 2_050 })
-    // Patrimonio = reserva + posición
     expect(model.patrimonio).toEqual({ ARS: 3_600, USD: 2_050 })
   })
 })
@@ -165,16 +151,6 @@ describe('buildPositionModel over the seed', () => {
   })
 })
 
-/**
- * Settlement movements on the Posición.
- *
- * The trap these exist to pin: the movements are ALREADY applied to the account
- * balances, so the snapshot must show them as provenance and never add them to a total.
- * A previous attempt at this problem added post-anchor settlements on top of the current
- * balances and reported roughly a quarter of a million pesos the studio did not have —
- * measured on the real stack, not hypothesised. Adding them again would be silent: every
- * figure would still look plausible.
- */
 describe('buildPositionModel — settlement movements', () => {
   const account: Account = {
     id: 'acc-1',
@@ -208,7 +184,6 @@ describe('buildPositionModel — settlement movements', () => {
       movements: [
         { accountId: 'acc-1', direction: 'inflow', lane: 'ARS', amount: 250_000 },
         { accountId: 'acc-1', direction: 'outflow', lane: 'ARS', amount: 40_000 },
-        // Another account's movement must not leak into this row.
         { accountId: 'acc-2', direction: 'inflow', lane: 'ARS', amount: 999_999 },
       ],
     })
@@ -233,9 +208,6 @@ describe('buildPositionModel — settlement movements', () => {
       receivables: [], payments: [], commitments: [], asOfISO: '2026-06-01',
       movements: [{ accountId: 'acc-1', direction: 'inflow', lane: 'ARS', amount: 250_000 }],
     })
-    // A note was typed deliberately and must survive. But letting it WIN withheld the
-    // only explanation of a self-changing balance from precisely the accounts someone
-    // cared enough to annotate.
     const observations = model.saldos.rows.find((r) => r.id === 'acc-1')?.observations
     expect(observations).toContain('Cuenta de la agencia')
     expect(observations).toContain('250.000')
@@ -247,7 +219,6 @@ describe('buildPositionModel — settlement movements', () => {
       receivables: [], payments: [], commitments: [], asOfISO: '2026-06-01',
       movements: [{ accountId: 'acc-1', direction: 'inflow', lane: 'ARS', amount: 250_000 }],
     })
-    // No leading separator: a whitespace-only note is not a note.
     const observations = model.saldos.rows.find((r) => r.id === 'acc-1')?.observations
     expect(observations?.startsWith('+')).toBe(true)
     expect(observations).not.toContain(' · ')
@@ -258,28 +229,12 @@ describe('buildPositionModel — settlement movements', () => {
       accounts: [account], receivables: [], payments: [], commitments: [], asOfISO: '2026-06-01',
       movements: [{ accountId: 'acc-1', direction: 'inflow', lane: 'USD', amount: 5_000 }],
     })
-    // A USD settlement moves balanceUsdMinor and the USD Saldos total rises with it.
-    // Dropping the note for non-peso lanes left that change unexplained — the very
-    // failure this line exists to prevent, one lane over.
-    //
-    // Asserted as an EXACT string. `toContain('USD')` + `toContain('5.000')` were both
-    // true of the broken output `+$ 5.000 USD en cobros`, so the test passed on a figure
-    // wearing the peso symbol and the dollar code at once.
     const observations = model.saldos.rows.find((r) => r.id === 'acc-1')?.observations
     expect(observations?.replace(/\u00a0/g, ' ')).toBe('+US$ 5.000 en cobros desde la fecha de la posición')
     expect(observations).not.toContain(String.fromCharCode(36) + ' ')
   })
 })
 
-/**
- * Payroll in the Posición.
- *
- * `PayoutStatement` is not a `Payment`, and only `Payment` fed "Egresos pendientes", so
- * the largest thing most studios owe was in none of the three terms of
- * `Saldos + Ingresos − Egresos`. It became visible only on the day it was paid — and
- * since migration 0021 that day LOWERS a balance, so the Posición dropped by an amount
- * nothing had anticipated.
- */
 describe('buildPositionModel — pending payroll', () => {
   const accounts: Account[] = [
     {
@@ -309,7 +264,6 @@ describe('buildPositionModel — pending payroll', () => {
       { id: 'payout-1', teamMemberId: 'tm-ana', label: 'Ana', date: '2026-07-05', amount: 300_000 },
     ])
     expect(withPayroll.egresosPendientes.total).toEqual({ ARS: 300_000 })
-    // And the Posición is LOWER for it: money owed is money the studio does not have.
     expect(withPayroll.posicion).toEqual({ ARS: 700_000 })
   })
 
@@ -327,8 +281,6 @@ describe('buildPositionModel — pending payroll', () => {
       payouts: [{ id: 'payout-1', teamMemberId: 'tm-ana', label: 'Ana', date: '2026-07-05', amount: 300_000 }],
       asOfISO: '2026-06-22',
     })
-    // Two records of DIFFERENT money. Folding them under one name would hide which of
-    // the two is still unpaid, and the total would be right for the wrong reason.
     expect(built.egresosPendientes.rows).toHaveLength(2)
     expect(built.egresosPendientes.total).toEqual({ ARS: 350_000 })
   })
@@ -351,8 +303,6 @@ describe('pendingPayoutRows', () => {
   })
 
   it('still reports the amount when the roster is unavailable', () => {
-    // A roster outage costs the LABEL. Dropping the row instead would restate the
-    // position by the whole of payroll to avoid an unlabelled line.
     const [row] = pendingPayoutRows([dto({})], {})
     expect(row.amount).toBe(300_000)
     expect(row.label).toBe('Liquidación 2026-07')
@@ -364,14 +314,6 @@ describe('pendingPayoutRows', () => {
   })
 })
 
-/**
- * The Posición nets a plan against the money that realizes it.
- *
- * It used to sum three independent sources — the canonical cobros/pagos, the team's
- * liquidaciones, and the manual register — so "Sueldos" planned in the register plus Ana's
- * own liquidación reported one month's payroll as two. The projection has netted plan
- * against actual by identity for a long time; this is the same idea in a snapshot.
- */
 describe('buildPositionModel — a plan and its realization are one', () => {
   const accounts: Account[] = [
     {
@@ -403,8 +345,6 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       payouts: [anaPayout(300_000)],
       asOfISO: '2026-06-22',
     })
-    // 300.000, not 600.000. The commitment is fully realized by her statement, so it
-    // stops being a pendiente of its own.
     expect(model.egresosPendientes.total).toEqual({ ARS: 300_000 })
   })
 
@@ -415,7 +355,6 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       payouts: [anaPayout(300_000)],
       asOfISO: '2026-06-22',
     })
-    // Netted by AMOUNT, never all-or-nothing: 300.000 recorded plus 200.000 still planned.
     expect(model.egresosPendientes.total).toEqual({ ARS: 500_000 })
   })
 
@@ -439,7 +378,6 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       payouts: [anaPayout(300_000)],
       asOfISO: '2026-06-22',
     })
-    // Identity is the whole point: Ana's statement is not Bruno's salary.
     expect(model.egresosPendientes.total).toEqual({ ARS: 600_000 })
   })
 
@@ -450,10 +388,6 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       payouts: [anaPayout(300_000)],
       asOfISO: '2026-06-22',
     })
-    // No category fallback here, deliberately. The projection's coarse key is bounded by
-    // the occurrence's recurrence window; a snapshot has no window, so matching on
-    // category alone would let one large pendiente erase every unlinked commitment of
-    // that category — with nothing dating it to bound the damage.
     expect(model.egresosPendientes.total).toEqual({ ARS: 600_000 })
   })
 
@@ -464,9 +398,6 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       payouts: [anaPayout(300_000)],
       asOfISO: '2026-06-22',
     })
-    // The pool is CONSUMED: 300.000 covers the first plan and 100.000 of the second, so
-    // 100.000 of plan survives. Without consumption both would net in full and the
-    // section would understate by 300.000.
     expect(model.egresosPendientes.total).toEqual({ ARS: 400_000 })
   })
 
@@ -484,22 +415,10 @@ describe('buildPositionModel — a plan and its realization are one', () => {
       ],
       asOfISO: '2026-06-22',
     })
-    // The income side had the same defect, and it inflates what the studio thinks is
-    // coming — the direction that gets someone hurt.
     expect(model.ingresosPendientes.total).toEqual({ ARS: 450_000 })
   })
 })
 
-/**
- * The Posición keeps lanes side by side and never converts between them, and the manual
- * register already respected that (`balances: { [item.currency]: remaining }`). The AUTO
- * rows did not: both sections hardcoded `balances: { ARS: entry.amount }`, so a pago in
- * dollars was subtracted from the peso column and absent from the dollar one, on the
- * screen whose whole purpose is per-lane reconciliation.
- *
- * The netting key had the same shape of defect one level down: keyed by counterparty
- * alone, dollars paid to a provider consumed that provider's PESO commitment.
- */
 describe('buildPositionModel across currency lanes', () => {
   const accounts: Account[] = [
     { id: 'op1', name: 'Banco A', partner: 'vicky', type: 'bank', balances: { ARS: 1_000, USD: 50 }, isActive: true },
@@ -514,7 +433,6 @@ describe('buildPositionModel across currency lanes', () => {
     })
 
     expect(model.egresosPendientes.total).toEqual({ USD: 80 })
-    // And the Posición follows: pesos untouched, dollars down by the pago.
     expect(model.posicion).toEqual({ ARS: 1_000, USD: -30 })
   })
 
@@ -530,14 +448,11 @@ describe('buildPositionModel across currency lanes', () => {
 
     const rows = model.egresosPendientes.rows.filter((row) => row.label === 'Estudio X')
     expect(rows).toHaveLength(2)
-    // Distinct ids, or React would collapse them onto one another.
     expect(new Set(rows.map((row) => row.id)).size).toBe(2)
     expect(model.egresosPendientes.total).toEqual({ ARS: 500, USD: 40 })
   })
 
   it('does not let a dollar pago consume a peso commitment for the same counterparty', () => {
-    // The register says 300.000 pesos are committed to this provider; a USD 40 pago to it
-    // accounts for none of that. Netted across lanes, the peso expectation vanished.
     const model = buildPositionModel({
       ...base,
       receivables: [],
@@ -562,7 +477,6 @@ describe('buildPositionModel across currency lanes', () => {
   })
 
   it('still nets a peso pago against a peso commitment for the same counterparty', () => {
-    // The lane key must not break the netting it was added to make precise.
     const model = buildPositionModel({
       ...base,
       receivables: [],

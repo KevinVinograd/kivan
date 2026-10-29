@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import type { Client } from './clients-mock-data'
 import { portfolioTotals } from './clients-summary-kpis'
 
-/** A minimal active, unpaid ARS client; override only what a case asserts. */
 function client(overrides: Partial<Client> = {}): Client {
   return {
     id: 'c1',
@@ -35,9 +34,6 @@ describe('portfolioTotals', () => {
   })
 
   it('never adds a non-ARS fee into the peso total', () => {
-    // The defect this pins: `Client.currency` became operator-settable (ARS/USD)
-    // and these totals had no currency dimension, so a USD 3.000 fee was added to
-    // the peso MRR as if it were 3.000 pesos and printed under a `$`.
     const totals = portfolioTotals([
       client({ id: 'ars', monthlyFee: 1000, currentMonthDueAmount: 1000 }),
       client({ id: 'usd', monthlyFee: 3000, currentMonthDueAmount: 3000, currency: 'USD' }),
@@ -57,8 +53,6 @@ describe('portfolioTotals', () => {
   })
 
   it('counts every client as active/total regardless of lane', () => {
-    // Only the MONEY is lane-scoped. A USD client is still a client, so dropping it
-    // from the headcount would be a second, different lie.
     const totals = portfolioTotals([
       client({ id: 'ars' }),
       client({ id: 'usd', currency: 'USD' }),

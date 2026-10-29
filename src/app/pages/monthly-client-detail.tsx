@@ -48,11 +48,8 @@ export type MonthlyClientDetailProps = {
   onSetEffectiveDate: (client: ClientMonth) => void
 }
 
-/** Economic summary — the total-to-bill build-up and the cost/margin figures. */
 function EconomicSummary({ client, showProfitability }: { client: ClientMonth; showProfitability: boolean }) {
   const total = clientTotalToBill(client)
-  // `null` when the source does not allocate payroll to this client: the cost and both
-  // margin rows read "-" rather than reporting a margin computed against zero payroll.
   const margin = clientMargin(client)
   const percent = clientMarginPercent(client)
   const tone = MARGIN_TONE_FG[marginTone(percent)]
@@ -72,8 +69,6 @@ function EconomicSummary({ client, showProfitability }: { client: ClientMonth; s
         label="Total a facturar"
         value={<span className="tabular-nums fg-default">{formatCurrency(total)}</span>}
       />
-      {/* Costs and margin need the `profitability` capability. Roles without it keep
-          the billing build-up (what to charge the client) without the margin. */}
       {showProfitability && (
         <>
           <Separator />
@@ -111,7 +106,6 @@ function EconomicSummary({ client, showProfitability }: { client: ClientMonth; s
   )
 }
 
-/** Invoice action panel — invoice state + the mark/issue affordances. */
 function InvoiceActionPanel({
   client,
   locked,
@@ -191,15 +185,12 @@ export function MonthlyClientDetail({
         <AiInsight
           variant="ghost"
           headline={
-            // The margin clause is dropped when payroll is unallocated: `Math.round(null)` is 0,
-            // which would state "margen 0%" as fact about a margin nobody knows.
             showProfitability && marginPercent !== null
               ? `${client.name}: ${payment.label.toLowerCase()} · margen ${Math.round(marginPercent)}%.`
               : `${client.name}: ${payment.label.toLowerCase()}.`
           }
         />
 
-        {/* §6 detail focal → the client's total to bill leads as the panel's one type-metric hero. */}
         <KpiSummaryCard
           figures={[
             { id: 'total-a-facturar', label: 'Total a facturar', value: formatCurrency(clientTotalToBill(client)) },

@@ -10,8 +10,6 @@ import { formatCompactCurrency, formatCurrency, formatShortDate, paymentRowBadge
 import { DASHBOARD_CRUMB } from './dashboard-trail'
 import type { PendingPaymentRow, PendingPayments } from './dashboard-types'
 
-// The dashboard is the trail root, so every CTA href carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const COBROS_CTA_HREF = buildTrailHref('/operacion-mensual?block=clientes', DASHBOARD_CRUMB, new URLSearchParams())
 
 function dueLabel(row: PendingPaymentRow): string {
@@ -23,8 +21,6 @@ function dueLabel(row: PendingPaymentRow): string {
 function PaymentCard({ row }: { row: PendingPaymentRow }) {
   const navigate = useNavigate()
   const status = paymentRowBadge(row.status)
-  // Deep-link into Operación mensual: open this client's cobro detail and carry a
-  // Dashboard crumb so the target shows a back-to-dashboard trail.
   const href = buildTrailHref(
     `/operacion-mensual?block=clientes&open=${row.clientId}`,
     DASHBOARD_CRUMB,
@@ -34,19 +30,16 @@ function PaymentCard({ row }: { row: PendingPaymentRow }) {
     <Card interactive onClick={() => navigate(href)} className="group relative overflow-hidden">
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          {/* Primary: the amount owed — what this card exists to surface. */}
           <span className={cn('type-section tabular-nums', row.overdueDays != null ? 'fg-danger' : 'fg-default')}>
             {formatCurrency(row.amount)}
           </span>
         </div>
 
         <div className="flex flex-col gap-1">
-          {/* Secondary: who owes it + payment state. */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="type-body-2 fg-default">{row.clientName}</span>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
-          {/* Tertiary: since when. */}
           <span className={cn('type-caption', row.overdueDays != null ? 'fg-danger' : 'fg-subtle')}>
             {dueLabel(row)}
           </span>
@@ -57,15 +50,7 @@ function PaymentCard({ row }: { row: PendingPaymentRow }) {
   )
 }
 
-/**
- * §6 Cobros pendientes. The expected/collected/pending totals plus up to five
- * clients that need payment attention (one card each, mirroring Clientes en
- * riesgo, with a hover/focus "Ver cobro" deep-link). It is a summary, not the
- * full payment management table.
- */
 export function PendingPaymentsSummary({ payments }: { payments: PendingPayments }) {
-  // §6 focal → Total pendiente (money still owed this month). The context figures follow;
-  // only `Clientes vencidos` carries status, and only when there is something overdue.
   const kpis: Kpi[] = [
     { id: 'pending', label: 'Total pendiente', value: formatCompactCurrency(payments.totalPending) },
     { id: 'expected', label: 'Total esperado', value: formatCompactCurrency(payments.totalExpected) },
@@ -80,9 +65,6 @@ export function PendingPaymentsSummary({ payments }: { payments: PendingPayments
 
   return (
     <section aria-label="Cobros pendientes" className="group/cobros flex flex-col">
-      {/* "Ver cobros" is hidden on hover-capable pointers and fades in (motion-standard)
-          when the mouse enters the section or the button takes keyboard focus; on touch it
-          stays visible. The action keeps to the title row, far right, at every width. */}
       <SectionHeader
         title="Cobros pendientes"
         actions={
@@ -102,9 +84,6 @@ export function PendingPaymentsSummary({ payments }: { payments: PendingPayments
         ) : (
           <p className="type-body-2 fg-subtle">No hay cobros pendientes en pesos para este mes.</p>
         )}
-        {/* The cards carry amounts, so they are the peso lane. The tile above counts every
-            lane, because an overdue cobro is overdue whatever it is billed in — this is
-            what keeps the two from looking like a contradiction. */}
         {payments.otherLaneCount > 0 ? (
           <p className="type-caption fg-subtle">
             {payments.otherLaneCount === 1

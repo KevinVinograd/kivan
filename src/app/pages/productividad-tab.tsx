@@ -26,8 +26,6 @@ import type { ProductivityReportItem, ReportDataset } from './reports-types'
 const globalFilterFn: FilterFn<ProductivityReportItem> = (row, _columnId, value) =>
   productivitySearchText(row.original).includes(String(value).toLowerCase())
 
-/** A titled chart card. `flex-1` lets the card fill its stretched grid cell, so the
- *  three cards in the row bottom out together however tall the tallest chart runs. */
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col">
@@ -39,9 +37,6 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   )
 }
 
-/** Productividad tab (§2): hours by person / client / task plus the detailed,
- *  filterable table. A row drills into the read-only detail drawer; the KPIs, the three
- *  charts and the table stay on screen behind it. Read-only, no inline editing. */
 export function ProductividadTab({
   dataset,
   selectedRef,
@@ -91,9 +86,6 @@ export function ProductividadTab({
   )
   const columns = useMemo(() => productividadColumns(rowActions), [rowActions])
   const filterFields = useMemo(() => productividadFilterFields(items), [items])
-  // A row of "Detalle de cargas" is a task, and every field of it is already rendered in
-  // the row itself. What is worth drilling into is the PERSON who logged it, so a row
-  // opens the person — the same drawer Carga de equipo opens.
   const selected =
     selectedRef?.kind === 'person'
       ? (dataset.capacity.find((person) => person.personId === selectedRef.id) ?? null)
@@ -108,7 +100,6 @@ export function ProductividadTab({
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       {header}
-      {/* §6 Productividad focal → Total de horas cargadas. */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <KpiSummaryCard figures={kpis} heroId="total" collapsible storageKey="reports-productividad" />
       </div>
@@ -141,8 +132,6 @@ export function ProductividadTab({
           />
         </ChartCard>
       </div>
-      {/* The charts read the shape of the period; this holds the complete record.
-          Collapsed by default, so landing on the tab shows the KPIs and the charts. */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <SectionAccordionCard
           title="Detalle de cargas"

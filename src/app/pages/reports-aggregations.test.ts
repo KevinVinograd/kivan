@@ -13,15 +13,9 @@ import { getReportData } from './reports-data'
 import { formatPercent } from './reports-format'
 import { reportPeriods } from './reports-periods'
 
-/**
- * The months these invariants are checked over. Derived, not a fixed list: the constant this
- * replaced was pinned to Abr-Jun 2026, so the suite was asserting against months that had
- * drifted into the past. Sliced to the three most recent so the cases stay fast.
- */
 const PERIODS = reportPeriods().slice(0, 3)
 import type { ClientProfitabilityReportItem, ReportDataset, TeamCapacityReportItem } from './reports-types'
 
-/** A risk-table client with neutral defaults; override only what a case asserts. */
 function client(overrides: Partial<ClientProfitabilityReportItem>): ClientProfitabilityReportItem {
   return {
     clientId: 'c',
@@ -44,7 +38,6 @@ function client(overrides: Partial<ClientProfitabilityReportItem>): ClientProfit
   }
 }
 
-/** A workload-table person with neutral defaults; override only what a case asserts. */
 function person(overrides: Partial<TeamCapacityReportItem>): TeamCapacityReportItem {
   return {
     personId: 'p',
@@ -126,7 +119,6 @@ describe('loadCardSummary', () => {
   })
 })
 
-/** Shorthand cohort builder: ids are 'a','b','c'… in the order given. */
 function cohort(values: number[]): { id: string; label: string; value: number }[] {
   return values.map((value, i) => ({
     id: String.fromCharCode(97 + i),
@@ -169,20 +161,18 @@ describe('cohortRanking', () => {
   })
 
   it('shows the whole cohort when it fits the window', () => {
-    // 6 people, window 8 → every bar is drawn, ordered desc.
     const result = cohortRanking(cohort([54, 112, 86, 18, 98, 72]), 'b', 8)
     expect(result).not.toBeNull()
     expect(result!.shown.map((d) => d.value)).toEqual([112, 98, 86, 72, 54, 18])
     expect(result!.rank).toBe(1)
     expect(result!.total).toBe(6)
-    expect(result!.median).toBe(79) // (86 + 72) / 2
+    expect(result!.median).toBe(79)
     expect(result!.deltaVsMedian).toBe(33)
   })
 
   it('always includes the selected entity when the cohort exceeds the window', () => {
-    // 20 clients, the selected one ranks 15th — a plain top-8 would drop it.
     const values = [95, 90, 85, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 20, 15, 10, 5, 0]
-    const result = cohortRanking(cohort(values), 'o', 8) // 'o' is index 14 → value 25, rank 15
+    const result = cohortRanking(cohort(values), 'o', 8)
     expect(result).not.toBeNull()
     expect(result!.rank).toBe(15)
     expect(result!.total).toBe(20)
@@ -192,7 +182,6 @@ describe('cohortRanking', () => {
 
   it('centres the window on the selected entity when it sits mid-ranking', () => {
     const values = [95, 90, 85, 80, 75, 70, 65, 60, 55, 50]
-    // 'f' = index 5 → value 70, rank 6 of 10. Window 4 → ranks 5..8.
     const result = cohortRanking(cohort(values), 'f', 4)
     expect(result!.shown.map((d) => d.value)).toEqual([75, 70, 65, 60])
   })
@@ -213,24 +202,15 @@ describe('cohortRanking', () => {
     const values = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]
     const result = cohortRanking(cohort(values), 'a', 3)
     expect(result!.shown).toHaveLength(3)
-    expect(result!.median).toBe(55) // (60 + 50) / 2 over all ten, not over the window
+    expect(result!.median).toBe(55)
   })
 })
 
 describe('person cost reconciliation', () => {
-  /**
-   * The load-bearing invariant. `personCost` sums the SAME per-assignment
-   * `estimatedCost` that the client-side `teamCost` sums, only grouped by person
-   * instead of by client. If either derivation drifts to a different source (e.g.
-   * the compensation model), the owner would see two different "cost of the team"
-   * figures in the same report. This test is what stops that.
-   */
   it.each(PERIODS)('person costs sum to the client team costs (%s)', (period) => {
     const dataset = getReportData(period, { receivables: [], payments: [] })
     const byPerson = dataset.capacity.reduce((sum, person) => sum + (person.personCost ?? 0), 0)
     const byClient = dataset.profitability.reduce((sum, client) => sum + client.teamCost, 0)
-    // Both sides are rounded per record before summing, so allow one peso of drift
-    // per record rather than demanding bit-exactness across two grouping orders.
     const tolerance = dataset.capacity.length + dataset.profitability.length
     expect(Math.abs(byPerson - byClient)).toBeLessThanOrEqual(tolerance)
   })
@@ -249,10 +229,10 @@ describe('agingBuckets', () => {
 
   it('buckets by days overdue against the period end, not today', () => {
     const rows = [
-      { dueDate: '2026-06-25', totalAmount: 100 }, // 5 days  → 1-30
-      { dueDate: '2026-05-25', totalAmount: 200 }, // 36 days → 31-60
-      { dueDate: '2026-04-20', totalAmount: 300 }, // 71 days → 61-90
-      { dueDate: '2026-01-10', totalAmount: 400 }, // 171 days → +90
+      { dueDate: '2026-06-25', totalAmount: 100 },
+      { dueDate: '2026-05-25', totalAmount: 200 },
+      { dueDate: '2026-04-20', totalAmount: 300 },
+      { dueDate: '2026-01-10', totalAmount: 400 },
     ]
     const buckets = agingBuckets(rows, END)
     expect(buckets.map((b) => b.amount)).toEqual([100, 200, 300, 400])
@@ -261,18 +241,17 @@ describe('agingBuckets', () => {
   })
 
   it('puts a not-yet-due record in no bucket', () => {
-    // Due after the period end: it is not overdue at all.
     expect(agingBuckets([{ dueDate: '2026-07-15', totalAmount: 100 }], END).every((b) => b.count === 0)).toBe(true)
   })
 
   it('is inclusive at the boundaries (30, 31, 90, 91)', () => {
-    const at30 = agingBuckets([{ dueDate: '2026-05-31', totalAmount: 1 }], END) // 30 days
+    const at30 = agingBuckets([{ dueDate: '2026-05-31', totalAmount: 1 }], END)
     expect(at30.find((b) => b.id === '0-30')!.count).toBe(1)
-    const at31 = agingBuckets([{ dueDate: '2026-05-30', totalAmount: 1 }], END) // 31 days
+    const at31 = agingBuckets([{ dueDate: '2026-05-30', totalAmount: 1 }], END)
     expect(at31.find((b) => b.id === '31-60')!.count).toBe(1)
-    const at90 = agingBuckets([{ dueDate: '2026-04-01', totalAmount: 1 }], END) // 90 days
+    const at90 = agingBuckets([{ dueDate: '2026-04-01', totalAmount: 1 }], END)
     expect(at90.find((b) => b.id === '61-90')!.count).toBe(1)
-    const at91 = agingBuckets([{ dueDate: '2026-03-31', totalAmount: 1 }], END) // 91 days
+    const at91 = agingBuckets([{ dueDate: '2026-03-31', totalAmount: 1 }], END)
     expect(at91.find((b) => b.id === '90+')!.count).toBe(1)
   })
 
@@ -285,7 +264,7 @@ describe('concentration', () => {
   const rows = [
     { name: 'ACME', amount: 640 },
     { name: 'Nexo', amount: 410 },
-    { name: 'ACME', amount: 160 }, // same debtor twice — must merge
+    { name: 'ACME', amount: 160 },
     { name: 'Sur', amount: 90 },
     { name: 'Norte', amount: 60 },
     { name: 'Este', amount: 40 },
@@ -294,13 +273,13 @@ describe('concentration', () => {
   it('merges rows by name and ranks by amount', () => {
     const result = concentration(rows, (r) => r.name, (r) => r.amount, 3)
     expect(result.top.map((t) => t.name)).toEqual(['ACME', 'Nexo', 'Sur'])
-    expect(result.top[0].amount).toBe(800) // 640 + 160
+    expect(result.top[0].amount).toBe(800)
   })
 
   it('reports the top-N share of the total', () => {
     const result = concentration(rows, (r) => r.name, (r) => r.amount, 3)
     expect(result.total).toBe(1400)
-    expect(Math.round(result.topShare)).toBe(93) // (800 + 410 + 90) / 1400
+    expect(Math.round(result.topShare)).toBe(93)
   })
 
   it('handles an empty list without dividing by zero', () => {
@@ -313,9 +292,6 @@ describe('concentration', () => {
 
 describe('agingBuckets — unreadable due dates', () => {
   it('skips a record whose due date cannot be parsed instead of throwing', () => {
-    // `parseISO` yields Invalid Date, differenceInCalendarDays yields NaN, and `NaN <= 0`
-    // is false — so without a guard the row reaches `findIndex`, matches no band (not even
-    // `Infinity`), returns -1, and `buckets[-1].count += 1` throws.
     expect(() => agingBuckets([{ dueDate: 'not-a-date', totalAmount: 100 }], '2026-06-30')).not.toThrow()
     const buckets = agingBuckets(
       [
@@ -330,12 +306,6 @@ describe('agingBuckets — unreadable due dates', () => {
 })
 
 describe('hours are single-sourced', () => {
-  /**
-   * The drawer prints a person's hours as a headline AND derives their task-mix and
-   * out-of-scope percentages from the productivity rows. If capacity scaled the total on
-   * its own (`Math.round(total * factor)`) while productivity rounded every row, the two
-   * would disagree on a scaled período and the panel would contradict itself.
-   */
   it.each(PERIODS)('capacity hours equal the sum of that person\'s productivity rows (%s)', (period) => {
     const dataset = getReportData(period, { receivables: [], payments: [] })
     for (const person of dataset.capacity) {

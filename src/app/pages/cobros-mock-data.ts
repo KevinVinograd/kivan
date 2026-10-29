@@ -1,22 +1,9 @@
-/**
- * Cobros mock data — the PRD §22.1 Receivable model + a local demo dataset.
- *
- * No backend: in-memory cobros that exercise every collection state, billing
- * state and monotributo so the table, filters, KPIs and states can be validated
- * end to end. Single demo period (Junio 2026); the period switcher is deferred.
- * Numbers are stored as numbers and dates as ISO strings — formatting happens
- * only at render (`cobros-format.ts`). `totalAmount` is derived from base + extra
- * - discount at build time so the figures stay internally consistent. Replaced by
- * a real data source later.
- */
 import type { Currency } from '@hold/shared'
 
 import type { TaxProfileId } from './cobranza-format'
 
-/** Estado de cobro — the financial state of the receivable (badges §25.2). */
 export type CollectionStatus = 'pending' | 'collected' | 'partial' | 'overdue' | 'cancelled'
 
-/** Estado de facturación — independent of the collection state (badges §25.2). */
 export type BillingStatus =
   | 'no_invoice'
   | 'pending'
@@ -26,79 +13,36 @@ export type BillingStatus =
   | 'manual'
   | 'not_required'
 
-/** One itemized extra on a cobro (amount in major units, unlike the DTO). */
 export type ReceivableExtraItem = {
   id?: string
   description: string
   amount: number
-  /** Whether it goes on the factura. Non-billable extras still raise the amount owed. */
   billable: boolean
 }
 
 export type Receivable = {
   id: string
-  /**
-   * The owning client's real id. Optional only because rows built by the mock/seed
-   * helpers predate it; every row that came from the API carries it.
-   *
-   * It used to be dropped in the DTO mapping even though the API returns it, which
-   * forced every cross-store join to match on a normalized `clientName` + period
-   * (see `monthly-operation-finance-bridge.ts`). A name match is wrong the moment two
-   * clients read alike or one is renamed — and `/clientes` bases its whole money
-   * column on this join.
-   */
   clientId?: string
   clientName: string
   clientType?: string
-  /** Search-only fiscal/contact fields (§8.4 search). */
   businessName?: string
   taxId?: string
   contactName?: string
   invoiceNumber?: string
 
-  /** First day of the billed month (ISO), rendered as "Mes Año". */
   period: string
   service: string
 
   baseAmount: number
   extraAmount: number
-  /**
-   * The itemized extras behind `extraAmount`. The aggregate alone cannot say WHAT was
-   * charged, which is the whole point of a trabajo extra — the API has modelled them
-   * from the start and the front mapping dropped them.
-   */
   extras: ReceivableExtraItem[]
   discountAmount: number
-  /** base + extra - discount (derived at build time). */
   totalAmount: number
   collectedAmount: number
-  /** The lane the cobro is billed in. Declared as the literal 'ARS' until a non-peso
-   *  client proved otherwise; see `originalCurrency` below for the USD-priced case. */
   currency: Currency
-  /**
-   * Where the amount came from, when the retainer was priced in another currency.
-   *
-   * The studio prices some clients in dollars and invoices them in pesos, at a rate it
-   * fixes for the month. THAT cobro is pesos, so `currency` above reads 'ARS' and these two
-   * are what let the detail say which dollar figure and which rate produced it. Absent
-   * together on every cobro billed in the currency it was priced in.
-   *
-   * Conversion happens only when the studio CHOSE to price in dollars and invoice in
-   * pesos. A client billed in their own lane keeps it, so `currency` is NOT always 'ARS'
-   * and no consumer may assume it.
-   *
-   * A record of what was billed, not a live conversion: the rate here is the one used at
-   * generation, and next month's rate does not change it.
-   */
   originalCurrency?: string
   originalAmount?: number
-  /** ARS per 1 unit of `originalCurrency`, as used. Major units: 1234.5 = $1.234,50. */
   fxRate?: number
-  /**
-   * Cost by area, in pesos — what the work cost the studio, the other side of what the
-   * client was billed. Optional because a row built before costs were writable carries
-   * none; a missing value means "not recorded", which reads as 0 cost in the reports.
-   */
   costs?: {
     design: number
     comm: number
@@ -109,33 +53,17 @@ export type Receivable = {
   }
 
   dueDate: string
-  /**
-   * When the cash actually arrived (ISO), set once something is collected. The API has
-   * carried it since the row was found to be rendering its `createdAt` as the "Fecha de
-   * cobro"; the front mapping still dropped it, so anything needing a collection date
-   * had to fall back to an unrelated timestamp.
-   */
   collectedAt?: string
-  /**
-   * Where the cash landed — a treasury account, named. Undefined when the collection
-   * did not say, which is true of every row collected before the destination existed.
-   * The detail renders NOTHING for an undefined one: this replaced a medio de pago the
-   * old code picked from the digits of the row id, and a plausible-looking default is
-   * the same defect wearing a different value.
-   */
   treasuryAccountId?: string
   treasuryAccountName?: string
   status: CollectionStatus
   billingStatus: BillingStatus
   taxProfileId: TaxProfileId
 
-  /** Invoice subflow (§9) — set when a factura is generated or associated. */
   invoiceIssuedAt?: string
   cae?: string
-  /** Emisor (monotributo) the factura was issued from. */
   emitterTaxProfile?: TaxProfileId
 
-  /** Última actividad — a short label + when it happened. */
   lastActivityLabel: string
   lastActivityAt: string
   notes?: string
@@ -161,8 +89,6 @@ const receivablesSeed: ReceivableSeed[] = [
     invoiceNumber: '0001-00000142',
     service: 'Gestión mensual',
     baseAmount: 450000,
-    // Extra = campaña día del padre (80k) + producciones (120k); aligns the receivable
-    // total to Operación mensual's clientTotalToBill (650k) — actuals-shared, B-1a.
     extraAmount: 200000,
     discountAmount: 0,
     collectedAmount: 0,
@@ -182,7 +108,6 @@ const receivablesSeed: ReceivableSeed[] = [
     contactName: 'Diego Sosa',
     service: 'Producción de contenido',
     baseAmount: 680000,
-    // B-1a: aligned to Operación mensual (owed 680k, fully collected on 2026-06-08).
     extraAmount: 0,
     discountAmount: 0,
     collectedAmount: 680000,
@@ -401,7 +326,6 @@ const receivablesSeed: ReceivableSeed[] = [
     baseAmount: 360000,
     extraAmount: 0,
     discountAmount: 0,
-    // B-1a: aligned to Operación mensual (owed 360k, partial 180k on 2026-06-12).
     collectedAmount: 180000,
     dueDate: '2026-06-03',
     status: 'partial',
@@ -450,7 +374,6 @@ const receivablesSeed: ReceivableSeed[] = [
     lastActivityAt: '2026-06-02T10:30:00',
   },
 
-  // ── Mayo 2026 (prior month, mostly settled) ──────────────────────────────
   {
     id: 'rec-101',
     clientName: 'Café Roma',
@@ -557,7 +480,6 @@ const receivablesSeed: ReceivableSeed[] = [
     lastActivityAt: '2026-05-12T11:30:00',
   },
 
-  // ── Abril 2026 (prior month, settled) ────────────────────────────────────
   {
     id: 'rec-201',
     clientName: 'Café Roma',
@@ -644,13 +566,10 @@ const receivablesSeed: ReceivableSeed[] = [
   },
 ]
 
-/** The demo receivables, with `totalAmount` derived and the shared period applied. */
 export const receivables: Receivable[] = receivablesSeed.map((seed) => ({
   ...seed,
   period: seed.period ?? PERIOD,
   currency: 'ARS',
-  // The seeds carry no itemization behind their `extraAmount` aggregate — only rows
-  // that came from the API do.
   extras: [],
   totalAmount: seed.baseAmount + seed.extraAmount - seed.discountAmount,
 }))

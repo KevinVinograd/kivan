@@ -10,7 +10,6 @@ import type { Objective } from './employee-dashboard-types'
 function ObjectiveItem({ objective }: { objective: Objective }) {
   const navigate = useNavigate()
   const status = objectiveStatusBadge(objective.status)
-  // Objectives are always tied to a client, so the whole card navigates there.
   const href = clientHref(objective.clientId)
   return (
     <Card interactive onClick={() => navigate(href)} className="group relative overflow-hidden">
@@ -40,10 +39,6 @@ function ObjectiveItem({ objective }: { objective: Objective }) {
   )
 }
 
-/**
- * §4 Objetivos del mes. A dashboard snapshot (not a project manager) of the
- * employee's client-tied goals: totals plus a progress + status row per objective.
- */
 export function MonthlyObjectivesSnapshot({ objectives }: { objectives: Objective[] }) {
   const completed = objectives.filter((objective) => objective.status === 'completado').length
   const atRisk = objectives.filter((objective) => objective.status === 'en_riesgo').length

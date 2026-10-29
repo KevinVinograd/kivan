@@ -3,11 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { readOpenRef, withOpenRef, withoutOpenRef } from './reports-open-param'
 import type { ReportDataset } from './reports-types'
 
-/**
- * A dataset carrying only the id fields each tab resolves against. The rest of
- * ReportDataset is irrelevant here, so it is cast rather than fully built — these
- * helpers never read another field.
- */
 function dataset(ids: {
   profitability?: string[]
   capacity?: string[]
@@ -65,10 +60,8 @@ describe('readOpenRef', () => {
   })
 
   it('rejects a kind the active tab cannot open', () => {
-    // A person ref on rentabilidad: that tab only opens clients.
     const data = dataset({ profitability: ['acme'], capacity: ['ana'] })
     expect(readOpenRef(new URLSearchParams('open=person:ana'), 'rentabilidad', data)).toBeNull()
-    // A client ref on carga: that tab only opens people.
     expect(readOpenRef(new URLSearchParams('open=client:acme'), 'carga', data)).toBeNull()
   })
 

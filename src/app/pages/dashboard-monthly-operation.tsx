@@ -7,8 +7,6 @@ import { formatPercent } from './dashboard-format'
 import { DASHBOARD_CRUMB } from './dashboard-trail'
 import type { OperationStatus } from './dashboard-types'
 
-// The dashboard is the trail root, so these CTAs carry a back-trail crumb to the
-// dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const OPERATION_CTA_HREF = buildTrailHref('/operacion-mensual', DASHBOARD_CRUMB, new URLSearchParams())
 const OPERATION_ESTADO_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=estado',
@@ -16,22 +14,10 @@ const OPERATION_ESTADO_CTA_HREF = buildTrailHref(
   new URLSearchParams(),
 )
 
-/**
- * §4 Operación mensual. A single large card summarizing close readiness for the
- * month: a completion bar plus the per-area load lines (cobros, pagos, horas,
- * viáticos, extras, facturación). It only reports status and routes into the
- * real workflow; it does not duplicate the Operación mensual page.
- */
 export function MonthlyOperationStatusCard({ operation }: { operation: OperationStatus }) {
   const tone =
     operation.completion >= 100 ? 'success' : operation.completion < 50 ? 'warning' : 'default'
 
-  // §6 focal → the completion percentage: the one number that answers "can we close the
-  // month". It is toned because the FIGURE ITSELF is the status, and it carries no caption
-  // (the section header already names it), with the pending-items count as its hint. The
-  // per-area load lines follow as the supporting tier, each keeping the tone the selector
-  // assigned it — including `Facturación revisada`'s prose "Pendiente", which the card
-  // steps down to `type-section` on its own while KEEPING the warning tint.
   const figures: Kpi[] = [
     {
       id: 'completion',

@@ -1,11 +1,3 @@
-/**
- * Employee Dashboard — formatting + status display helpers.
- *
- * Pure functions that turn employee values into labels, Badge variants and
- * Progress tones. Currency / percent / hours / relative-date formatting are
- * reused from the shared vocabulary (via `dashboard-format`) so the whole product
- * speaks one money/date language. Formatting never lives in the data layer.
- */
 import type { BadgeVariant, ProgressTone } from '@/app/components/components'
 import { ICON, type Icon } from '@/app/lib/icon-registry'
 import type {
@@ -35,7 +27,6 @@ export {
 
 export type StatusBadge = { label: string; variant: BadgeVariant }
 
-// ── Pending status (§2) ──────────────────────────────────────────────────────
 const PENDING_STATUS: Record<PendingStatus, StatusBadge> = {
   pendiente: { label: 'Pendiente', variant: 'neutral' },
   atencion: { label: 'Atención', variant: 'warning' },
@@ -59,7 +50,6 @@ export function pendingTypeLabel(type: PendingType): string {
   return PENDING_TYPE_LABEL[type]
 }
 
-// ── Assigned client status (§3) ──────────────────────────────────────────────
 const CLIENT_STATUS: Record<AssignedClientStatus, StatusBadge> = {
   al_dia: { label: 'Al día', variant: 'success' },
   atencion: { label: 'Atención', variant: 'warning' },
@@ -69,7 +59,6 @@ export function clientStatusBadge(status: AssignedClientStatus): StatusBadge {
   return CLIENT_STATUS[status]
 }
 
-// ── Objective status (§4) ────────────────────────────────────────────────────
 const OBJECTIVE_STATUS: Record<ObjectiveStatus, StatusBadge> = {
   en_curso: { label: 'En curso', variant: 'neutral' },
   completado: { label: 'Completado', variant: 'success' },
@@ -90,7 +79,6 @@ export function objectiveProgressTone(status: ObjectiveStatus): ProgressTone {
   return OBJECTIVE_PROGRESS_TONE[status]
 }
 
-// ── Hours status (§5) ────────────────────────────────────────────────────────
 const HOURS_STATUS: Record<HoursStatus, StatusBadge> = {
   completo: { label: 'Completo', variant: 'success' },
   incompleto: { label: 'Incompleto', variant: 'warning' },
@@ -100,7 +88,6 @@ export function hoursStatusBadge(status: HoursStatus): StatusBadge {
   return HOURS_STATUS[status]
 }
 
-// ── Task / production status (§6) ─────────────────────────────────────────────
 const TASK_STATUS: Record<TaskStatus, StatusBadge> = {
   pendiente: { label: 'Pendiente', variant: 'neutral' },
   en_curso: { label: 'En curso', variant: 'neutral' },
@@ -119,7 +106,6 @@ export function taskKindLabel(kind: TaskKind): string {
   return TASK_KIND_LABEL[kind]
 }
 
-// ── Extra / viático status (§7) ──────────────────────────────────────────────
 const EXTRA_STATUS: Record<ExtraStatus, StatusBadge> = {
   pendiente: { label: 'Pendiente', variant: 'neutral' },
   declarado: { label: 'Declarado', variant: 'neutral' },
@@ -138,8 +124,6 @@ export function extraKindLabel(kind: ExtraKind): string {
   return EXTRA_KIND_LABEL[kind]
 }
 
-// ── Activity kind → icon (§9) ────────────────────────────────────────────────
-/** Each activity kind maps to an already-registered icon (no new registry entry). */
 const ACTIVITY_ICON: Record<EmployeeActivityKind, Icon> = {
   horas: ICON.logHours,
   extra: ICON.addExtraWork,
@@ -152,7 +136,6 @@ export function activityIcon(kind: EmployeeActivityKind): Icon {
   return ACTIVITY_ICON[kind]
 }
 
-// ── Client alert tone (§8) ───────────────────────────────────────────────────
 const ALERT_TONE_VARIANT: Record<EmployeeAlertTone, BadgeVariant> = {
   warning: 'warning',
   danger: 'danger',

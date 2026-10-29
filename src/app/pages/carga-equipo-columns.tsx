@@ -37,7 +37,6 @@ const uniqueOptions = (values: string[]) =>
     .sort()
     .map((value) => ({ value, label: value }))
 
-/** Filter axes for the carga toolbar (período is the global header control). */
 export function cargaFilterFields(items: TeamCapacityReportItem[]): FilterField[] {
   return [
     { id: 'personName', label: 'Persona', options: uniqueOptions(items.map((i) => i.personName)) },
@@ -88,8 +87,6 @@ export function cargaEquipoColumns(actions: CapacityRowActions): ColumnDef<TeamC
       header: 'Utilización',
       meta: { mobile: 'secondary' },
       cell: ({ row }) => {
-        // No configured capacity means no utilization to show. Drop the bar entirely
-        // rather than drawing an empty one, which reads as a measured 0%.
         const utilization = row.original.utilization
         if (utilization == null) {
           return <span className="type-caption fg-subtle">{formatPercent(null)}</span>
@@ -119,7 +116,6 @@ export function cargaEquipoColumns(actions: CapacityRowActions): ColumnDef<TeamC
         return <Badge variant={badge.variant}>{badge.label}</Badge>
       },
     },
-    // Filter-only columns (hidden) for the Cliente / Servicio axes.
     {
       id: 'clientNames',
       accessorFn: (row) => row.clientNames.join(', '),

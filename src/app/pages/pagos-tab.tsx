@@ -47,11 +47,7 @@ import { formatMoney } from './cobranza-format'
 const globalFilterFn: FilterFn<Payment> = (row, _columnId, value) =>
   paymentSearchText(row.original).includes(String(value).toLowerCase())
 
-// Column-visibility menu, mirroring the Clients/Team toolbars (`clients-toolbar.tsx`).
-// Repeated locally per the design-system 1:1 no-shared-composition policy.
 function PagosColumnsMenu({ table }: { table: Table<Payment> }) {
-  // Below desktop (≤1023px: tablet + phone) the toolbar collapses to icon-only
-  // controls; from `lg` up the labelled "Ver columnas" button returns.
   const isBelowDesktop = useIsBelowDesktop()
   const columns = table.getAllColumns().filter((column) => column.getCanHide())
   return (
@@ -115,38 +111,14 @@ type PagosTabProps = {
   onSelect: (id: string) => void
   onClose: () => void
   inDetail: boolean
-  /** Optional breadcrumb shown in the navigator header (e.g. a deep link from Reportes). */
   breadcrumb?: ReactNode
-  /** Compact period picker for the navigator header (shown while a record is open). */
   periodControl?: ReactNode
-  /** Page-owned "Nuevo pago" trigger: the header button opens the create dialog. */
   createOpen?: boolean
   onCloseCreate?: () => void
-  /**
-   * Effective master-detail mode, reported straight up from MasterDetailLayout. The
-   * PageHeader lives in the SHELL (cobranza-page), not here, so the shell owns the
-   * `mode` state and this tab only forwards the layout's report. It trails the panel
-   * exit, so the shell can fade its header back in in lockstep with the collapsing
-   * split instead of mid-exit.
-   */
   onModeChange?: (mode: 'table' | 'split') => void
-  /**
-   * Whether the shell's PageHeader is dissolved (desktop split open). Fed DOWN from
-   * the shell because the table slot lives here: while dissolved the shell's content
-   * layer covers the faded header, so the table has to be pushed back down by the
-   * header height to stay anchored. Do not derive it locally — the shell is the one
-   * that knows, and a second source of truth would drift.
-   */
   dissolved?: boolean
 }
 
-/**
- * Pagos table — the §11 master table on the Pagos page (`/pagos`) master-detail
- * surface, scoped to the selected period (§6). Selection is controlled by the page;
- * the §12 detail opens beside the compact navigator. Row/detail mutations (approve,
- * register, edit, cancel) and the page-driven create dialog are wired; the cuenta
- * corriente surfaces land later.
- */
 export function PagosTab({
   selectedPeriod,
   selectedId,
@@ -160,13 +132,9 @@ export function PagosTab({
   onModeChange,
   dissolved = false,
 }: PagosTabProps) {
-  // Create, register, approve, edit and cancel persist through the API; the
-  // Operación mensual allocation still uses the optimistic-local applyPayment.
   const { payments: data, createPayment, registerPayment, updatePayment, approvePayment, cancelPayment } =
     usePayments()
   const isMobile = useIsMobile()
-  // Below desktop the detail is a covering bottom Sheet, so the list navigator header
-  // must not appear behind it (the reflow pushes the visible strip around the sheet).
   const belowDesktop = useIsBelowDesktop()
   const [confirm, setConfirm] = useState<{ payment: Payment; action: 'approve' | 'cancel' } | null>(
     null,
@@ -174,10 +142,6 @@ export function PagosTab({
   const [payTarget, setPayTarget] = useState<Payment | null>(null)
   const [editTarget, setEditTarget] = useState<Payment | null>(null)
 
-  // On period change, re-resolve the selection to the same recipient in the new
-  // period (the payment id differs per period) so switching period from the detail
-  // keeps the master-detail split open. No match → the stale id stays selected and
-  // the layout shows the empty detail rather than dropping to the table. Idempotent.
   useEffect(() => {
     if (selectedId == null) return
     const current = data.find((payment) => payment.id === selectedId)
@@ -189,8 +153,6 @@ export function PagosTab({
     if (next && next.id !== selectedId) onSelect(next.id)
   }, [selectedPeriod, selectedId, data, onSelect])
 
-  // Approve (materially-changing) and cancel (destructive) both confirm first
-  // (feedback §7), then persist via the API and confirm with a success toast.
   async function confirmPaymentAction() {
     if (!confirm) return
     const { payment, action } = confirm
@@ -222,21 +184,10 @@ export function PagosTab({
   )
   const kpis = useMemo(() => pagosKpis(periodData), [periodData])
 
-  // Column-priority seed. F3 (desktop): the trailing low-value "Última actividad"
-  // and "Fecha de pago" columns clip at rest and read as broken data, so hide both
-  // at every viewport (re-addable via "Ver columnas"); the boundary then lands on a
-  // genuinely low-value column while Monto/Estado stay fully visible. F1 (tablet
-  // only): the 11-column grid overflows the narrowed content column, pushing the
-  // amount off the right edge — so at tablet keep just Destinatario, Monto and Estado
-  // plus the pinned actions so the amount (the finding's core casualty) reads fully.
-  // The tablet reductions are gated `isTablet` (not below-desktop) so the phone
-  // card-list, which reads visible cells, keeps its fields untouched.
   const isTablet = belowDesktop && !isMobile
   const initialColumnVisibility = {
     lastActivity: false,
     paymentDate: false,
-    // The lane is already on every `Monto` cell; this column exists so the Moneda filter
-    // has a column id to target.
     currency: false,
     ...(isTablet
       ? {
@@ -253,10 +204,6 @@ export function PagosTab({
   const selected = periodData.find((payment) => payment.id === selectedId) ?? null
   const layoutSelectedId = inDetail ? (selected ? selectedId : '__pagos-empty__') : null
 
-  // Navigator header (`list`), shown only while a record is open (`inDetail`).
-  // In table mode the page's PageHeader carries the title; on mobile the list is
-  // the full-width base under that PageHeader — so this is gated on `inDetail` to
-  // avoid duplicating the title.
   const header = <SectionHeader title="Pagos" breadcrumb={breadcrumb} actions={periodControl} />
 
   const tableInner =
@@ -264,19 +211,7 @@ export function PagosTab({
       <PagosEmpty />
     ) : (
       <div className="flex flex-col gap-4 md:gap-6">
-        {/* §6 master-view focal → Total a pagar (the period's total outgoing). */}
         <div className="flex flex-col gap-4 px-4 md:px-6 lg:px-8 desktop:px-10">
-          {/* ONE card, TWO co-equal heroes. The lanes used to live in a second card at
-              `type-section` (20px) with `heroId={null}`, so the viewport held a single
-              hero; the convention permits two when both are genuinely
-              Primary in § 6 — "two protagonists the view exists to compare side by
-              side" — which is what a period's peso total and dollar total are. Both are
-              Primary on this page.
-
-              The footer stays, and matters MORE here than it did under the old layout:
-              two equal figures side by side are easier to read as addable than a total
-              with a smaller aside beneath it. There is no combined total in this product
-              and none is offered. */}
           <KpiSummaryCard
             figures={kpis}
             heroId={PAGOS_HERO_IDS}
@@ -321,13 +256,6 @@ export function PagosTab({
         onModeChange={onModeChange}
         onCloseDetail={onClose}
         detailTitle="Detalle del pago"
-        // `--md-table-offset` is published on the SHELL's region node (cobranza-page,
-        // via useHeaderOffset) and consumed here. That works because custom properties
-        // inherit down the DOM and the region is an ancestor of this slot — but nothing
-        // in the type system links the two, so keep the names in step. The offset rides
-        // this slot wrapper, not the inner DataTable gutter: the KPI card above the
-        // table has to shift down with it as one block. Horizontal gutters stay with
-        // the children (copying them here would double-inset the whole master view).
         table={
           <div className={cn('flex flex-col', dissolved && 'pt-[var(--md-table-offset)]')}>
             {tableInner}
@@ -346,13 +274,6 @@ export function PagosTab({
               onClose={onClose}
               onApprove={(payment) => setConfirm({ payment, action: 'approve' })}
               onMarkPaid={(payment) => setPayTarget(payment)}
-              // Hand the period control to the detail wherever the detail is a COVERING
-              // Sheet — which MasterDetailLayout decides on `isBelowDesktop`, not
-              // `isMobile`. Gating this on `isMobile` left the 768-1023 band with no
-              // reachable period picker at all: the PageHeader's Select stays mounted but
-              // sits under the Sheet's modal scrim, so the user had to close the record,
-              // change period, and re-open it. On desktop the split leaves the header
-              // reachable, so the detail must NOT duplicate the control.
               periodControl={belowDesktop ? periodControl : undefined}
             />
           ) : (

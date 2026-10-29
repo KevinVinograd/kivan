@@ -1,15 +1,3 @@
-/**
- * Close-math tests for `monthly-operation-format`.
- *
- * This module is imported by 21 call sites and had no test. It owns the figures the
- * owner signs the month off on, and `closeBlockers` is the only barrier between the
- * studio and an irreversible close, so a silently inverted predicate here fails OPEN.
- *
- * The fixture deliberately gives the per-client payroll allocation (`teamCost`, 40_000)
- * a DIFFERENT value from the month's actual payouts (`totalToPayTeam`, 77_000). Any
- * regression that goes back to deriving studio profit from the per-client allocation
- * therefore fails loudly, instead of passing because the two happened to coincide.
- */
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -34,8 +22,6 @@ import type {
   ProductionRecord,
   TeamPayout,
 } from './monthly-operation-mock-data'
-
-// ── Fixture builders ─────────────────────────────────────────────────────────
 
 function client(overrides: Partial<ClientMonth> = {}): ClientMonth {
   return {
@@ -164,18 +150,10 @@ function figure(figures: ReturnType<typeof cierreFigures>, label: string) {
   return found
 }
 
-// The fixture's arithmetic, stated once so the expectations below read as claims
-// about behaviour rather than as restatements of the implementation.
-//
-//   totalToBill  = fee 100_000 + billable extra 20_000 + productions 30_000 = 150_000
-//                  (the 5_000 non-billable extra is excluded)
-//   payoutTotal  = base 60_000 + productions 10_000 + viatics 5_000 + adj 2_000 = 77_000
-//   profit       = 150_000 - payroll 77_000 - productionCost 10_000 - expenses 25_000 = 38_000
 const TOTAL_TO_BILL = 150_000
 const PAYOUT_TOTAL = 77_000
 const PROFIT = 38_000
 
-/** An expense the user flagged as NOT bearing on profitability. */
 function excludedExpense(amount: number) {
   return expense({ id: 'e-excluded', concept: 'Herramientas', amount, affectsProfitability: false })
 }
@@ -196,16 +174,10 @@ describe('summarize', () => {
   })
 
   it('subtracts the payouts, NOT the per-client payroll allocation', () => {
-    // The regression this whole file exists for. Against the live API `teamCost` is
-    // null for every client; deriving payroll from it dropped the entire payroll to 0
-    // and reported the month as profitable by exactly the payroll.
     const summary = summarize(data())
 
-    // 150_000 - 77_000 (payouts) - 10_000 - 25_000
     expect(summary.estimatedProfitability).toBe(38_000)
-    // NOT 150_000 - 40_000 (the per-client allocation) - 10_000 - 25_000
     expect(summary.estimatedProfitability).not.toBe(75_000)
-    // ...and above all NOT the payroll-free figure the live API produced.
     expect(summary.estimatedProfitability).not.toBe(115_000)
   })
 
@@ -217,15 +189,11 @@ describe('summarize', () => {
   })
 
   it('does NOT let an expense flagged "no afecta rentabilidad" cut the profit', () => {
-    // The whole defect: `affectsProfitability` shipped in the DTO, in the expenses table
-    // and as a Checkbox in the dialog — and nothing read it. Adding an excluded expense
-    // must move `fixedExpenses` (real cash out) and leave `estimatedProfitability` alone.
     const withExcluded = summarize(data({ expenses: [expense(), excludedExpense(8_000)] }))
 
-    expect(withExcluded.fixedExpenses).toBe(33_000) // 25_000 + 8_000 — the cash that left
+    expect(withExcluded.fixedExpenses).toBe(33_000)
     expect(withExcluded.fixedExpensesExcluded).toBe(8_000)
-    expect(withExcluded.estimatedProfitability).toBe(PROFIT) // unchanged: 150 - 77 - 10 - 25
-    // The old behaviour, kept as an explicit anti-assertion: it subtracted all 33_000.
+    expect(withExcluded.estimatedProfitability).toBe(PROFIT)
     expect(withExcluded.estimatedProfitability).not.toBe(30_000)
   })
 
@@ -242,7 +210,6 @@ describe('summarize', () => {
 
     expect(summary.fixedExpenses).toBe(25_000)
     expect(summary.fixedExpensesExcluded).toBe(25_000)
-    // No fixed-expense cost at all: 150 - 77 - 10.
     expect(summary.estimatedProfitability).toBe(63_000)
   })
 
@@ -266,7 +233,6 @@ describe('clientMargin / clientMarginPercent', () => {
   it('computes the margin when payroll is allocated to the client', () => {
     const c = client()
 
-    // 150_000 - 40_000 - 10_000
     expect(clientMargin(c)).toBe(100_000)
     expect(clientMarginPercent(c)).toBeCloseTo((100_000 / TOTAL_TO_BILL) * 100, 5)
   })
@@ -279,7 +245,6 @@ describe('clientMargin / clientMarginPercent', () => {
   })
 
   it('distinguishes a genuinely zero team cost from an unknown one', () => {
-    // 0 is a real allocation and yields a real margin; null does not.
     expect(clientMargin(client({ teamCost: 0 }))).toBe(140_000)
     expect(clientMargin(client({ teamCost: null }))).toBeNull()
   })
@@ -292,17 +257,12 @@ describe('clientMargin / clientMarginPercent', () => {
 })
 
 describe('cierreFigures', () => {
-  // Currency rows are compared against `formatCurrency`, not a hardcoded string: the
-  // es-AR formatter separates the symbol with a NON-BREAKING space (U+00A0), so a
-  // literal "$ 150.000" typed here would fail on an invisible character. What these
-  // assertions are actually about is which NUMBER lands in which row.
   it('renders the close card, reconciled against summarize', () => {
     const figures = cierreFigures(data())
 
     expect(figure(figures, 'Total facturado').value).toBe(formatCurrency(150_000))
     expect(figure(figures, 'Total cobrado').value).toBe(formatCurrency(50_000))
     expect(figure(figures, 'Pendiente de cobro').value).toBe(formatCurrency(100_000))
-    // Accrued payroll: the same figure Rentabilidad neta subtracts, so the card adds up.
     expect(figure(figures, 'Total a pagar al equipo').value).toBe(formatCurrency(PAYOUT_TOTAL))
     expect(figure(figures, 'Gastos fijos').value).toBe(formatCurrency(25_000))
     expect(figure(figures, 'Rentabilidad neta').value).toBe(formatCurrency(PROFIT))
@@ -313,17 +273,13 @@ describe('cierreFigures', () => {
     expect(figure(figures, 'Alertas críticas').value).toBe('0')
   })
 
-  // The close card's job is to explain the profit, so it has to add up. This is asserted
-  // against summarize()'s OWN output — restating the fixture's arithmetic here would only
-  // test JavaScript's minus operator. The expense term is NET of the excluded slice, which
-  // is exactly what the "No imputados a rentabilidad" row exists to make visible.
   it.each([
     ['no excluded expenses', [expense()]],
     ['one excluded expense', [expense(), excludedExpense(8_000)]],
     ['every expense excluded', [excludedExpense(25_000)]],
   ])('reconciles: revenue minus the costs equals the profit row (%s)', (_label, expenses) => {
     const summary = summarize(data({ expenses }))
-    const productionCost = 10_000 // the fixture's only client
+    const productionCost = 10_000
 
     expect(
       summary.totalToCollect -
@@ -336,15 +292,12 @@ describe('cierreFigures', () => {
   it('shows the excluded-expense row, and still adds up to Rentabilidad neta', () => {
     const figures = cierreFigures(data({ expenses: [expense(), excludedExpense(8_000)] }))
 
-    // Gastos fijos stays the TOTAL cash out — hiding real spend from the summary would be
-    // its own lie — and the excluded slice is named rather than silently dropped.
     expect(figure(figures, 'Gastos fijos').value).toBe(formatCurrency(33_000))
     expect(figure(figures, 'No imputados a rentabilidad').value).toBe(`-${formatCurrency(8_000)}`)
     expect(figure(figures, 'Rentabilidad neta').value).toBe(formatCurrency(PROFIT))
   })
 
   it('omits the excluded-expense row entirely when there is nothing to exclude', () => {
-    // A row reading "$ 0" on every normal month is noise on an already dense card.
     const figures = cierreFigures(data())
 
     expect(figures.some((f) => f.label === 'No imputados a rentabilidad')).toBe(false)
@@ -359,7 +312,6 @@ describe('cierreFigures', () => {
   })
 
   it('tones Rentabilidad neta success at exactly 0, danger below it', () => {
-    // profit = 100_000 - 60_000 - 15_000 - 25_000 = 0
     const breakEven = data({
       clients: [client({ monthlyFee: 100_000, extras: [], productionsAmount: 0, productionCost: 15_000 })],
       team: [payout({ baseAmount: 60_000, productionsAmount: 0, viaticsAmount: 0, adjustments: [] })],
@@ -369,7 +321,6 @@ describe('cierreFigures', () => {
     expect(atZero.value).toBe(formatCurrency(0))
     expect(atZero.tone).toBe('success')
 
-    // One peso of expense more and the verdict flips.
     const belowZero = data({
       clients: [client({ monthlyFee: 100_000, extras: [], productionsAmount: 0, productionCost: 15_000 })],
       team: [payout({ baseAmount: 60_000, productionsAmount: 0, viaticsAmount: 0, adjustments: [] })],
@@ -381,11 +332,8 @@ describe('cierreFigures', () => {
   it('withholds both margin figures when payroll is not allocated per client', () => {
     const figures = cierreFigures(data({ clients: [client({ teamCost: null })] }))
 
-    // Averaging an unallocated margin would report the studio as more profitable than
-    // it is — the exact failure the close card exists to prevent.
     expect(figure(figures, 'Margen promedio').value).toBe('-')
     expect(figure(figures, 'Clientes con margen negativo').value).toBe('-')
-    // Studio-level profit stays exact: it comes from the payouts, which every source has.
     expect(figure(figures, 'Rentabilidad neta').value).toBe(formatCurrency(PROFIT))
   })
 
@@ -463,7 +411,6 @@ describe('closeBlockers', () => {
   })
 
   it('does NOT block an unpayable team member with incomplete bank data', () => {
-    // Nothing to pay means nowhere to pay it to.
     const blockers = closeBlockers(
       data({
         team: [
@@ -553,9 +500,6 @@ describe('closeBlockers', () => {
     )
   })
 
-  // The server refuses the close on validations the front does not compute. Before
-  // this, the UI showed only its own list, said "listo para cerrar", and let the
-  // close 409 with nothing on screen explaining it.
   it('merges the server blockers with the front ones', () => {
     const blockers = closeBlockers(data({ team: [payout({ statementStatus: 'draft' })] }), [
       { code: 'unapproved_payouts', message: 'Payout statements still in draft', count: 1 },
@@ -563,7 +507,6 @@ describe('closeBlockers', () => {
 
     const unapproved = blockers.find((b) => b.id === 'unapproved_payouts')
     expect(unapproved?.label).toBe('Cuentas corrientes sin aprobar')
-    // Named, not counted: "1 cuenta corriente" is not something the user can act on.
     expect(unapproved?.items).toEqual(['Mica'])
   })
 
@@ -584,10 +527,6 @@ describe('closeBlockers', () => {
 })
 
 describe('monthInsight', () => {
-  // The page's most prominent element used to derive its own blocker list, so it
-  // announced "el mes está en condiciones de cerrarse" while the close dialog listed an
-  // unresolved SERVER blocker. Same page, two answers, headline taking the optimistic
-  // one. Found by driving the real stack in a browser, not by any assertion here.
   it('names the merged blocker instead of announcing a closable month', () => {
     const month = data({ team: [payout({ statementStatus: 'draft' })] })
     const merged = closeBlockers(month, [
@@ -602,28 +541,18 @@ describe('monthInsight', () => {
   })
 
   it('announces a closable month only when the merged list is empty', () => {
-    // Fully collected, so the "quedan X por cobrar" branch does not intercept.
     const month = data({ clients: [client({ paidAmount: TOTAL_TO_BILL, paymentStatus: 'paid' })] })
     expect(closeBlockers(month)).toEqual([])
 
     expect(monthInsight(month, 'draft', closeBlockers(month), true).headline).toContain(
       'en condiciones de cerrarse',
     )
-    // ...and one server blocker is enough to take it back.
     const merged = closeBlockers(month, [{ code: 'arca_errors', message: 'ARCA', count: 2 }])
     expect(monthInsight(month, 'draft', merged, true).headline).not.toContain(
       'en condiciones de cerrarse',
     )
   })
 
-  /**
-   * The closed-month headline restates the profitability, and the insight renders
-   * unconditionally at the top of the page while the KPI two rows below is gated on the
-   * `profitability` capability. A custom role can hold `page.monthly_operation` without
-   * `client.profitability.read`, reach the page, and read in prose the figure the tile
-   * withholds. Built-in roles are unaffected: the route is owner/admin and both hold every
-   * capability, which is exactly why nothing caught this.
-   */
   it('withholds the profitability from a role that cannot see it', () => {
     const month = data({ clients: [client({ paidAmount: TOTAL_TO_BILL, paymentStatus: 'paid' })] })
 
@@ -632,23 +561,10 @@ describe('monthInsight', () => {
 
     expect(withCapability).toContain('rentabilidad estimada')
     expect(without).not.toContain('rentabilidad estimada')
-    // Collected cash stays: it is the same figure the cobros tiles already show.
     expect(without).toContain('cobrados')
   })
 
-  /**
-   * The headline restates the profitability tile, so it has to withhold the figure on the
-   * same TWO axes the tile does. The capability axis was closed first; this is the cost
-   * basis. `estimatedProfitability` subtracts payouts, production cost and
-   * profit-affecting expenses, none of which reaches this screen from the pagos module, so
-   * a month with every pago loaded still resolves to the BILLING. Left ungated, the page
-   * announced the studio's revenue as its profit at the very top, immediately above a tile
-   * that said "Sin costos cargados" about the same month.
-   */
   it('withholds the profitability when no cost has been recorded', () => {
-    // Fully collected and no payout, production cost or expense: profitability collapses
-    // onto the billing, which is exactly the operator's August. `productionCost` lives on
-    // the client ROW (it is per-cobro), so emptying `productions` does not zero it.
     const month = data({
       clients: [client({ paidAmount: TOTAL_TO_BILL, paymentStatus: 'paid', productionCost: 0 })],
       team: [],
@@ -665,8 +581,6 @@ describe('monthInsight', () => {
   it('states it once there is a cost side to subtract', () => {
     const month = data({
       clients: [client({ paidAmount: TOTAL_TO_BILL, paymentStatus: 'paid' })],
-      // The default fixture carries base, productions, viatics and adjustments, so the
-      // month has a real payroll cost to subtract.
       team: [payout()],
     })
 
@@ -675,8 +589,6 @@ describe('monthInsight', () => {
 })
 
 describe('nextStatementAction', () => {
-  // The server transitions are conditional updates filtered on the status they move
-  // FROM, so anything but the single legal step is a 409 the user cannot act on.
   it('offers exactly one legal step per state, and none once confirmed', () => {
     expect(nextStatementAction('draft')).toEqual({ label: 'Aprobar', transition: 'approve' })
     expect(nextStatementAction('approved')).toEqual({ label: 'Enviar', transition: 'dispatch' })
@@ -692,15 +604,6 @@ describe('nextStatementAction', () => {
   })
 })
 
-/**
- * The cost side comes from the Pagos module.
- *
- * The operator loaded every one of August's payments — colaboradoras, proveedores, viáticos —
- * approved them and marked them paid, and the month still reported "Pendiente de pago al
- * equipo $0" and a profitability with nothing subtracted. `getBundle` did not read the
- * payments table at all: the string "payment" appeared zero times in the whole monthly
- * module. Her work was stored correctly and was invisible to the screen that closes the month.
- */
 describe('summarize with payments from /pagos', () => {
   const total = (recipientType: MonthPaymentRecipient, amount: number, paid = amount): PaymentTotal => ({
     recipientType,
@@ -709,26 +612,9 @@ describe('summarize with payments from /pagos', () => {
     count: 1,
   })
 
-  // No statements and no month-owned expenses: every cost figure below comes from payments.
   const bare = (paymentTotals: PaymentTotal[]) =>
     data({ team: [], expenses: [], paymentTotals })
 
-  /**
-   * PAYROLL MUST NOT BE COUNTED TWICE.
-   *
-   * A colaboradora has two overlapping records of one obligation: a PayoutStatement and the
-   * payments in /pagos. A first version of this feature ADDED them, on the premise that a
-   * statement is structurally 0 because no screen sends it a money field. The premise was
-   * false on two paths that both run from this page:
-   *
-   *   - the server derives `productionsAmountMinor` as hours x rate when a statement is
-   *     CREATED, and `setBankData` is its only creator, so entering a colaboradora's bank
-   *     details mints a statement carrying money;
-   *   - `addAdjustment` folds an adjustment into `totalAmountMinor`.
-   *
-   * The result was a silent inflation of the cost side, on the profitability the operator
-   * freezes when she closes the month. These cases pin the dedup.
-   */
   describe('a member with BOTH a statement and payments', () => {
     const member = (over: Partial<TeamPayout> = {}) =>
       payout({ memberId: 'tm-1', baseAmount: 0, productionsAmount: 0, viaticsAmount: 0, adjustments: [], paidAmount: 0, ...over })
@@ -747,7 +633,6 @@ describe('summarize with payments from /pagos', () => {
           teamPaymentTotals: [memberTotal('tm-1', 300_000)],
         }),
       )
-      // The same 300.000 recorded on both sides is 300.000 of payroll, never 600.000.
       expect(both.totalToPayTeam).toBe(300_000)
       expect(both.paidToTeam).toBe(300_000)
     })
@@ -765,8 +650,6 @@ describe('summarize with payments from /pagos', () => {
     })
 
     it('still counts a member paid with no statement at all', () => {
-      // Every workspace is in this state today: nothing creates a statement with money
-      // unless someone opens the bank dialog, so /pagos is the only payroll record there is.
       const summary = summarize(
         data({ expenses: [], team: [], teamPaymentTotals: [memberTotal('tm-2', 450_000)] }),
       )
@@ -774,8 +657,6 @@ describe('summarize with payments from /pagos', () => {
     })
 
     it('counts an unlinked payroll payment in full', () => {
-      // `teamMemberId` is nullable on a Payment. Naming no member, it can overlap no
-      // statement, so it is added rather than deduped.
       const summary = summarize(
         data({ expenses: [], team: [member({ productionsAmount: 100_000 })], teamPaymentTotals: [memberTotal(null, 70_000)] }),
       )
@@ -784,8 +665,6 @@ describe('summarize with payments from /pagos', () => {
   })
 
   it('counts collaborator and employee payments as the month payroll', () => {
-    // Payroll reads the PER-MEMBER aggregate, not the by-type one: the by-type total
-    // cannot be deduplicated against the statements, and payroll has two records.
     const summary = summarize(
       data({ team: [], expenses: [], teamPaymentTotals: [
         { teamMemberId: 'tm-a', total: 400_000, paid: 400_000 },
@@ -814,7 +693,6 @@ describe('summarize with payments from /pagos', () => {
       ]),
     )
     expect(summary.fixedExpenses).toBe(110_000)
-    // ...and NOT as payroll, which is the split the whole wiring turns on.
     expect(summary.totalToPayTeam).toBe(0)
   })
 
@@ -830,14 +708,7 @@ describe('summarize with payments from /pagos', () => {
     expect(withoutCosts.estimatedProfitability - withCosts.estimatedProfitability).toBe(500_000)
   })
 
-  /**
-   * The exact regression the fix exists for: a month whose only cost record is in /pagos used
-   * to report its BILLING as its profit, in success green, on the page that invites a close.
-   */
   it('stops reporting the revenue as the profit once a payment exists', () => {
-    // A genuinely cost-free month: no statements, no expenses, and the fixture's
-    // `productionCost` zeroed, so profit and revenue start out equal. That equality is what
-    // the summary tile reads to decide whether it has anything to state at all.
     const noCostAtAll = (paymentTotals: PaymentTotal[]) =>
       data({ team: [], expenses: [], clients: [client({ productionCost: 0 })], paymentTotals })
 
@@ -853,11 +724,6 @@ describe('summarize with payments from /pagos', () => {
     expect(withPayment.estimatedProfitability).not.toBe(withPayment.totalToCollect)
   })
 
-  /**
-   * A gasto fijo must be counted ONCE. The two sources are additive because they cannot
-   * describe the same peso: the Gastos tab no longer accepts new rows, so /pagos is the only
-   * place an operating cost can be recorded from now on.
-   */
   it('adds the month-owned expenses to the payments rather than replacing them', () => {
     const withBoth = summarize(data({ team: [], paymentTotals: [total('fixed_expense', 30_000)] }))
     const ownExpensesOnly = summarize(data({ team: [], paymentTotals: [] }))
@@ -865,8 +731,6 @@ describe('summarize with payments from /pagos', () => {
   })
 
   it('still honours "no impacta en la rentabilidad" on the month-owned rows', () => {
-    // The flag has no equivalent on a Payment, so every payment counts; an excluded expense
-    // is still recorded in the total and still kept out of the profit.
     const excluded = expense({ amount: 70_000, affectsProfitability: false })
     const summary = summarize(
       data({ team: [], expenses: [excluded], paymentTotals: [total('provider', 30_000)] }),

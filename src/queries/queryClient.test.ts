@@ -4,13 +4,6 @@ import { ZodError } from 'zod'
 import { ApiError } from '@/api/client'
 import { queryClient } from './queryClient'
 
-/**
- * Unit tests for the shared QueryClient's retry policy: 4xx client errors and
- * ZodErrors (deterministic contract-drift) are not retried (they will not succeed on
- * a repeat), while transient failures (5xx, network, other non-ApiError) retry up to
- * the default cap. Mutations never retry.
- */
-
 const retry = queryClient.getDefaultOptions().queries?.retry as (
   failureCount: number,
   error: Error,
@@ -41,8 +34,6 @@ describe('queryClient retry predicate', () => {
   })
 
   it('never retries a ZodError (contract drift is deterministic)', () => {
-    // A failed response-schema parse throws a ZodError at the fetch boundary; the same
-    // drifted body would fail identically on every attempt, so it must not be retried.
     const drift = new ZodError([])
     expect(retry(0, drift)).toBe(false)
     expect(retry(1, drift)).toBe(false)

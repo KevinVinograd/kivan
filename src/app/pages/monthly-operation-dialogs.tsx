@@ -52,13 +52,6 @@ import {
   useSettlementAccounts,
 } from './settlement-accounts'
 
-// The date fields below seed from `todayIso` LAZILY (`useState(todayIso)`), evaluated when
-// the dialog mounts. They used to seed from the literal '2026-06-16', so every money record
-// written from this page defaulted to a day in the past and carried it unless the operator
-// noticed and corrected the picker. A module-level `const TODAY = todayIso()` would be the
-// same bug at a smaller scale: this is a long-lived SPA, and a tab left open across midnight
-// would keep stamping yesterday.
-
 export type MonthlyDialogState =
   | { kind: 'none' }
   | { kind: 'client-payment'; client: ClientMonth }
@@ -67,12 +60,9 @@ export type MonthlyDialogState =
   | { kind: 'team-payout'; payout: TeamPayout }
   | { kind: 'team-adjustment'; payout: TeamPayout }
   | { kind: 'team-bank'; payout: TeamPayout }
-  // Statement lifecycle: one row's next step, and the roster-wide approval.
   | { kind: 'team-statement'; payout: TeamPayout }
   | { kind: 'team-statement-bulk' }
   | { kind: 'client-effective-date'; client: ClientMonth }
-  // Row pickers fronting the global "Nuevo" launcher: pick a client/payout first,
-  // then transition into the scoped registration dialog above.
   | { kind: 'pick-client-payment' }
   | { kind: 'pick-team-payout' }
 
@@ -96,8 +86,6 @@ function ClientPaymentDialog({ client, onClose }: { client: ClientMonth; onClose
   const accountsState = useSettlementAccounts()
   const { accounts, status: accountsStatus } = accountsState
 
-  // Preselect only when there is a single account — with several, choosing for the
-  // operator would silently decide where the money went.
   useEffect(() => {
     if (!touchedAccount) setAccountId(defaultSettlementAccountId(accounts))
   }, [accounts, touchedAccount])
@@ -113,8 +101,6 @@ function ClientPaymentDialog({ client, onClose }: { client: ClientMonth; onClose
             event.preventDefault()
             if (!canSubmit) return
             setSubmitting(true)
-            // Hold the dialog open on failure: the amount the user typed is still on screen,
-            // and closing it here would destroy the entry while claiming it was saved.
             if (
               !(await op.registerClientPayment(
                 client.id,
@@ -184,9 +170,6 @@ function ClientPaymentDialog({ client, onClose }: { client: ClientMonth; onClose
                 ))}
               </SelectContent>
             </Select>
-            {/* The error branch comes FIRST: a failed fetch also leaves the list empty,
-                and telling an operator who already has three accounts to go create some
-                is a wrong instruction on top of a silent failure. */}
             {accountsStatus === 'error' ? (
               <span className="type-caption fg-danger">
                 No se pudieron cargar las cuentas, volvé a abrir el formulario
@@ -336,16 +319,11 @@ function TeamPayoutDialog({ payout, onClose }: { payout: TeamPayout; onClose: ()
   const accountsState = useSettlementAccounts()
   const { accounts, status: accountsStatus } = accountsState
 
-  // Preselect only when there is a single account — with several, choosing for the
-  // operator would silently decide where the money went.
   useEffect(() => {
     if (!touchedAccount) setAccountId(defaultSettlementAccountId(accounts))
   }, [accounts, touchedAccount])
 
   const accountValid = settlementDestinationValid(accountsState, accountId)
-  // Now that the day is actually stored, it is validated like the other three settlement
-  // dates: a payout records money that HAS left, so a date ahead of today is a mistyped
-  // year — and it now rides into a column the detail reads back.
   const canSubmit = amount > 0 && Boolean(date) && !isFutureIso(date) && accountValid && !submitting
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -356,10 +334,6 @@ function TeamPayoutDialog({ payout, onClose }: { payout: TeamPayout; onClose: ()
             event.preventDefault()
             if (!canSubmit) return
             setSubmitting(true)
-            // The account is forwarded EXPLICITLY, like the cobro above. A handler that
-            // takes three parameters is assignable to a type that passes four and the
-            // fourth is silently dropped — which is exactly how the "Fecha de cobro" was
-            // lost for months before #132.
             if (!(await op.registerPayout(payout.id, amount, date, accountId || undefined))) {
               setSubmitting(false)
               return
@@ -422,9 +396,6 @@ function TeamPayoutDialog({ payout, onClose }: { payout: TeamPayout; onClose: ()
                 ))}
               </SelectContent>
             </Select>
-            {/* The error branch comes FIRST: a failed fetch also leaves the list empty,
-                and telling an operator who already has three accounts to go create some
-                is a wrong instruction on top of a silent failure. */}
             {accountsStatus === 'error' ? (
               <span className="type-caption fg-danger">
                 No se pudieron cargar las cuentas, volvé a abrir el formulario
@@ -520,9 +491,6 @@ function TeamBankDialog({ payout, onClose }: { payout: TeamPayout; onClose: () =
             event.preventDefault()
             if (submitting) return
             setSubmitting(true)
-            // The costliest write on the page to get wrong: a CBU that failed to save but
-            // reported success sends the next payout to the member's OLD account. Confirm
-            // it landed before saying so.
             if (
               !(await op.setBankData(payout.id, {
                 bankName: bank.bankName || undefined,
@@ -570,8 +538,6 @@ function TeamBankDialog({ payout, onClose }: { payout: TeamPayout; onClose: () =
   )
 }
 
-/** Pick the client for a cobro, then hand off to ClientPaymentDialog. Fronts the
- *  global "Nuevo" launcher, whose monthly create flows are row-scoped. */
 function ClientPaymentPicker({
   onPick,
   onClose,
@@ -607,7 +573,6 @@ function ClientPaymentPicker({
   )
 }
 
-/** Pick the person for a pago, then hand off to TeamPayoutDialog. */
 function TeamPayoutPicker({
   onPick,
   onClose,
@@ -643,8 +608,6 @@ function TeamPayoutPicker({
   )
 }
 
-/** Set the alta/baja effective date for a new/churned client. Wiring this dialog
- *  is what makes the `no_effective_date` close blocker resolvable from the UI. */
 function ClientEffectiveDateDialog({ client, onClose }: { client: ClientMonth; onClose: () => void }) {
   const op = useMonthlyOperation()
   const isChurn = client.monthStatus === 'churned'
@@ -659,8 +622,6 @@ function ClientEffectiveDateDialog({ client, onClose }: { client: ClientMonth; o
             event.preventDefault()
             if (submitting) return
             setSubmitting(true)
-            // `setClientEffectiveDate` is an API-backed write: await it and report success only
-            // when it actually persisted. `guard` has already surfaced the error on failure.
             if (!(await op.setClientEffectiveDate(client.id, date))) {
               setSubmitting(false)
               return
@@ -694,14 +655,6 @@ function ClientEffectiveDateDialog({ client, onClose }: { client: ClientMonth; o
   )
 }
 
-/** Renders the active client/team action dialog (the page owns the state).
- *  `onPick` advances a row picker into its scoped registration dialog. */
-/**
- * What each transition means to the person clicking it. The copy is deliberately
- * modest about `dispatch`: the app records that the payment went out, it does not
- * move money. Saying "se envía el pago" would be the same class of claim this whole
- * lifecycle exists to stop making.
- */
 const STATEMENT_TRANSITION_COPY: Record<
   StatementTransition,
   { title: string; description: string; success: string }
@@ -727,9 +680,6 @@ function StatementTransitionDialog({ payout, onClose }: { payout: TeamPayout; on
   const op = useMonthlyOperation()
   const [submitting, setSubmitting] = useState(false)
   const advance = nextStatementAction(payout.statementStatus)
-  // A settled statement has no next step. The menu already hides the action, so this
-  // is the belt to that suspenders: never render a confirm for a transition the
-  // server would refuse.
   if (!advance) return null
   const copy = STATEMENT_TRANSITION_COPY[advance.transition]
 
@@ -742,8 +692,6 @@ function StatementTransitionDialog({ payout, onClose }: { payout: TeamPayout; on
         : advance.transition === 'dispatch'
           ? await op.dispatchStatement(payout.id)
           : await op.confirmStatement(payout.id)
-    // Failure keeps the dialog open: the action reported its own error, and closing
-    // here would read as though the transition had gone through.
     if (!ok) {
       setSubmitting(false)
       return
@@ -763,9 +711,6 @@ function StatementTransitionDialog({ payout, onClose }: { payout: TeamPayout; on
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onClose}>Cancelar</AlertDialogCancel>
-          {/* `preventDefault` is load-bearing: AlertDialogAction is a Radix Dialog.Close, so
-              without it the dialog closes synchronously on click, before the write resolves,
-              and a FAILED transition would dismiss the confirm anyway. */}
           <AlertDialogAction
             disabled={submitting}
             onClick={(event) => {
@@ -793,8 +738,6 @@ function BulkApproveStatementsDialog({ onClose }: { onClose: () => void }) {
     if (submitting) return
     setSubmitting(true)
     const { approved, failed } = await op.approveDraftStatements()
-    // Three outcomes, three different truths. Collapsing them into one success toast
-    // is how the old bulk action claimed a roster-wide write it never performed.
     if (approved === 0) {
       toast.error('No se pudo aprobar ninguna cuenta corriente')
       setSubmitting(false)

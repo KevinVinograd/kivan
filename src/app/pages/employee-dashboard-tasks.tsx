@@ -31,10 +31,6 @@ function EmployeeTaskCard({ item }: { item: TaskItem }) {
   )
 }
 
-/**
- * §6 Producciones y tareas. Work tied to content productions, deliverables and
- * operational tasks: assigned/pending/due/overdue metrics plus the item list.
- */
 export function EmployeeTasksSnapshot({ tasks }: { tasks: TasksSummary }) {
   return (
     <section aria-label="Producciones y tareas" className="flex flex-col">

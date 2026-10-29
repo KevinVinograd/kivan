@@ -5,40 +5,10 @@ import { cn } from '@/app/lib/utils'
 export type BrandLogoVariant = 'full' | 'mark'
 
 export type BrandLogoProps = Omit<SVGProps<SVGSVGElement>, 'title'> & {
-  /** `full` = the "Kivan" wordmark + accent (viewBox 0 0 86 24); `mark` = the
-   *  standalone K + accent (viewBox 0 0 24 24). Defaults to `full`. */
   variant?: BrandLogoVariant
-  /** Accessible name, also rendered as the SVG `<title>`. Defaults to "Kivan".
-   *  For purely decorative placements, pass `aria-hidden` (the label is then
-   *  ignored by assistive tech). */
   title?: string
 }
 
-/**
- * BrandLogo — the Kivan brand mark, in two variants driven by `variant`:
- * `full` renders the "Kivan" wordmark followed by the lime accent chevron;
- * `mark` renders just the K glyph + accent for tight/square placements.
- *
- * Color: the letterforms paint with `currentColor` (via `fill-current` on the
- * root `<svg>`, inherited by the glyph paths), so the mark adapts to the caller's
- * text color exactly like the surrounding wordmark — `fg-default` on light chrome,
- * `fg-reverse` on the dark auth/brand panels. The accent chevron paints with the
- * theme-adaptive `--brand-mark-accent` token (`fill-brand-mark-accent`): deep teal
- * on light surfaces, vivid Kivan lime on dark.
- *
- * Sizing: intrinsic size comes from the viewBox; the caller controls the rendered
- * size through `className` (default `h-6 w-auto`, overridable — height drives width
- * via the aspect ratio). Do NOT hardcode raw color values on the `<svg>` — pass a
- * text-color utility to retint the letterforms through `currentColor`.
- *
- * Animation-ready: every part is an individually addressable `<path>` carrying a
- * stable `data-glyph` hook (`k` / `i` / `v` / `a` / `n` / `accent`) in reading
- * order, so a consumer can target and stagger them (e.g. a draw-on reveal) without
- * editing this file. No motion is applied here — that is layered by the consumer.
- *
- * Accessibility: `role="img"` + `aria-label` (default "Kivan") name the mark, and
- * a `<title>` mirrors it. Decorative instances pass `aria-hidden`.
- */
 export function BrandLogo({ variant = 'full', title = 'Kivan', className, ...props }: BrandLogoProps) {
   const isMark = variant === 'mark'
 
@@ -54,13 +24,11 @@ export function BrandLogo({ variant = 'full', title = 'Kivan', className, ...pro
       <title>{title}</title>
 
       {isMark ? (
-        // — K glyph (24×24 mark) —
         <path
           data-glyph="k"
           d="M0 23.0431V0.953125H3.97425V13.1657H4.542L9.71483 7.39078H14.8877L7.66463 14.9645L15.14 23.0431H10.0303L4.542 16.8264H3.97425V23.0431H0Z"
         />
       ) : (
-        // — "Kivan" wordmark (86×24), glyphs in reading order for staggered motion —
         <>
           <path
             data-glyph="k"
@@ -85,7 +53,6 @@ export function BrandLogo({ variant = 'full', title = 'Kivan', className, ...pro
         </>
       )}
 
-      {/* — Accent chevron — theme-adaptive brand token, not currentColor — */}
       <path
         data-glyph="accent"
         className="fill-brand-mark-accent"

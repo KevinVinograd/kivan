@@ -10,8 +10,6 @@ import type { ClientRisk } from './dashboard-types'
 function ClientRiskCard({ risk }: { risk: ClientRisk }) {
   const navigate = useNavigate()
   const level = riskLevelBadge(risk.level)
-  // Deep-link into Clients: filter to this risk band, open this client's detail,
-  // and carry a Dashboard crumb so Clients shows a back-to-dashboard trail.
   const href = buildTrailHref(
     `/clients?risk=${risk.level}&open=${risk.clientId}`,
     { label: 'Dashboard', to: '/dashboard' },
@@ -44,12 +42,6 @@ function ClientRiskCard({ risk }: { risk: ClientRisk }) {
   )
 }
 
-/**
- * §2 Clientes en riesgo. The most important section: the top 5 clients whose
- * signals can anticipate churn, margin erosion or lost follow-up, each with its
- * risk score, the reasons that drove it, assigned team, last touch, margin and
- * payment state.
- */
 export function ClientRiskList({ risks }: { risks: ClientRisk[] }) {
   return (
     <section aria-label="Clientes en riesgo" className="flex flex-col">

@@ -4,10 +4,8 @@ import { cn } from '@/app/lib/utils'
 import { ChartContainer, ChartTooltipContent, PieChart, Pie, Cell, Tooltip } from '@/app/components/charts'
 import { formatCurrency, formatPercent } from './monthly-operation-format'
 
-/** Margin health tone, shared with `marginTone` in monthly-operation-format. */
 export type MarginTone = 'default' | 'warning' | 'danger'
 
-/** Fill per composition slice — data-viz tokens, theme-independent. */
 const SLICE_FILL = {
   equipo: 'var(--color-data-blue)',
   producciones: 'var(--color-data-aqua)',
@@ -15,14 +13,12 @@ const SLICE_FILL = {
   rentabilidad: 'var(--color-data-green)',
 }
 
-/** Center-value foreground per margin tone. */
 const MARGIN_FG: Record<MarginTone, string> = {
   default: 'fg-success',
   warning: 'fg-warning',
   danger: 'fg-danger',
 }
 
-/** Legend order + labels, keyed to `SLICE_FILL`. */
 const LEGEND_ITEMS = [
   { key: 'equipo', label: 'Equipo' },
   { key: 'producciones', label: 'Producciones' },
@@ -34,19 +30,11 @@ export type CompositionDonutProps = {
   teamCost: number
   productionCost: number
   fixedExpenses: number
-  /** Estimated profitability; rendered as a slice only when positive. */
   profit: number
-  /** Estimated margin (percent) shown at the donut center. */
   margin: number
   marginTone: MarginTone
 }
 
-/**
- * Donut of how revenue is consumed — team cost, production cost, fixed expenses
- * and the remaining profit (omitted when non-positive) — with the estimated
- * margin at the center. Hovering a slice dims the rest to 40% so the active one
- * stands out. Feature-scoped composition over the governed Chart.
- */
 export function CompositionDonut({
   teamCost,
   productionCost,
@@ -62,9 +50,6 @@ export function CompositionDonut({
     { key: 'gastos' as const, label: 'Gastos fijos', value: fixedExpenses },
     ...(profit > 0 ? [{ key: 'rentabilidad' as const, label: 'Rentabilidad', value: profit }] : []),
   ]
-  // Guard a stale hover index: if the slice array shrinks (profit turns non-positive
-  // or the month switches) while a slice is hovered, an out-of-range index would dim
-  // every slice. Treat it as "none active" until the next pointer move.
   const activeSlice = activeIndex !== null && activeIndex < slices.length ? activeIndex : null
   return (
     <div className="relative">
@@ -108,14 +93,9 @@ export function CompositionDonut({
 }
 
 export type CompositionLegendProps = {
-  /** Show the profit entry (matches the donut, which omits it when non-positive). */
   showProfit: boolean
 }
 
-/**
- * Legend for the composition donut: an 8px color dot per category and an
- * `fg-default` label, sharing the donut's `SLICE_FILL` colors.
- */
 export function CompositionLegend({ showProfit }: CompositionLegendProps) {
   const items = showProfit ? LEGEND_ITEMS : LEGEND_ITEMS.filter((item) => item.key !== 'rentabilidad')
   return (

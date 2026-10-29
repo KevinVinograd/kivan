@@ -28,20 +28,14 @@ import {
   statementBadge,
 } from './monthly-operation-format'
 
-/** The top alert signal for a payout row. */
 export function payoutRowAlert(payout: TeamPayout): { label: string; tone: 'danger' | 'warning' } | null {
   if (payoutTotal(payout) > 0 && !bankComplete(payout)) return { label: 'Datos bancarios', tone: 'danger' }
-  // An unapproved statement is what the server refuses to close the month on, so the
-  // alert names the missing STEP instead of the older, vaguer "Sin cuenta corriente".
-  // Deliberately not the badge's own wording ("Sin aprobar"): the two sit in adjacent
-  // columns of the same row, and repeating one string twice reads as two problems.
   if (payout.statementStatus === 'draft') return { label: 'Falta aprobar', tone: 'warning' }
   return null
 }
 
 export type MonthlyTeamRowActions = {
   onView: (payout: TeamPayout) => void
-  /** Advance the statement one step. The step itself is derived from the row's status. */
   onAdvanceStatement: (payout: TeamPayout) => void
   onRegisterPayout: (payout: TeamPayout) => void
   onAddAdjustment: (payout: TeamPayout) => void
@@ -57,8 +51,6 @@ export function monthlyTeamColumns(
   locked: boolean,
   capabilities: Capability[],
 ): ColumnDef<TeamPayout>[] {
-  // Banking needs the `teamBankDetails` capability; without it neither the column
-  // nor the "edit bank details" action.
   const showBank = hasCapability(capabilities, 'teamBankDetails')
   const columns: ColumnDef<TeamPayout>[] = [
     {
@@ -180,8 +172,6 @@ export function monthlyTeamColumns(
       enableHiding: false,
       cell: ({ row }) => {
         const payout = row.original
-        // The single legal next step, or nothing when the statement is settled. Offering
-        // the full lifecycle here would let the user pick a transition the server refuses.
         const advance = nextStatementAction(payout.statementStatus)
         return (
           <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>

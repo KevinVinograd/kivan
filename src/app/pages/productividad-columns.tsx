@@ -15,7 +15,6 @@ import { formatHours, formatShortDate } from './reports-format'
 import type { FilterField } from './cobranza-format'
 import type { ProductivityReportItem } from './reports-types'
 
-/** Client lifecycle label for the Estado column + its filter. */
 export const CLIENT_STATUS_LABEL: Record<string, string> = {
   active: 'Activo',
   onboarding: 'Onboarding',
@@ -32,7 +31,6 @@ export type ProductivityRowActions = {
 const equalsFilter: FilterFn<ProductivityReportItem> = (row, columnId, value) =>
   !value || row.getValue(columnId) === value
 
-/** Searchable text for the productivity table (person, client, task, service). */
 export function productivitySearchText(item: ProductivityReportItem): string {
   return [item.personName, item.clientName, item.taskType, item.service].join(' ').toLowerCase()
 }
@@ -42,7 +40,6 @@ const uniqueOptions = (values: string[], labelOf: (value: string) => string) =>
     .sort()
     .map((value) => ({ value, label: labelOf(value) }))
 
-/** Filter axes for the productivity toolbar (período is the global header control). */
 export function productividadFilterFields(items: ProductivityReportItem[]): FilterField[] {
   return [
     { id: 'personName', label: 'Persona', options: uniqueOptions(items.map((i) => i.personName), (v) => v) },

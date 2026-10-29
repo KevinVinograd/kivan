@@ -28,19 +28,6 @@ import {
 } from './settlement-accounts'
 import type { Receivable } from './cobros-mock-data'
 
-/**
- * Registrar cobro — record a collection amount against a receivable, full or
- * partial. The amount defaults to the outstanding balance and is clamped to it;
- * on submit it persists via `onCollect` (POST /receivables/:id/collect, which
- * derives the next status atomically). The collection date defaults to today and
- * is sent so the row shows when the cash actually arrived — not its createdAt.
- *
- * It also asks WHERE the money landed, and that answer is load-bearing twice over. It is
- * the medio de pago the row never had — the detail used to show one picked from the
- * digits of the receivable id — and it is what moves the treasury balance, server-side,
- * in the same transaction. Without it the Cashflow Posición FALLS when a cobro is
- * registered: the receivable leaves "Ingresos pendientes" and no balance rises to meet it.
- */
 export function CobrosRegistrarCobroDialog({
   receivable,
   onCollect,
@@ -59,20 +46,12 @@ export function CobrosRegistrarCobroDialog({
   const accountsState = useSettlementAccounts()
   const { accounts, status: accountsStatus } = accountsState
 
-  // Preselect only when there is a single account — with several, choosing for the
-  // operator would silently decide where the money went.
   useEffect(() => {
     if (!touchedAccount) setAccountId(defaultSettlementAccountId(accounts))
   }, [accounts, touchedAccount])
 
   const parsed = Number(amount)
-  // A future date is rejected rather than clamped: a cobro records cash that HAS arrived, so
-  // a date ahead of today is a mistyped year, and it rides into the cuenta corriente and every
-  // figure that reads "collected by" a date.
   const dateValid = collectedAt !== '' && !isFutureIso(collectedAt)
-  // Every lane settles into an account. The carve-out this used to carry was for FCI,
-  // which is gone: a Fondo Común is an ACCOUNT, not a currency, so there is no lane left
-  // whose money moves without a balance moving with it.
   const accountValid = settlementDestinationValid(accountsState, accountId)
   const valid =
     Number.isFinite(parsed) && parsed > 0 && parsed <= balance && dateValid && accountValid

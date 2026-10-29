@@ -1,12 +1,3 @@
-/**
- * The add / edit production form of Operación mensual, and the record → input mapping it
- * is prefilled from.
- *
- * Its fields are HOLD's production planilla, column for column (2026-10): fecha, cliente,
- * tipo, account manager, content creator, horas, viáticos, comprobante and whether the
- * viático was already paid back. Billing stays optional below them — most productions
- * are inside the client's monthly fee and are never billed apart.
- */
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
@@ -86,11 +77,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/**
- * The account manager a production on this client starts with: whoever runs Comunicación
- * on it, the person who filled the row in the planilla. Only when exactly one person does;
- * two would be a guess.
- */
 function defaultAccountManager(td: TeamDataContextValue, clientId: string): string | null {
   const managers = td
     .assignmentsForClient(clientId, { activeOnly: true })
@@ -98,13 +84,11 @@ function defaultAccountManager(td: TeamDataContextValue, clientId: string): stri
   return managers.length === 1 ? (managers[0]?.teamMemberId ?? null) : null
 }
 
-/** Hours as the planilla writes them, split for the two inputs: 2.5 → 2 h 30 min. */
 function splitHours(hours: number): { h: number; m: number } {
   const h = Math.floor(hours)
   return { h, m: Math.round((hours - h) * 60) }
 }
 
-/** Add-production form — the planilla's row, plus the optional billing link. */
 export function ProductionForm({
   onClose,
   onSubmit,
@@ -114,45 +98,30 @@ export function ProductionForm({
   submitLabel = 'Cargar producción',
 }: {
   onClose: () => void
-  /** Resolves `true` only once the production is persisted. On `false` the form stays open. */
   onSubmit: (input: ProductionInput) => Promise<boolean>
-  /** Prefill for an EDIT. Absent means a create. Same form either way — a separate edit form
-   *  is a second place to add a field to, and the one you forget is the one that drops it. */
   initial?: ProductionInput
-  /** Starting values for a CREATE opened from a person or a client (date, creator, client).
-   *  Ignored when `initial` is given. */
   prefill?: Partial<ProductionInput>
   title?: string
   submitLabel?: string
 }) {
   const td = useTeamData()
-  // A communication lead (an employee let in by grant) loads what happened, not its money:
-  // the API strips pay and billing from what they send and from what they get back, so
-  // the form does not offer fields whose values would be thrown away.
   const { role, capabilities } = useRole()
   const showBilling = role !== 'employee'
   const showCost = showBilling && hasCapability(capabilities, 'teamCost')
   const [values, setValues] = useState<ProductionInput>(() => {
     if (initial) return initial
     const start = { ...emptyProduction(), ...prefill }
-    // A client given up front gets the same account-manager default a picked one does.
     return start.clientId && !start.accountManagerId
       ? { ...start, accountManagerId: defaultAccountManager(td, start.clientId) }
       : start
   })
   const [submitting, setSubmitting] = useState(false)
-  // The studio's own production types (Configuración → Operación mensual). A row typed
-  // before a type was renamed or removed keeps its value as an option, so editing an
-  // amount never silently re-files the production under a different type.
   const { rules, isError: rulesFailed } = useMonthlyRules()
   const typeOptions =
     values.type && !rules.productionTypes.includes(values.type)
       ? [values.type, ...rules.productionTypes]
       : rules.productionTypes
-  // The real roster, because `createProductionSchema` wants `clientId: z.uuid()`.
   const [clients, setClients] = useState<{ id: string; name: string; currency: string }[]>([])
-  // An empty picker has two very different causes and the operator must be able to tell
-  // them apart: the workspace genuinely has no clients, or the fetch failed.
   const [loadFailed, setLoadFailed] = useState(false)
   useEffect(() => {
     let cancelled = false
@@ -171,20 +140,12 @@ export function ProductionForm({
       cancelled = true
     }
   }, [])
-  // An edit whose client is no longer in the first page of the roster still has to render
-  // its own value, or saving an unrelated field would silently blank the client.
   const clientOptions =
     values.clientId && !clients.some((c) => c.id === values.clientId)
       ? [{ id: values.clientId, name: values.clientName || 'Cliente actual', currency: '' }, ...clients]
       : clients
-  // The amount to bill is in the CLIENT's contract currency (a dollar client's
-  // per-production price is in dollars). Unknown says nothing rather than guess.
   const billCurrency = clientOptions.find((c) => c.id === values.clientId)?.currency ?? ''
 
-  // People are picked from the roster, so the creator's hours reach their liquidación. A
-  // person no longer active still shows on the row that names them.
-  // A communication lead's roster read returns only themselves, so they pick from the
-  // names-only production roster instead; everyone else from the team store.
   const leadPeople = useQuery({
     queryKey: queryKeys.team.productionPeople(),
     queryFn: () => monthlyApi.listProductionPeople(),
@@ -199,8 +160,6 @@ export function ProductionForm({
           .sort((a, b) => a.name.localeCompare(b.name, 'es'))
   const creator = td.members.find((m) => m.id === values.creatorId)
   const rate = creator?.compensation.hourlyRate
-  // What the API will price it at when the cost is left alone: hours × the creator's
-  // rate. Only shown when this viewer can see the rate; the server prices it either way.
   const pricedCost = rate && values.hours > 0 ? Math.round(rate * values.hours) : null
   const shownCost = values.costEdited ? values.totalCost : (pricedCost ?? values.totalCost)
   const duration = splitHours(values.hours)
@@ -210,13 +169,11 @@ export function ProductionForm({
   }
   function pickClient(id: string) {
     const option = clientOptions.find((c) => c.id === id)
-    // Prefilled only when nobody was chosen yet; always editable.
     const manager = defaultAccountManager(td, id)
     setValues((prev) => ({
       ...prev,
       clientId: id,
       clientName: option?.name ?? '',
-      // A service belongs to ONE client: changing the client drops the link.
       clientServiceId: id === prev.clientId ? prev.clientServiceId : null,
       accountManagerId: prev.accountManagerId ?? manager,
     }))
@@ -229,8 +186,6 @@ export function ProductionForm({
           className="flex flex-col gap-6"
           onSubmit={async (event) => {
             event.preventDefault()
-            // Waiting for the write keeps the form on screen, which makes a double click
-            // possible. Block re-entry or the production is written twice.
             if (submitting) return
             setSubmitting(true)
             if (!(await onSubmit(values))) setSubmitting(false)
@@ -242,8 +197,6 @@ export function ProductionForm({
           </DialogHeader>
 
           {td.isError ? (
-            // The pickers read the roster; without it the creator cannot be chosen and the
-            // cost cannot be priced, so the form does not pretend it can save.
             <div className="flex flex-wrap items-center gap-2">
               <span className="type-body-2 fg-danger">No se pudo cargar el equipo.</span>
               <Button variant="transparent" color="primary" size="dense" onClick={() => td.refetch()}>
@@ -295,8 +248,6 @@ export function ProductionForm({
                 </span>
               ) : null}
             </Field>
-            {/* Optional since HOLD's review of 2026-10-21: nobody knew what to put in a
-                required Tema. Left blank, the production is named after its type. */}
             <Field label="Tema">
               <Input
                 value={values.title}
@@ -368,8 +319,6 @@ export function ProductionForm({
                     {`Horas × ${formatCurrency(rate ?? 0)} que le pagamos por hora`}
                   </span>
                 ) : null}
-                {/* A creator with no rate prices the production at $0, which then reads as
-                    "the cost does not load" on the client (Violeta and Constanza, 21/10). */}
                 {!values.costEdited && creator && !rate && values.hours > 0 ? (
                   <span className="type-caption fg-warning">
                     {`No cargaste cuánto le pagamos por hora a ${creator.name}: el costo queda en $0. Cargalo en Equipo → Editar persona, o escribí el monto.`}
@@ -470,8 +419,6 @@ export function ProductionForm({
               type="submit"
               variant="solid"
               color="primary"
-              // `required` on the picker only blocks CLEARING, which cannot help a create
-              // that starts empty: the gate has to include the date and the client.
               disabled={
                 !values.clientId || !values.date || !values.type || td.isError || submitting
               }
@@ -485,7 +432,6 @@ export function ProductionForm({
   )
 }
 
-/** A row back into the form it was created from. The record carries every input field. */
 export function toInput(production: ProductionRecord): ProductionInput {
   return {
     date: production.date,
@@ -504,22 +450,12 @@ export function toInput(production: ProductionRecord): ProductionInput {
     clientServiceId: production.clientServiceId ?? null,
     accountManagerId: production.accountManagerId ?? null,
     creatorId: production.creatorId ?? null,
-    // A stored cost was either typed or priced; re-pricing on edit is what keeps it in
-    // step with the hours, so it counts as untouched until the operator types over it.
     costEdited: false,
     viaticsPaidAt: production.viaticsPaidAt ?? '',
     receipt: production.receipt ?? '',
   }
 }
 
-/**
- * "Cargar producción" from a person or a client: the same form as Operación mensual,
- * prefilled, written through `td.addProduction` into the month of the production's date.
- *
- * It replaced two per-person dialogs with their own shape (Tipo / Cantidad / Horas / Monto,
- * the quantity saved into notes), so a production loaded there lacked the planilla's
- * columns and was priced by hand.
- */
 export function LogProductionForm({
   prefill,
   onClose,
@@ -537,8 +473,6 @@ export function LogProductionForm({
         try {
           await td.addProduction(input)
         } catch (error) {
-          // Say WHICH failure: a closed month and a missing permission need different next
-          // moves than a server that did not answer. The form stays open with the input.
           toast.error('No se pudo cargar la producción', {
             description:
               error instanceof ApiError && error.status === 409
@@ -550,7 +484,6 @@ export function LogProductionForm({
           return false
         }
         toast.success('Producción cargada')
-        // The client view lists its productions; this one must show there right away.
         void queryClient.invalidateQueries({ queryKey: queryKeys.clients.productionsAll() })
         onClose()
         return true
@@ -559,11 +492,6 @@ export function LogProductionForm({
   )
 }
 
-/**
- * "Monto a facturar". Under a PER-HOUR line it is not typed: the client pays hours × the
- * line's price, which the API computes on save (and again when the hours change), so the
- * field shows that product read-only. Anywhere else it is the amount the operator agreed.
- */
 function BillAmountField({
   clientId,
   clientServiceId,
@@ -590,8 +518,6 @@ function BillAmountField({
         <span className="type-caption fg-subtle">{label}</span>
         <Input type="number" value={Math.round(hourly * hours * 100) / 100} readOnly disabled />
         <span className="type-caption fg-subtle">{`Horas × ${formatCurrency(hourly)} que le cobramos al cliente por hora`}</span>
-        {/* The server spreads the line's included hours over the month's productions on
-            save; this form cannot know what the others already used. */}
         {pack ? (
           <span className="type-caption fg-subtle">
             {`Este servicio trae ${pack}: se cobran solo las horas que pasen, y el monto se ajusta al guardar.`}

@@ -1,12 +1,3 @@
-/**
- * Team formatting + status helpers. Pure functions that turn the §17 model values
- * (numbers, ISO dates, enums) into display strings and Badge variants, plus the
- * shared filter config and the data-derived composites (carga label, alerts, AI
- * insight). The composites take a {@link TeamDataSnapshot} so they recompute as
- * entries mutate; the `TeamDataProvider` binds them to its live state and exposes
- * them via `useTeamData`. Generic formatters (currency, dates, initials) are
- * reused from `clients-format.ts` so both pages render money and dates the same.
- */
 import { format, parseISO } from 'date-fns'
 import { es } from 'date-fns/locale'
 
@@ -41,12 +32,10 @@ export { formatCurrency, formatRelativeDate, formatMonthYear, initials }
 
 export const NO_RECORD = 'Sin registro'
 
-/** Short "14 jun" day + month label for the activity timeline day headers. */
 export function formatDayMonth(iso: string): string {
   return format(parseISO(iso), 'd LLL', { locale: es })
 }
 
-// ── Member status (feminine — the roster is "las chicas", PRD copy) ──────────
 export const TEAM_STATUS_LABEL: Record<TeamMemberStatus, string> = {
   active: 'Activa',
   paused: 'Pausada',
@@ -63,7 +52,6 @@ export function teamStatusBadge(status: TeamMemberStatus): { label: string; vari
   return { label: TEAM_STATUS_LABEL[status], variant: TEAM_STATUS_VARIANT[status] }
 }
 
-// ── Employment type ──────────────────────────────────────────────────────────
 export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
   full_time: 'Full time',
   part_time: 'Part time',
@@ -71,15 +59,6 @@ export const EMPLOYMENT_TYPE_LABEL: Record<EmploymentType, string> = {
   external: 'Externa',
 }
 
-// ── Payment type (compensation model) ────────────────────────────────────────
-// The studio calls this pay model "por proyecto": the collaborator is paid per piece
-// of contracted work, not per shoot. The STORED code stays `per_production` — nothing
-// validates the value (`team.schema.ts` takes a free string, the DB has no CHECK) and
-// `team-api-data.ts` silently coerces anything unrecognised to `monthly_fixed`, so a
-// row missed by a rename would change a person's pay model with no error anywhere.
-//
-// This label now sits on the same screens as the unrelated *Producción* entity (the
-// logged shoot/deliverable). They are different things:
 export const PAYMENT_TYPE_LABEL: Record<CompensationModel, string> = {
   monthly_fixed: 'Fijo mensual',
   hourly: 'Por hora',
@@ -87,7 +66,6 @@ export const PAYMENT_TYPE_LABEL: Record<CompensationModel, string> = {
   mixed: 'Mixto',
 }
 
-/** Compensation rate as a short display string (e.g. "AR$ 9.000 /h"), in its own lane. */
 export function compensationDisplay(member: TeamMember): string {
   const comp = member.compensation
   const money = (amount: number) => formatCurrency(amount, comp.currency)
@@ -105,7 +83,6 @@ export function compensationDisplay(member: TeamMember): string {
   }
 }
 
-// ── Load (carga mensual) ─────────────────────────────────────────────────────
 export const LOAD_LABEL: Record<LoadStatus, string> = {
   low: 'Baja',
   normal: 'Normal',
@@ -127,7 +104,6 @@ export function loadBadge(status: LoadStatus | undefined): { label: string; vari
   return { label: LOAD_LABEL[status], variant: LOAD_VARIANT[status] }
 }
 
-/** Progress-bar fill tone keyed to the load band (Progress `tone` prop). */
 export const LOAD_PROGRESS_TONE: Record<LoadStatus, 'default' | 'success' | 'warning' | 'danger'> = {
   low: 'default',
   normal: 'success',
@@ -135,7 +111,6 @@ export const LOAD_PROGRESS_TONE: Record<LoadStatus, 'default' | 'success' | 'war
   overloaded: 'danger',
 }
 
-/** "68 h / 80 h" (or "68 h" when there is no objective). */
 export function loadHoursLabel(d: TeamDataSnapshot, memberId: string): string {
   const tracked = trackedHoursForMember(d, memberId)
   const expected = expectedHoursForMember(d, memberId)
@@ -143,14 +118,12 @@ export function loadHoursLabel(d: TeamDataSnapshot, memberId: string): string {
   return `${tracked} h / ${expected} h`
 }
 
-/** Load as a 0–100 percentage for the Progress bar (clamped). */
 export function loadPercent(d: TeamDataSnapshot, memberId: string): number {
   const expected = expectedHoursForMember(d, memberId)
   if (expected <= 0) return 0
   return Math.min(Math.round((trackedHoursForMember(d, memberId) / expected) * 100), 100)
 }
 
-// ── Payment status (Estado de pago) ──────────────────────────────────────────
 export const PAYMENT_STATUS_LABEL: Record<TeamPaymentStatus, string> = {
   pending: 'Pendiente',
   review: 'En revisión',
@@ -173,7 +146,6 @@ export function paymentStatusBadge(status: TeamPaymentStatus): { label: string; 
   return { label: PAYMENT_STATUS_LABEL[status], variant: PAYMENT_STATUS_VARIANT[status] }
 }
 
-// ── Entry statuses (productions / viáticos / extras) ─────────────────────────
 export const PRODUCTION_STATUS_LABEL: Record<ProductionStatus, string> = {
   pending: 'Cargada',
   review: 'En revisión',
@@ -228,7 +200,6 @@ export function extraStatusBadge(status: ExtraStatus): { label: string; variant:
   return { label: EXTRA_STATUS_LABEL[status], variant: EXTRA_STATUS_VARIANT[status] }
 }
 
-// ── Task status (member work items) ──────────────────────────────────────────
 const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   pending: 'Pendiente',
   in_progress: 'En curso',
@@ -247,7 +218,6 @@ export function taskStatusBadge(status: TaskStatus): { label: string; variant: B
   return { label: TASK_STATUS_LABEL[status], variant: TASK_STATUS_VARIANT[status] }
 }
 
-// ── Objective status (member goals) ──────────────────────────────────────────
 const OBJECTIVE_STATUS_LABEL: Record<ObjectiveStatus, string> = {
   on_track: 'En curso',
   at_risk: 'En riesgo',
@@ -266,7 +236,6 @@ export function objectiveStatusBadge(status: ObjectiveStatus): { label: string; 
   return { label: OBJECTIVE_STATUS_LABEL[status], variant: OBJECTIVE_STATUS_VARIANT[status] }
 }
 
-/** Progress-bar tone per objective status (mirrors LOAD_PROGRESS_TONE). */
 export const OBJECTIVE_PROGRESS_TONE: Record<ObjectiveStatus, 'default' | 'success' | 'warning' | 'danger'> = {
   on_track: 'default',
   at_risk: 'warning',
@@ -274,7 +243,6 @@ export const OBJECTIVE_PROGRESS_TONE: Record<ObjectiveStatus, 'default' | 'succe
   overdue: 'danger',
 }
 
-// ── Assignment status (Clientes asignados) ───────────────────────────────────
 export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, string> = {
   active: 'Activa',
   paused: 'Pausada',
@@ -291,7 +259,6 @@ export function assignmentStatusBadge(status: AssignmentStatus): { label: string
   return { label: ASSIGNMENT_STATUS_LABEL[status], variant: ASSIGNMENT_STATUS_VARIANT[status] }
 }
 
-// ── Bank data completeness (Datos bancarios) ─────────────────────────────────
 export const BANK_LABEL: Record<BankCompleteness, string> = {
   complete: 'Completo',
   incomplete: 'Incompleto',
@@ -309,8 +276,6 @@ export function bankBadge(member: TeamMember): { label: string; variant: BadgeVa
   return { label: BANK_LABEL[completeness], variant: BANK_VARIANT[completeness] }
 }
 
-// ── Extras cell display ──────────────────────────────────────────────────────
-/** "Sin extras" / "3 pendientes" plus optional pending amount. */
 export function extrasDisplay(
   d: TeamDataSnapshot,
   memberId: string,
@@ -324,27 +289,20 @@ export function extrasDisplay(
   }
 }
 
-// ── Payment due date + progress (Estado de pago) ─────────────────────────────
-/** Whether the member's bank data is complete enough to send a payment out. Prefers the
- *  API-derived `bankComplete` (the fields are gated and absent from the member DTO); falls
- *  back to inspecting `member.bank` for mock/legacy data that still carries the fields. */
 export function isBankComplete(member: TeamMember): boolean {
   return member.bankComplete ?? bankCompleteness(member) === 'complete'
 }
 
-/** "10/06" day/month label from an ISO date. */
 function dayMonth(iso: string): string {
   const [, month, day] = iso.split('-')
   return `${day}/${month}`
 }
 
-/** Due-date label, overdue-aware ("Vence el 10/06" / "Venció el 10/06"). */
 export function paymentDueLabel(dueDate: string): { text: string; overdue: boolean } {
   const overdue = daysSince(dueDate) > 0
   return { text: `${overdue ? 'Venció' : 'Vence'} el ${dayMonth(dueDate)}`, overdue }
 }
 
-/** "Pagado $X · Queda $Y · Venció el 10/06" for with_difference / processing alerts. */
 export function paymentProgressSummary(statement: MonthlyTeamStatement): string {
   const paid = formatCurrency(statement.paidAmount ?? 0)
   const remaining = formatCurrency(statement.differenceAmount ?? 0)
@@ -352,19 +310,13 @@ export function paymentProgressSummary(statement: MonthlyTeamStatement): string 
   return `Pagado ${paid} · ${remainingLabel} ${remaining} · ${paymentDueLabel(statement.dueDate).text}`
 }
 
-// ── Member alerts (PRD §7.2) ─────────────────────────────────────────────────
 export type MemberAlert = {
   label: string
   tone: 'danger' | 'warning' | 'neutral'
-  /** Optional second line (e.g. the payment progress + due date). */
   description?: string
-  /** In-system action that resolves the alert; the CTA routes to the fix. */
   action: TeamInsightAction
 }
 
-/** Operational alerts for the detail summary, highest urgency first. Each alert
- *  carries the in-system action that resolves it (the CTA routes to the fix,
- *  never a static label) — mirroring `teamInsightAction`'s signal order. */
 export function memberAlerts(d: TeamDataSnapshot, member: TeamMember): MemberAlert[] {
   const alerts: MemberAlert[] = []
   if (bankCompleteness(member) !== 'complete') {
@@ -415,12 +367,10 @@ export function memberAlerts(d: TeamDataSnapshot, member: TeamMember): MemberAle
   return alerts
 }
 
-/** The single most relevant alert, for the compact list row. */
 export function primaryAlert(d: TeamDataSnapshot, member: TeamMember): MemberAlert | null {
   return memberAlerts(d, member)[0] ?? null
 }
 
-// ── AI insight (per-member headline, PRD §7.2) ───────────────────────────────
 function teamInsight(d: TeamDataSnapshot, member: TeamMember): string {
   const signals: string[] = []
   if (bankCompleteness(member) !== 'complete') signals.push('datos bancarios incompletos')
@@ -439,8 +389,6 @@ function teamInsight(d: TeamDataSnapshot, member: TeamMember): string {
   return `${member.name}: ${signals.join(', ')}.`
 }
 
-// ── AI insight CTA (resolution within system capabilities) ───────────────────
-/** In-system actions an insight CTA can trigger (handlers wired by the consumer). */
 export type TeamInsightActionKind =
   | 'logHours'
   | 'edit'
@@ -452,13 +400,6 @@ export type TeamInsightActionKind =
 
 export type TeamInsightAction = { label: string; kind: TeamInsightActionKind }
 
-/**
- * The in-system action that resolves the member's top insight signal — the CTA
- * directs to the fix, not a generic label. The branch order MUST match
- * `teamInsight`'s signal order so the CTA always addresses the signal the
- * headline leads with (AiInsight § CTA-resolution rule). When no signal needs
- * fixing, it directs to the next payment step or editing the person.
- */
 function teamInsightAction(d: TeamDataSnapshot, member: TeamMember): TeamInsightAction {
   const status = statementForMember(d, member.id)?.status
   if (bankCompleteness(member) !== 'complete') return { label: 'Completar datos', kind: 'edit' }
@@ -471,18 +412,11 @@ function teamInsightAction(d: TeamDataSnapshot, member: TeamMember): TeamInsight
   if (status === 'with_difference') return { label: 'Pagar', kind: 'payDifference' }
   if (status === 'processing') return { label: 'Confirmar pagado', kind: 'confirmPaid' }
   if (trackedHoursForMember(d, member.id) === 0) return { label: 'Cargar horas', kind: 'logHours' }
-  // No active signal — direct to the next payment step (matching StatementCard's
-  // label for the same status), or editing the person when already paid.
   if (status === 'approved') return { label: 'Pagar', kind: 'approvePayment' }
   if (status && status !== 'paid') return { label: 'Aprobar pago', kind: 'approvePayment' }
   return { label: 'Editar persona', kind: 'edit' }
 }
 
-/**
- * The member's next payment step for a given Estado de pago. Shared by the roster
- * row action and the detail's contextual "Pago" button so the two never diverge.
- * `null` means no step is available (already paid, or no statement).
- */
 export function paymentActionForStatus(
   status: TeamPaymentStatus | undefined,
 ): { label: string; kind: 'approvePayment' | 'payDifference' | 'confirmPaid' } | null {
@@ -503,8 +437,6 @@ export function teamInsightDisplay(
   }
 }
 
-// ── Search ───────────────────────────────────────────────────────────────────
-/** Concatenated searchable text per PRD §4.2 (nombre, rol, cliente, servicio). */
 export function teamSearchText(d: TeamDataSnapshot, member: TeamMember): string {
   return [member.name, member.role, member.email, ...clientsForMember(d, member.id)]
     .filter(Boolean)
@@ -512,12 +444,10 @@ export function teamSearchText(d: TeamDataSnapshot, member: TeamMember): string 
     .toLowerCase()
 }
 
-// ── Filters (shared by the table toolbar and the list panel) ─────────────────
 export type FilterOption = { value: string; label: string }
 
 export type TeamFilterId = 'status' | 'role' | 'paymentType' | 'load' | 'client' | 'extras' | 'bank'
 
-/** Local filter state (each key is an optional single-select value). */
 export type TeamFilters = { [K in TeamFilterId]?: string }
 
 const STATUS_FILTER_OPTIONS: FilterOption[] = (['active', 'paused', 'inactive'] as const).map(
@@ -541,12 +471,6 @@ const BANK_FILTER_OPTIONS: FilterOption[] = [
 
 export type TeamFilterField = { id: TeamFilterId; allLabel: string; options: FilterOption[] }
 
-/**
- * Build the team filter set (table + list popovers) from the LIVE roster: the Rol and
- * Cliente option universes come from the real members + their assignments (empty until
- * they exist), the rest are fixed enums. Roles are free text on the model, so their
- * option list is just the distinct roles actually present.
- */
 export function buildTeamFilterFields(roles: string[], clientNames: string[]): TeamFilterField[] {
   const roleOptions: FilterOption[] = Array.from(new Set(roles))
     .sort((a, b) => a.localeCompare(b, 'es'))
@@ -565,7 +489,6 @@ export function buildTeamFilterFields(roles: string[], clientNames: string[]): T
   ]
 }
 
-/** Array predicate applied by both the table (page-level) and the list panel. */
 export function teamMatchesFilters(
   d: TeamDataSnapshot,
   member: TeamMember,

@@ -10,7 +10,6 @@ import type { AssignedClient } from './employee-dashboard-types'
 function AssignedClientCard({ client }: { client: AssignedClient }) {
   const navigate = useNavigate()
   const status = clientStatusBadge(client.status)
-  // Deep-link into Clients: open this client's detail, flag the dashboard origin.
   const href = clientHref(client.clientId)
   return (
     <Card interactive onClick={() => navigate(href)} className="group relative overflow-hidden">
@@ -43,11 +42,6 @@ function AssignedClientCard({ client }: { client: AssignedClient }) {
   )
 }
 
-/**
- * §3 Mis clientes. Assigned clients from the employee's operational perspective:
- * role, scope, objective progress, hours, pending tasks and last feedback. Client
- * risk is translated into safe operational language only (status, never margin).
- */
 export function AssignedClientsSnapshot({ clients }: { clients: AssignedClient[] }) {
   return (
     <section aria-label="Mis clientes" className="flex flex-col">

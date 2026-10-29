@@ -53,11 +53,7 @@ import type { Receivable } from './cobros-mock-data'
 const globalFilterFn: FilterFn<Receivable> = (row, _columnId, value) =>
   receivableSearchText(row.original).includes(String(value).toLowerCase())
 
-// Column-visibility menu, mirroring the Clients/Team toolbars (`clients-toolbar.tsx`).
-// Repeated locally per the design-system 1:1 no-shared-composition policy.
 function CobrosColumnsMenu({ table }: { table: Table<Receivable> }) {
-  // Below desktop (≤1023px: tablet + phone) the toolbar collapses to icon-only
-  // controls; from `lg` up the labelled "Ver columnas" button returns.
   const isBelowDesktop = useIsBelowDesktop()
   const columns = table.getAllColumns().filter((column) => column.getCanHide())
   return (
@@ -121,41 +117,16 @@ type CobrosTabProps = {
   onSelect: (id: string) => void
   onClose: () => void
   inDetail: boolean
-  /** Optional breadcrumb shown in the navigator header (e.g. a deep link from Reportes). */
   breadcrumb?: ReactNode
-  /** Compact period picker for the navigator header (shown while a record is open). */
   periodControl?: ReactNode
-  /** Page-owned "Nuevo cobro" trigger: the header button opens the create dialog. */
   createOpen?: boolean
   onCloseCreate?: () => void
-  /** Page-owned "Generar cobros del mes" trigger (the month's retainers, in one action). */
   generateOpen?: boolean
   onCloseGenerate?: () => void
-  /**
-   * Effective master-detail mode, reported straight up from MasterDetailLayout. The
-   * PageHeader lives in the SHELL (cobranza-page), not here, so the shell owns the
-   * `mode` state and this tab only forwards the layout's report. It trails the panel
-   * exit, so the shell can fade its header back in in lockstep with the collapsing
-   * split instead of mid-exit.
-   */
   onModeChange?: (mode: 'table' | 'split') => void
-  /**
-   * Whether the shell's PageHeader is dissolved (desktop split open). Fed DOWN from
-   * the shell because the table slot lives here: while dissolved the shell's content
-   * layer covers the faded header, so the table has to be pushed back down by the
-   * header height to stay anchored. Do not derive it locally — the shell is the one
-   * that knows, and a second source of truth would drift.
-   */
   dissolved?: boolean
 }
 
-/**
- * Cobros table — the §8 master table on the Cobros page (`/cobros`) master-detail
- * surface, scoped to the selected period (§6) with the §9 facturación subflow wired
- * in. Selection is controlled by the page; the tab owns the full (mutable) demo
- * dataset and the facturación dialogs. Collection, edit and cancel run through their
- * dialogs (registrar cobro / editar / cancelar). No backend, no fake delays.
- */
 export function CobrosTab({
   selectedPeriod,
   selectedId,
@@ -171,10 +142,6 @@ export function CobrosTab({
   onModeChange,
   dissolved = false,
 }: CobrosTabProps) {
-  // Receivables live in the shared store so Cobros and Facturación (/billing) stay
-  // in sync: a factura issued on either surface is reflected on the other. Create,
-  // collect, edit, cancel and generar factura persist through the API; asociar/enviar
-  // editar datos fiscales is still optimistic-local (via applyReceivable).
   const {
     receivables: data,
     applyReceivable,
@@ -187,20 +154,12 @@ export function CobrosTab({
     associateInvoice,
     markInvoiceSent,
   } = useReceivables()
-  // Below desktop the detail is a covering bottom Sheet, so the list navigator header
-  // must not appear behind it (the reflow pushes the visible strip around the sheet),
-  // and the period control must travel INTO the detail (see the `periodControl` prop).
   const belowDesktop = useIsBelowDesktop()
   const [dialog, setDialog] = useState<CobrosInvoiceDialog>({ kind: 'none' })
   const [cancelTarget, setCancelTarget] = useState<Receivable | null>(null)
 
   const closeDialog = useCallback(() => setDialog({ kind: 'none' }), [])
 
-  // On period change, re-resolve the selection to the same client in the new period
-  // (the receivable id differs per period) so switching period from the detail keeps
-  // the master-detail split open. No match → the stale id stays selected and the
-  // layout shows the empty detail rather than dropping to the table. Idempotent: a
-  // same-period selection resolves to itself, so this is a no-op outside a switch.
   useEffect(() => {
     if (selectedId == null) return
     const current = data.find((receivable) => receivable.id === selectedId)
@@ -212,8 +171,6 @@ export function CobrosTab({
     if (next && next.id !== selectedId) onSelect(next.id)
   }, [selectedPeriod, selectedId, data, onSelect])
 
-  // Destructive cancel: confirm via AlertDialog (feedback §7), then persist the
-  // cancel (POST /receivables/:id/cancel); the store drops it from the list.
   async function confirmCancel() {
     if (!cancelTarget) return
     const target = cancelTarget
@@ -246,14 +203,7 @@ export function CobrosTab({
   )
   const kpis = useMemo(() => cobrosKpis(periodData), [periodData])
 
-  // F1 (tablet): the 11-column collections grid overflows the narrowed content
-  // column below desktop, pushing "Monto a cobrar" and the trailing columns off the
-  // right edge. Seed the low-value columns hidden below desktop so the high-value
-  // ones (Cliente, Monto, Estado, Vencimiento) plus the pinned actions fit without
-  // overflow; all stay re-addable via the "Ver columnas" menu. Desktop is unchanged.
   const initialColumnVisibility = {
-    // The lane is already on every amount cell; this column exists so the Moneda filter
-    // has a column id to target.
     currency: false,
     ...(belowDesktop
       ? {
@@ -271,10 +221,6 @@ export function CobrosTab({
   const selected = periodData.find((receivable) => receivable.id === selectedId) ?? null
   const layoutSelectedId = inDetail ? (selected ? selectedId : '__cobros-empty__') : null
 
-  // Navigator header (`list`), shown only while a record is open (`inDetail`).
-  // In table mode the page's PageHeader carries the title; on mobile the list is
-  // the full-width base under that PageHeader — so this is gated on `inDetail` to
-  // avoid duplicating the title.
   const header = <SectionHeader title="Cobros" breadcrumb={breadcrumb} actions={periodControl} />
 
   const tableInner =
@@ -282,12 +228,7 @@ export function CobrosTab({
       <CobrosEmpty />
     ) : (
       <div className="flex flex-col gap-4 md:gap-6">
-        {/* §6 master-view focal → Saldo pendiente (the outstanding to collect). */}
         <div className="flex flex-col gap-4 px-4 md:px-6 lg:px-8 desktop:px-10">
-          {/* ONE card, TWO co-equal heroes — Saldo pendiente per lane. See the /pagos
-              twin for the governance reasoning. What is specific here: the pair measures
-              the SALDO, not the period total, because that is what this screen's hero has
-              always measured and a pair has to be the same question in two lanes. */}
           <KpiSummaryCard
             figures={kpis}
             heroId={COBROS_HERO_IDS}
@@ -332,13 +273,6 @@ export function CobrosTab({
         onModeChange={onModeChange}
         onCloseDetail={onClose}
         detailTitle="Detalle del cobro"
-        // `--md-table-offset` is published on the SHELL's region node (cobranza-page,
-        // via useHeaderOffset) and consumed here. That works because custom properties
-        // inherit down the DOM and the region is an ancestor of this slot — but nothing
-        // in the type system links the two, so keep the names in step. The offset rides
-        // this slot wrapper, not the inner DataTable gutter: the KPI card above the
-        // table has to shift down with it as one block. Horizontal gutters stay with
-        // the children (copying them here would double-inset the whole master view).
         table={
           <div className={cn('flex flex-col', dissolved && 'pt-[var(--md-table-offset)]')}>
             {tableInner}
@@ -360,13 +294,6 @@ export function CobrosTab({
               onAssociateInvoice={(receivable) => setDialog({ kind: 'associate', receivable })}
               onMarkCollected={(receivable) => setDialog({ kind: 'collect', receivable })}
               onEditFiscalData={() => setDialog({ kind: 'fiscal', receivable: selected })}
-              // Hand the period control to the detail wherever the detail is a COVERING
-              // Sheet — which MasterDetailLayout decides on `isBelowDesktop`, not
-              // `isMobile`. Gating this on `isMobile` left the 768-1023 band with no
-              // reachable period picker at all: the PageHeader's Select stays mounted but
-              // sits under the Sheet's modal scrim, so the user had to close the record,
-              // change period, and re-open it. On desktop the split leaves the header
-              // reachable, so the detail must NOT duplicate the control.
               periodControl={belowDesktop ? periodControl : undefined}
             />
           ) : (

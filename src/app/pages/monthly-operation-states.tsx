@@ -1,6 +1,5 @@
 import { Button, Skeleton } from '@/app/components/components'
 
-/** Loading state: the insight banner + summary card + the two work sections. */
 export function MonthlyOperationLoading() {
   return (
     <div className="flex flex-col gap-4 md:gap-6 px-4 md:px-6 lg:px-8 desktop:px-10" aria-hidden>
@@ -12,17 +11,6 @@ export function MonthlyOperationLoading() {
   )
 }
 
-/**
- * Page-level error state with retry.
- *
- * `/operacion-mensual` MUST render this instead of the month when the plan bundle fetch
- * fails. The provider seeds every period with `EMPTY_DATA`, so a failed fetch does not
- * leave the page blank, it leaves it at ZERO: `summarize(EMPTY_DATA)` yields a full KPI
- * strip of confident $0 figures, and `Rentabilidad estimada $0` is tinted `fg-success`
- * (the tone is `>= 0 ? 'success' : 'danger'`). That reads as a green break-even verdict
- * for a month the app never loaded. A month that failed to load has no figures, and the
- * page must say so rather than invent them.
- */
 export function MonthlyOperationError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 md:px-6 lg:px-8 desktop:px-10 py-16 text-center">

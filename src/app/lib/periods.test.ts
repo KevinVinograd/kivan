@@ -11,13 +11,6 @@ import {
   toPeriod,
 } from './periods'
 
-/**
- * This module decides which month every money surface shows. It shipped with no tests, and
- * the one shape bug it hid — a validator that returned the caller's string instead of a
- * canonical one — reached a code review rather than a red suite. These pin the contract the
- * five surfaces depend on.
- */
-
 describe('period keys', () => {
   it('round-trips a date through both key shapes', () => {
     const period = toPeriod(new Date(2026, 6, 15))
@@ -27,11 +20,7 @@ describe('period keys', () => {
   })
 
   it('reads the LOCAL calendar, not UTC', () => {
-    // 1st of the month at 00:30 local. `toISOString().slice(0,10)` would report the previous
-    // month west of Greenwich, which is the bug `lib/iso-date.ts` exists to prevent and the
-    // reason this uses date-fns `format`.
     expect(toPeriod(new Date(2026, 6, 1, 0, 30))).toBe('2026-07-01')
-    // 31 Dec 23:59 local must stay in December, not roll into January.
     expect(toPeriod(new Date(2026, 11, 31, 23, 59))).toBe('2026-12-01')
   })
 })
@@ -42,8 +31,6 @@ describe('previousPeriod', () => {
   })
 
   it('never runs out', () => {
-    // The array lookup this replaced returned null past the end of a three-item list, which
-    // silently switched "comparar con período anterior" off on the oldest month.
     let period = '2026-03-01'
     for (let index = 0; index < 40; index++) period = previousPeriod(period)
     expect(period).toBe('2022-11-01')
@@ -85,18 +72,12 @@ describe('periodOptions', () => {
 
 describe('readPeriodParam', () => {
   it('normalizes every accepted shape to a canonical period', () => {
-    // The regression this closes: each of these used to be handed back verbatim and then
-    // compared with `===` against rows and options that are all 'YYYY-MM-01'. Nothing
-    // matched, so the selector rendered blank over an empty month — and a cobro created
-    // from that state was stamped with the raw value and became unmatchable in every month.
     for (const input of ['2026-07', '2026-07-01', '2026-07-15', '2026-07-31']) {
       expect(readPeriodParam(input)).toBe('2026-07-01')
     }
   })
 
   it('accepts an impossible DAY, because the day is discarded before it can be wrong', () => {
-    // '2026-02-31' used to reach `formatMonthYear`, where date-fns throws RangeError on the
-    // invalid date and took the create dialog's subtree down with it.
     expect(readPeriodParam('2026-02-31')).toBe('2026-02-01')
   })
 

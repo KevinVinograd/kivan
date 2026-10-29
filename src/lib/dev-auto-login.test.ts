@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import { resolveDevAutoLogin, type DevAutoLoginSource } from './dev-auto-login'
 
-/** A fully opted-in source; each test negates exactly one condition. */
 function source(overrides: Partial<DevAutoLoginSource> = {}): DevAutoLoginSource {
   return {
     dev: true,

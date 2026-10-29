@@ -24,7 +24,6 @@ import { useRole } from '@/app/lib/use-role'
 import { parseAmountInput } from './clients-dialogs'
 import { formatCurrency } from './clients-format'
 
-/** Case- and accent-insensitive, so "jose" finds "José" and "nati" finds "Natí". */
 function normalize(text: string): string {
   return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase()
 }
@@ -34,22 +33,6 @@ export interface SearchOption {
   name: string
 }
 
-/**
- * A select you can type into, for the lists that grew too long to scroll.
- *
- * HOLD asked for it on 2026-10-01: assigning a person to a client meant scrolling the
- * whole roster for every pick, and the client list the other way round is longer still.
- * It is the DS combobox — `Command` inside a `Popover` — not a hand-rolled filtered
- * list, and its trigger carries the `Select` trigger's tokens so it sits flush beside
- * the Selects in the same dialog.
- *
- * Two details carry weight:
- * - The item VALUE is the id and the name rides in `keywords`, with the filter reading
- *   only the keywords. Matching on the value would match the letters of every uuid,
- *   so typing "b" would surface people whose name has no "b" at all.
- * - `modal` on the Popover. This renders inside a `Dialog`, whose scroll lock would
- *   otherwise swallow the wheel over the portaled list.
- */
 export function SearchSelect({
   label,
   options,
@@ -117,13 +100,6 @@ export function SearchSelect({
   )
 }
 
-/**
- * The area a person works in for a client, from the closed list (`ASSIGNMENT_AREAS`).
- *
- * It replaced a free-text field that let the same role reach the database spelled three
- * ways. There is deliberately no default: guessing an area from the person's job title
- * would put a wrong value in a field whose whole point is to be right.
- */
 export function AreaSelect({
   value,
   onChange,
@@ -147,13 +123,6 @@ export function AreaSelect({
   )
 }
 
-/**
- * The amount typed in "Le pagamos por este cliente", read as es-AR money.
- *
- * `undefined` when the field is EMPTY: nobody has said what this client costs. A typed
- * `0` is a different answer (the studio agreed it costs nothing), so the field is kept as
- * a raw string and read here, never held as a number that would collapse the two.
- */
 export function parseCostInput(costInput: string): number | undefined {
   return costInput.trim() === '' ? undefined : parseAmountInput(costInput)
 }
@@ -167,15 +136,6 @@ function TermsField({ label, children }: { label: string; children: ReactNode })
   )
 }
 
-/**
- * The terms of an assignment: area, estimated monthly hours and what the studio pays the
- * person for the client. Shared by both "Asignar" dialogs and "Editar asignación", so a
- * relationship records the same fields whichever side it is created or corrected from,
- * and a field added later reaches all three.
- *
- * The amount is `teamCost` information: without that capability the field is not shown
- * and the API would refuse to write it anyway.
- */
 export function AssignmentTermsFields({
   area,
   onAreaChange,
@@ -187,7 +147,6 @@ export function AssignmentTermsFields({
 }: {
   area: AssignmentArea | ''
   onAreaChange: (area: AssignmentArea) => void
-  /** Shown under the area, e.g. a legacy free-text value that is not in the list. */
   areaHint?: string
   hours: number
   onHoursChange: (hours: number) => void
@@ -207,7 +166,6 @@ export function AssignmentTermsFields({
         <Input
           type="number"
           min={0}
-          // Whole hours: the API stores an integer and refuses a fraction with a 400.
           step={1}
           value={hours}
           onChange={(e) => onHoursChange(Math.max(0, Math.round(Number(e.target.value) || 0)))}
@@ -216,18 +174,12 @@ export function AssignmentTermsFields({
       {showCost ? (
         <TermsField label="Le pagamos por este cliente (ARS)">
           <Input
-            // Not type="number": spinner arrows, a refused free-typed amount, and a stuck
-            // leading zero.
             type="text"
             inputMode="decimal"
             placeholder="Sin cargar"
             value={costInput}
             onChange={(e) => onCostInputChange(e.target.value.replace(/[^\d.,]/g, ''))}
           />
-          {/* The echo is not decoration. `parseAmountInput` reads es-AR money, so `1.500`
-              is one thousand five hundred and not one and a half, and it returns 0 for
-              anything it cannot read, which is indistinguishable from a deliberate zero
-              unless the operator can see the result. */}
           <span className="type-caption fg-subtle">
             {monthlyCost === undefined
               ? 'Podés dejarlo vacío y cargarlo después'

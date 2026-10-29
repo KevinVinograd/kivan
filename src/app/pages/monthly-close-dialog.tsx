@@ -23,12 +23,6 @@ const FIGURE_TONE_FG: Record<'default' | 'success' | 'danger', string> = {
   danger: 'fg-danger',
 }
 
-/**
- * Close-month dialog (PRD copy). The final reconfirmation before cierre: it
- * surfaces the close summary figures and the seven close validations. When any
- * blocker is present the month cannot be closed; when clear, the user must
- * acknowledge the lock before confirming. Snapshot + lock happen in the store.
- */
 export function CloseMonthDialog({
   monthLabel,
   figures,

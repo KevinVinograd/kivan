@@ -1,4 +1,3 @@
-/** Member activity (viáticos + extra work) — thin typed wrappers over the api client. */
 import { z } from 'zod'
 import { apiClient } from './client'
 

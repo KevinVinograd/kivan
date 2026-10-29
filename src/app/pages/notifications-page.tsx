@@ -7,32 +7,18 @@ import { AFFORDANCE } from '@/app/lib/icon-registry'
 import { queryKeys } from '@/queries/keys'
 import { formatRelativeDate } from './cobranza-format'
 
-/**
- * Avisos (`/notificaciones`) — the in-app inbox. Every notice here was written by a real
- * action inside its own transaction (a month closed, a payment approved, a statement
- * sent), so nothing in this list announces something that did not commit.
- *
- * Strictly per person: the API only ever returns and marks the caller's own rows, and the
- * unread count in the nav badge is this same query.
- */
-
-/** Spanish label per event key. An unknown type (a notice written by a newer server)
- *  still renders — it shows its own title, just without a translated kind. */
 const TYPE_LABEL: Record<string, string> = {
   'month.closed': 'Cierre de mes',
   'payment.approved': 'Pago aprobado',
   'statement.sent': 'Estado de cuenta',
 }
 
-/** `2026-08-05T12:30:00Z` → `05/08 12:30`. Local calendar, like every other date here. */
 function NoticeRow({ notice, onRead }: { notice: NotificationDto; onRead: (id: string) => void }) {
   const unread = notice.readAt == null
   return (
     <div className="flex items-start justify-between gap-3 border-b border-alpha-subtle py-3 last:border-b-0">
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center gap-2">
-          {/* Unread is carried by the badge, not by a colored title: status lives on the
-              badge (figure-color-restraint). */}
           {unread ? <Badge variant="neutral">Nuevo</Badge> : null}
           <span className="type-caption fg-subtle">{TYPE_LABEL[notice.type] ?? notice.type}</span>
           <span className="type-caption fg-subtle">{formatRelativeDate(notice.createdAt)}</span>
@@ -80,8 +66,6 @@ export function NotificationsPage() {
   if (query.isLoading) {
     body = <p className="type-body-2 fg-subtle">Cargando avisos…</p>
   } else if (query.isError) {
-    // Never show an empty inbox over a failed fetch: "no tenés avisos" is a different
-    // claim from "no pudimos traerlos" (SE001).
     body = (
       <div className="flex flex-col items-start gap-2">
         <p className="type-body-2 fg-danger">No pudimos cargar tus avisos.</p>

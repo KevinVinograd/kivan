@@ -12,17 +12,6 @@ import {
   DialogTitle,
 } from "@/app/components/components/dialog"
 
-/**
- * Command — shadcn/ui (new-york) cmdk command menu, token-adapted. A filterable
- * command/combobox list: `bg-surface-flat` container, control-family input
- * placeholder, neutral `bg-alpha-subtle-hover` selection highlight, hairline
- * separators. Theme is handled by the tokens (no `dark:` overrides).
- *
- * Scope: the inline parts plus `CommandDialog`, the modal wrapper that hosts a
- * `Command` inside the adopted `Dialog` (re-adopted in P3 once Dialog landed; the
- * dialog content drops its padding so the command surface sits flush, and the
- * title/description are visually hidden for the accessible name).
- */
 function Command({
   className,
   ...props
@@ -84,8 +73,6 @@ function CommandInput({
       <SearchIcon className="size-4 shrink-0 opacity-50" />
       <CommandPrimitive.Input
         data-slot="command-input"
-        // Always carry an accessible name (the input has no visible <label>):
-        // explicit aria-label wins, else the placeholder, else a generic fallback.
         aria-label={ariaLabel ?? (typeof placeholder === "string" ? placeholder : "Buscar")}
         placeholder={placeholder}
         className={cn(

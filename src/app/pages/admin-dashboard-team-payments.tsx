@@ -9,8 +9,6 @@ import { formatCompactCurrency, formatCurrency, teamPayStatusBadge } from './adm
 import { MetricTile } from './admin-dashboard-ui'
 import type { TeamPayments, TeamPayRow } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const TEAM_PAYMENTS_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=equipo',
   { label: 'Dashboard', to: '/dashboard' },
@@ -44,13 +42,6 @@ function TeamPaymentCard({ row }: { row: TeamPayRow }) {
   )
 }
 
-/**
- * §5 Pagos al equipo. Helps admin prepare and validate team payments: the
- * to-pay / paid / pending / blocked totals plus a per-person list of payment
- * issues (one card each, mirroring Clientes en riesgo) with the blocker reason
- * (CBU, horas, viáticos). Read-only — it surfaces "Ver pago" only; there is no
- * "pay now" action because the app has no real payment behavior.
- */
 export function TeamPaymentsOperationsCard({ payments }: { payments: TeamPayments }) {
   return (
     <section aria-label="Pagos al equipo" className="group/pagos flex flex-col">

@@ -42,7 +42,6 @@ import {
   type ClientFilterId,
   type IncreaseTone,
 } from './clients-format'
-// Risk badge + band reused from the shared dashboard risk model (single source).
 import { riskLevelBadge } from './dashboard-format'
 import type { RiskLevel } from './dashboard-types'
 import { LogProductionItem, ViewProductionsItem } from './log-production-item'
@@ -50,9 +49,6 @@ import { LogProductionItem, ViewProductionsItem } from './log-production-item'
 const MAX_SERVICES = 2
 const MAX_TEAM = 2
 
-/** Stable column ids the toolbar targets for filtering. Each value must be a
- *  `ClientFilterId` so the toolbar's `CLIENT_FILTER_FIELDS`-driven filters stay
- *  in lockstep with the list-filter keys (a rename now fails to compile). */
 export const COLUMN_IDS = {
   risk: 'risk',
   status: 'status',
@@ -64,7 +60,6 @@ export const COLUMN_IDS = {
   lastMeetingDate: 'lastMeetingDate',
 } as const satisfies Record<string, ClientFilterId>
 
-/** Human labels for the "Ver columnas" visibility menu (keyed by column id). */
 export const COLUMN_LABELS: Record<string, string> = {
   name: 'Cliente',
   risk: 'Riesgo',
@@ -80,7 +75,6 @@ export const COLUMN_LABELS: Record<string, string> = {
   nextAction: 'Próxima acción',
 }
 
-/** Row action handlers, supplied by the page (dialogs / selection live there). */
 export type ClientRowActions = {
   onView: (client: Client) => void
   onEdit: (client: Client) => void
@@ -88,17 +82,11 @@ export type ClientRowActions = {
   onIssueInvoice: (client: Client) => void
   onSendStatement: (client: Client) => void
   onAddExtraWork: (client: Client) => void
-  /** Turn the client off (reversible): sets it inactive but keeps it in the list. */
   onChurn: (client: Client) => void
-  /** Remove the client from every view (permanent from the UI; billing history kept). */
   onDelete: (client: Client) => void
-  // Employee self-work-log openers (client-prefilled, member-fixed). Used only by
-  // the employee-only Cargar column; owner/admin never render it, so for them
-  // these are never invoked.
   onLogHours: (client: Client) => void
   onLogProduction: (client: Client) => void
   onLogExtra: (client: Client) => void
-  /** A communication lead's productions window for the client (history + approve). */
   onViewProductions: (client: Client) => void
 }
 
@@ -127,16 +115,8 @@ const INCREASE_TONE_CLASS: Record<IncreaseTone, string> = {
   none: 'fg-subtle',
 }
 
-/** Columns the employee perspective keeps: identity + operational context only.
- *  Money/billing columns (fee, payment, profitability, factura, último aumento),
- *  bulk selection and the manager row-actions menu are dropped. The roster stays
- *  money-free; a Cargar self-action column (below) is appended so the employee can
- *  log their OWN work against an assigned client — no client financials, no CRUD. */
 const EMPLOYEE_COLUMN_IDS = new Set(['name', 'risk', 'status', 'services', 'team', 'lastMeetingDate', 'nextAction'])
 
-/** Employee-only trailing column: a "Cargar" menu to log the signed-in employee's
- *  own work (hours / producción / trabajo extra) against this assigned client,
- *  prefilled. Never billing or CRUD — those stay owner/admin. */
 function employeeCargarColumn(actions: ClientRowActions): ColumnDef<Client> {
   return {
     id: 'cargar',
@@ -234,17 +214,12 @@ export function clientColumns(
       ),
     },
     {
-      // Derived, month-scoped risk band (resolved by `riskOf`). Hidden by default
-      // — its purpose is the toolbar "Riesgo" filter; it can be toggled visible.
       id: COLUMN_IDS.risk,
       accessorFn: (client) => riskOf(client),
       header: 'Riesgo',
       filterFn: equalsFilter,
       enableSorting: false,
       cell: ({ getValue }) => {
-        // A null band means the risk is unknown (the role may not read the capability-gated
-        // aggregates, or they have not loaded). Say that — a green "Saludable" here
-        // would be a claim about the client's health we have no basis for.
         const level = getValue<RiskLevel | null>()
         if (!level) return <Badge variant="neutral">Sin datos</Badge>
         const { label, variant } = riskLevelBadge(level)
@@ -268,9 +243,6 @@ export function clientColumns(
       header: 'Servicios',
       enableSorting: false,
       filterFn: servicesFilter,
-      // Low-priority on a narrow container: collapses below 1152px so the financial
-      // columns (fee / pago / rentabilidad / factura) are never clipped; restored
-      // on a wide desktop content column.
       meta: { hideOnNarrow: true },
       cell: ({ row }) => {
         const services = row.original.services
@@ -316,7 +288,6 @@ export function clientColumns(
       id: 'team',
       header: 'Equipo',
       enableSorting: false,
-      // Low-priority on a narrow container (cross-reference info, also in detail).
       meta: { hideOnNarrow: true },
       cell: ({ row }) => {
         const members = row.original.assignedTeam
@@ -365,7 +336,6 @@ export function clientColumns(
       filterFn: equalsFilter,
       cell: ({ row }) => {
         const payment = paymentDisplay(row.original)
-        // No cobro this month is not a payment state — the dash, not a badge claiming one.
         if (!payment) return <span className="fg-subtle">{NO_REGISTRO}</span>
         const { label, variant, detail } = payment
         return (
@@ -417,9 +387,6 @@ export function clientColumns(
     {
       id: COLUMN_IDS.monotributo,
       header: 'Factura',
-      // The cell shows invoice status + the issuing monotributo; the column is
-      // keyed/filtered on `billingEntity` (the toolbar exposes a "Monotributo"
-      // filter on it), so accessor and filterFn agree on the same field.
       accessorFn: (client) => client.billingEntity,
       enableSorting: false,
       filterFn: billingEntityFilter,
@@ -492,12 +459,6 @@ export function clientColumns(
                   <ICON.addExtraWork aria-hidden />
                   Agregar trabajo extra
                 </DropdownMenuItem>
-                {/* Two removal choices, consolidated from the old Pausar/Dar de baja/Eliminar
-                    trio that were routinely confused. Deshabilitar is the soft, reversible one
-                    (turns the client off but keeps it in the list), so it is neutral, not
-                    destructive. Eliminar permanente is the hard one and carries the danger
-                    treatment. Owner/admin only by construction: the employee roster never
-                    renders this actions column. */}
                 <DropdownMenuItem onSelect={() => actions.onChurn(client)}>
                   <ICON.churn aria-hidden />
                   Deshabilitar
@@ -515,8 +476,6 @@ export function clientColumns(
     },
   ]
 
-  // Role-gated columns: the employee sees an identity/operational subset only;
-  // a role without the `profitability` capability loses the profitability column.
   if (role === 'employee')
     return [
       ...columns.filter((column) => EMPLOYEE_COLUMN_IDS.has(column.id ?? '')),

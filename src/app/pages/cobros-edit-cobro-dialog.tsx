@@ -25,25 +25,6 @@ import { formatCurrency, formatMoney, formatMonthYear, NO_VALUE } from './cobran
 import type { UpdateCobroInput } from './receivables-api-data'
 import type { Receivable } from './cobros-mock-data'
 
-/**
- * Editar cobro — edit the amounts and service fields of a receivable. `totalAmount`
- * is recomputed live (base + extra - discount); on save it persists via `onSave`
- * (PATCH /receivables/:id, which re-derives the total server-side and rejects a
- * total below what's already collected). Amounts must be non-negative.
- *
- * The service is a closed set here too, matching Nuevo cobro. `Receivable` carries a
- * `clientName` and no `clientId`, so this dialog cannot resolve the client's own
- * contracted services the way the create dialog does; it offers the full catalog
- * instead. Rows written before the catalog existed keep their stored value as an
- * option, so correcting an amount never silently rewrites what the client was billed for.
- */
-/**
- * The costs a cobro carries beyond the people on it. Design, communication and
- * production used to be typed here too; since 2026-10-01 the cost of the PEOPLE comes
- * from each client's assignments ("Le pagamos por este cliente"), so they left this form
- * rather than become a second place to enter the same salary. Viáticos followed: they are
- * recorded on each production, where HOLD also marks them paid.
- */
 type CostArea = 'pauta' | 'fixed'
 const COST_AREAS: { key: CostArea; label: string }[] = [
   { key: 'pauta', label: 'Pauta' },
@@ -65,8 +46,6 @@ export function CobrosEditCobroDialog({
   const [service, setService] = useState(receivable.service)
   const [dueDate, setDueDate] = useState(receivable.dueDate.slice(0, 10))
   const [submitting, setSubmitting] = useState(false)
-  // Cost by area. Only a viewer holding `profitability` may see or write it (the server
-  // enforces the write); for anyone else the section is absent and nothing is sent.
   const { capabilities } = useRole()
   const canEditCosts = hasCapability(capabilities, 'profitability')
   const [costs, setCosts] = useState<Record<CostArea, string>>({
@@ -99,15 +78,10 @@ export function CobrosEditCobroDialog({
     try {
       await onSave({
         service,
-        // Only a changed base. An itemized cobro's base is the sum of its lines and the API
-        // refuses to change it; resending the unchanged one made every save of such a cobro
-        // fail, extras and discount included.
         ...(baseN !== receivable.baseAmount ? { baseAmount: baseN } : {}),
         extraAmount: extraN,
         discountAmount: discountN,
         dueDate,
-        // Omitted entirely for a viewer without the capability, so an edit by them never
-        // blanks costs someone else recorded.
         ...(canEditCosts
           ? {
               costs: {
@@ -120,8 +94,6 @@ export function CobrosEditCobroDialog({
       toast.success('Cambios guardados')
       onClose()
     } catch (error) {
-      // The server says why (e.g. "Este cobro está desglosado por servicio…"), and that is
-      // the one thing the operator needs to fix it.
       toast.error('No se pudo guardar el cobro', {
         description: error instanceof ApiError && error.message ? error.message : 'Probá de nuevo en un momento.',
       })
@@ -205,16 +177,6 @@ export function CobrosEditCobroDialog({
                   </label>
                 ))}
               </div>
-              {/* `total` is in the COBRO's lane; the six cost inputs above are peso
-                  figures with nowhere else to live (one `currency` column governs the
-                  whole row). So `total - costTotal` on a non-peso cobro subtracts pesos
-                  from dollars and yields a number in no currency at all — which this
-                  printed under a "$". There is no formatter that fixes that.
-
-                  Until the model can hold a peso equivalent of a non-peso total, the
-                  honest move is to not state a margin rather than to state a wrong one.
-                  Whether a dollar cobro should have a margin at all is a product
-                  decision; refusing to invent one is correct under either answer. */}
               <div className="flex items-center justify-between rounded-control bg-alpha-subtle px-3 py-2">
                 <span className="type-caption fg-subtle">Rentabilidad</span>
                 <span className="type-button fg-default tabular-nums">

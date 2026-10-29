@@ -4,7 +4,6 @@ import type { ClientDto } from '@/api/clients'
 import { dtoToClient, toClientPayload } from './clients-api-data'
 import type { ClientFormValues } from './clients-dialogs'
 
-/** A raw Client entity DTO with neutral defaults; override only what a case asserts. */
 function clientDto(overrides: Partial<ClientDto> = {}): ClientDto {
   return {
     id: 'cli-1',
@@ -41,9 +40,6 @@ describe('dtoToClient', () => {
   it('converts the fee from minor units (centavos) to major units (pesos)', () => {
     const c = dtoToClient(clientDto({ monthlyFeeMinor: '150000' }))
     expect(c.monthlyFee).toBe(1500)
-    // The CONTRACTED fee is not the amount due: nothing here says anybody billed it
-    // this month. It used to be copied into `currentMonthDueAmount`, which is how a
-    // client with no cobro still showed a balance owing.
     expect(c.currentMonthDueAmount).toBeUndefined()
   })
 
@@ -79,14 +75,6 @@ describe('dtoToClient', () => {
     expect(c.lastIncreaseDate).toBe('2026-03-01')
   })
 
-  /**
-   * This assertion used to be the opposite, and it codified the bug: it required
-   * `dtoToClient` to invent a payment status and an invoice status the client DTO does
-   * not carry. A client's money per month lives on RECEIVABLES, one per service, so the
-   * entity mapper must leave those absent and let `clients-receivables.ts` project the
-   * real figures. Defaulting them made every client read "Pendiente · fee mensual"
-   * whether or not anybody had billed them.
-   */
   it('leaves the month money absent — the client entity does not carry it', () => {
     const c = dtoToClient(clientDto())
     expect(c.assignedTeam).toEqual([])
@@ -97,9 +85,6 @@ describe('dtoToClient', () => {
   })
 
   it('reads the contracted services from the DTO', () => {
-    // These were hardcoded to [], so the roster, the Servicios filter, the CSV cell
-    // and the detail badges all reported zero services for every client, and the
-    // edit dialog reopened with every checkbox cleared.
     const c = dtoToClient(clientDto({ services: ['Redes', 'Diseño gráfico'] }))
     expect(c.services).toEqual(['Redes', 'Diseño gráfico'])
   })
@@ -131,9 +116,6 @@ describe('dtoToClient', () => {
   })
 
   it('reads the emisor from the DTO instead of assuming the first monotributo', () => {
-    // This was hardcoded to 'monotributo_1', so the whole portfolio reported the
-    // same emisor no matter which one the operator had chosen. The fixture's null
-    // default meant the old assertion passed either way and covered nothing.
     expect(dtoToClient(clientDto({ billingEntityId: 'monotributo_2' })).billingEntity).toBe(
       'monotributo_2',
     )
@@ -143,11 +125,6 @@ describe('dtoToClient', () => {
   })
 
   it('leaves the emisor unset rather than inventing one', () => {
-    // This deliberately does NOT fall back to 'monotributo_1'. The form seeds itself
-    // from the row and the payload builder writes the emisor back, so a fabricated
-    // fallback was persisted on the first edit of any client that never had one,
-    // converting "nobody decided yet" into "the operator chose Vicky" across the
-    // whole book, during the exact window in which it is being loaded by hand.
     expect(dtoToClient(clientDto({ billingEntityId: null })).billingEntity).toBeUndefined()
     expect(dtoToClient(clientDto({ billingEntityId: 'monotributo_9' })).billingEntity).toBeUndefined()
   })
@@ -160,7 +137,6 @@ describe('dtoToClient', () => {
 })
 
 describe('toClientPayload', () => {
-  /** A blank form; override only what a case asserts. */
   function form(overrides: Partial<ClientFormValues> = {}): ClientFormValues {
     return {
       name: 'Estudio Uno',
@@ -191,20 +167,14 @@ describe('toClientPayload', () => {
   }
 
   it('sends an emptied domicilio and discount as null, so clearing them clears them', () => {
-    // Every OTHER optional is omitted when blank, which means the server keeps what it
-    // had. That is tolerable for a phone; a discount rate that can be set and never
-    // removed keeps taking money off every cobro after the deal ended.
     const payload = toClientPayload(form({ address: '', discountPercent: 0 }))
     expect(payload.address).toBeNull()
     expect(payload.discountPercentBp).toBeNull()
-    // The contrast that proves the rule is deliberate and not a blanket change.
     expect('phone' in payload).toBe(false)
     expect('adminContactName' in payload).toBe(false)
   })
 
   it('converts the agreed percent to basis points', () => {
-    // The form speaks percent because that is what the studio agreed; the column and the
-    // generator speak basis points so the arithmetic stays integer.
     expect(toClientPayload(form({ discountPercent: 10 })).discountPercentBp).toBe(1000)
     expect(toClientPayload(form({ discountPercent: 12.5 })).discountPercentBp).toBe(1250)
   })

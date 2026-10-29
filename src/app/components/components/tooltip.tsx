@@ -3,12 +3,6 @@ import { Tooltip as TooltipPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Tooltip — shadcn/ui (new-york) Radix tooltip, token-adapted. An inverted
- * floating label: `bg-reverse` surface + `fg-reverse` text (both theme-aware).
- * Four parts: Provider / Root / Trigger / Content (with arrow). Behavior is
- * Radix's; only the Content chrome is token-mapped.
- */
 function TooltipProvider({
   delayDuration = 0,
   ...props

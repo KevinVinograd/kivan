@@ -9,24 +9,14 @@ import { profileApi } from '@/api/profile'
 import { queryKeys } from '@/queries/keys'
 import { Field, SettingGroup } from './settings-fields'
 
-/** Minimum new-password length accepted by the API (`changePasswordSchema`). */
 const MIN_PASSWORD_LENGTH = 8
 
-/**
- * Mi perfil — the personal section every role can see, and the only section a member of
- * the Equipo reaches. Name changes persist through `PUT /me/profile`; the password form
- * goes through `PUT /me/password`, which requires the current password and revokes every
- * session — so a successful change signs the person out and back to login. Email is
- * read-only (no endpoint changes it), and there is no bank section here: a person's payout
- * account lives on their Equipo record, not on their login.
- */
 export function SettingsProfile() {
   const { me } = useAuth()
   const queryClient = useQueryClient()
 
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  // Seed the form from the real signed-in user once `/auth/me` resolves.
   useEffect(() => {
     if (!me) return
     setFirstName(me.firstName)
@@ -38,14 +28,11 @@ export function SettingsProfile() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
 
-  // Shared with the rail's avatar menu so both entry points end a session identically.
   const onLogout = useSignOut()
 
   const profileMutation = useMutation({
     mutationFn: profileApi.update,
     onSuccess: async () => {
-      // Refresh the signed-in identity so the rail avatar and the dashboard greetings pick
-      // up the new name immediately, instead of holding the old one until the next reload.
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth.me })
       toast.success('Perfil actualizado')
     },
@@ -55,7 +42,6 @@ export function SettingsProfile() {
   const passwordMutation = useMutation({
     mutationFn: profileApi.changePassword,
     onSuccess: () => {
-      // The API revoked every session, so the only honest next step is a fresh login.
       toast.success('Contraseña actualizada. Iniciá sesión de nuevo.')
       onLogout()
     },

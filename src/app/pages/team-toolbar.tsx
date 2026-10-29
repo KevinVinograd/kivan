@@ -25,8 +25,6 @@ import { TeamBulkActions } from './team-bulk-actions'
 import type { TeamFilters } from './team-format'
 
 function ColumnsMenu({ table }: { table: Table<TeamMember> }) {
-  // Below desktop (≤1023px: tablet + phone) the toolbar collapses to icon-only
-  // controls; from `lg` up the labelled "Ver columnas" button returns.
   const isBelowDesktop = useIsBelowDesktop()
   const columns = table.getAllColumns().filter((column) => column.getCanHide())
   return (
@@ -75,9 +73,6 @@ function FiltersPopover({
   filters: TeamFilters
   onChange: (filters: TeamFilters) => void
 }) {
-  // Below desktop (≤1023px) the labelled "Filtros" button collapses to the
-  // canonical icon-only FilterPopover (funnel + active-axis count badge); the
-  // panel body is identical at every width.
   const isBelowDesktop = useIsBelowDesktop()
   const activeCount = Object.values(filters).filter(Boolean).length
   const active = activeCount > 0
@@ -119,10 +114,8 @@ function FiltersPopover({
 
 export type TeamToolbarProps = {
   table: Table<TeamMember>
-  /** Page-owned search query (the table is pre-filtered, so search lives here). */
   query: string
   onQueryChange: (query: string) => void
-  /** Page-owned filter state (shared with the list panel). */
   filters: TeamFilters
   onFiltersChange: (filters: TeamFilters) => void
   onBulkGenerateStatements: (members: TeamMember[]) => void
