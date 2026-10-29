@@ -8,7 +8,6 @@ import { AuthProvider } from './app/lib/auth-store'
 import { router } from './app/router'
 import './styles/index.css'
 
-// For the app's lifetime: every confirmed write refreshes the read models it can reach.
 invalidateDerivedOnWrite(queryClient)
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

@@ -9,16 +9,12 @@ import { initials } from './clients-format'
 import { formatHours, formatPercent, hoursStatusBadge } from './admin-dashboard-format'
 import type { HoursCompleteness, HoursPersonRow } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const HOURS_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=estado',
   { label: 'Dashboard', to: '/dashboard' },
   new URLSearchParams(),
 )
 
-// One threshold set drives BOTH the hero figure's tone and the Progress bar's, so the
-// headline and the bar read as one signal.
 function completionTone(pct: number): 'default' | 'success' | 'warning' {
   if (pct >= 90) return 'success'
   if (pct >= 70) return 'default'
@@ -59,13 +55,6 @@ function PersonCard({ row }: { row: HoursPersonRow }) {
   )
 }
 
-/**
- * §3 Horas y productividad. Helps admin detect missing time entries before the
- * close, not a deep productivity report: the expected vs. loaded totals with a
- * completion bar, plus a per-person list (one card each, mirroring Clientes en
- * riesgo) of who still owes hours. Derived from the Reportes capacity model;
- * renders an incomplete note when the month has no Reportes period.
- */
 export function HoursCompletenessCard({ hours }: { hours: HoursCompleteness | null }) {
   return (
     <section aria-label="Horas y productividad" className="group/horas flex flex-col">
@@ -85,8 +74,6 @@ export function HoursCompletenessCard({ hours }: { hours: HoursCompleteness | nu
       <div className="flex flex-col gap-4 md:gap-6 px-4 md:px-6 lg:px-8 xl:pr-5 desktop:pl-10">
         {hours ? (
           <>
-            {/* Hero: how complete the month's hours are — the figure this section exists to
-                surface. The completion bar belongs to that figure, so it rides in `footer`. */}
             <KpiSummaryCard
               figures={[
                 {

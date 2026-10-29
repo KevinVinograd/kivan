@@ -3,9 +3,6 @@ import { useRole } from '@/app/lib/use-role'
 import { cn } from '@/app/lib/utils'
 import { Avatar, AvatarFallback, Badge, Separator } from '@/app/components/components'
 import { initials } from './cobranza-format'
-// KPI_TONE_FG moved to the patterns barrel with the KpiSummaryCard rollout (dev). The
-// PreviewSurface import is gone: Reportes no longer previews an entity on hover, so this
-// module only supplies the shared bodies the dashboard activity feed still renders.
 import { KPI_TONE_FG } from '@/app/components/patterns'
 import {
   type KpiTone,
@@ -18,16 +15,6 @@ import {
 } from './reports-format'
 import type { ClientProfitabilityReportItem, TeamCapacityReportItem } from './reports-types'
 
-/**
- * The shared client / person preview bodies for the dashboard recent-activity feed.
- *
- * Reportes itself no longer previews an entity on hover: a client or a person row opens
- * the full entity drawer (`client-detail` / `person-detail`) instead, so the compact
- * hover cards that used to wrap these bodies are gone. The bodies survive because the
- * dashboard activity feed still previews the same two entities and must read the same.
- */
-
-/** One label/value figure row inside a preview body. */
 function PreviewStat({ label, value, tone }: { label: string; value: string; tone?: KpiTone }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -37,16 +24,8 @@ function PreviewStat({ label, value, tone }: { label: string; value: string; ton
   )
 }
 
-/**
- * Canonical client preview body: name + type·service, a capability-gated profitability
- * badge, and the Margen / Rentabilidad (capability-gated) / Horas / Último aumento
- * figures. Owner-only figures are role-gated here (F2), so admins see the operational
- * subset automatically.
- */
 export function ClientProfitabilityPreviewBody({ client }: { client: ClientProfitabilityReportItem }) {
   const { capabilities } = useRole()
-  // Profitability tier, Margen and Rentabilidad need the `profitability` capability; roles without it
-  // keep the operational signals (Horas, Último aumento) only.
   const showProfitability = hasCapability(capabilities, 'profitability')
   const badge = profitabilityStatusBadge(client.status)
   const marginTone: KpiTone = client.margen < 0 ? 'danger' : client.margen < 22 ? 'warning' : 'success'
@@ -78,14 +57,8 @@ export function ClientProfitabilityPreviewBody({ client }: { client: ClientProfi
   )
 }
 
-/**
- * Canonical person preview body: avatar + name + role, a capacity badge, and the
- * Utilización / Horas cargadas / Clientes activos / Capacidad estimada figures.
- */
 export function TeamCapacityPreviewBody({ person }: { person: TeamCapacityReportItem }) {
   const badge = capacityStatusBadge(person.status)
-  // Untinted when there is no configured capacity: a colour here would grade someone
-  // against a target nobody set.
   const utilTone: KpiTone =
     person.utilization == null
       ? 'default'

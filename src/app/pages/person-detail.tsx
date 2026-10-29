@@ -24,18 +24,12 @@ import {
 } from './reports-format'
 import type { ProductivityReportItem, TeamCapacityReportItem } from './reports-types'
 
-/** Whole percentage points, for the "X pp sobre la mediana" caption. */
 function formatPoints(value: number): string {
   const rounded = Math.round(value)
   const sign = rounded > 0 ? '+' : ''
   return `${sign}${rounded} pp`
 }
 
-/**
- * The team's share of hours per task type, so a person's mix can be read against a
- * baseline rather than in the abstract: "40 % en Adaptaciones, contra 12 % del equipo"
- * is what surfaces someone trapped in low-value work.
- */
 function teamTaskShare(allProductivity: ProductivityReportItem[]): Map<string, number> {
   const byTask = hoursByTask(allProductivity)
   const total = byTask.reduce((sum, datum) => sum + datum.value, 0)
@@ -45,13 +39,6 @@ function teamTaskShare(allProductivity: ProductivityReportItem[]): Map<string, n
   return share
 }
 
-/**
- * Persona detail — the read-only person report shared by Productividad, Carga de
- * equipo and Resumen. Utilization is the hero (the number IS the status, so it takes
- * the drawer's one tint); everything else is read against the team: the cohort ranking,
- * the effective cost per hour vs. the team median (needs `teamCost`), and the task mix vs.
- * the team's. Reports never edit; this panel only reads and links out.
- */
 export function PersonDetail({
   item,
   cohort,
@@ -67,13 +54,9 @@ export function PersonDetail({
 }) {
   const navigate = useNavigate()
   const { capabilities } = useRole()
-  // Hook runs unconditionally (rules-of-hooks); `enabled` gates it on an open person, so
-  // a closed drawer fires nothing.
   const historyQuery = useReportsHoursHistory(item?.personId ?? '', item != null)
   if (!item) return null
 
-  // Per-member cost needs the `teamCost` capability — the same table the API reads before
-  // it decides whether to put a real `teamCostMinor` on the wire.
   const showMoney = hasCapability(capabilities, 'teamCost')
   const badge = capacityStatusBadge(item.status)
 
@@ -83,16 +66,8 @@ export function PersonDetail({
   const extras = productivity.filter((row) => row.isExtra)
   const extraHours = extras.reduce((sum, row) => sum + row.hours, 0)
   const extraShare = personHours > 0 ? (extraHours / personHours) * 100 : 0
-  // On a failed load the trend renders empty rather than as a flat zero line — a
-  // fabricated "0 h" month is worse than an absent chart (SE001).
   const history = historyQuery.isError ? [] : historyQuery.data
 
-  // The cohort is the WHOLE TEAM on utilization, not same-role peers: the roster runs
-  // one person per role, so a role cohort holds only the subject. Utilization (hours /
-  // own capacity) is what makes a designer and an account comparable at all.
-  // Only people with a configured capacity can be ranked by utilization; the rest have
-  // no comparable value, so they are left out of the cohort instead of entering it at 0%
-  // and making everyone else look busier by comparison.
   const ranking = cohortRanking(
     cohort
       .filter((person) => person.utilization != null)
@@ -119,9 +94,6 @@ export function PersonDetail({
     >
       <ReportFiguresCard
         figures={[
-          // Utilización is the drawer's focal figure AND its one tinted number: the
-          // value directly encodes the status (over capacity / under capacity). Horas
-          // steps to the supporting tier, fg-default.
           {
             label: 'Utilización',
             value: formatPercent(item.utilization != null ? item.utilization * 100 : null),
@@ -152,14 +124,6 @@ export function PersonDetail({
 
       {showMoney ? (
         <ReportDetailSection title="Costo del período">
-          {/* Never `$ 0`. This sums the per-client amounts the operator types on each
-              assignment, and most of them have none yet — so a zero here would almost
-              always mean "nobody entered it", not "this person cost nothing".
-
-              Keyed on the COUNTERS, not on the amount: a partial sum is a real number
-              that silently understates by the uncosted assignments, and `> 0` cannot
-              tell it apart from a complete one. That is the whole reason the API sends
-              them. */}
           {item.personCost == null ? (
             <ReportDetailRow label="Costo total" value="Sin costo asignado" />
           ) : (

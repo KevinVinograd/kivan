@@ -81,14 +81,9 @@ import {
 import { LogProductionItem, useCanCreateProduction } from './log-production-item'
 import { EditAssignmentDialog } from './assignment-edit-dialog'
 
-/** The TeamDetail tab vocabulary, in display order. Drives the `?tab=` deep-link:
- *  the employee-dashboard CTAs and `team-page` map a URL `tab` param to the panel. */
 export const TEAM_DETAIL_TABS = ['resumen', 'trabajo', 'pagos', 'clientes'] as const
 export type TeamDetailTab = (typeof TEAM_DETAIL_TABS)[number]
 
-/** Legacy `?tab=` values from the pre-consolidation 7-tab layout, mapped to their
- *  surviving host so existing deep-links (employee-dashboard CTAs, bookmarks, docs)
- *  keep resolving: carga/actividad/tareas folded into `trabajo`, datos into `resumen`. */
 const TEAM_DETAIL_TAB_ALIASES: Record<string, TeamDetailTab> = {
   carga: 'trabajo',
   actividad: 'trabajo',
@@ -96,9 +91,6 @@ const TEAM_DETAIL_TAB_ALIASES: Record<string, TeamDetailTab> = {
   datos: 'resumen',
 }
 
-/** Validate a raw URL `tab` value against the known tabs (accepting the legacy
- *  aliases above); unknown/absent → undefined (TeamDetail then falls back to its
- *  default 'resumen'). */
 export function coerceTeamDetailTab(raw: string | null | undefined): TeamDetailTab | undefined {
   if (raw == null) return undefined
   if ((TEAM_DETAIL_TABS as readonly string[]).includes(raw)) return raw as TeamDetailTab
@@ -107,18 +99,10 @@ export function coerceTeamDetailTab(raw: string | null | undefined): TeamDetailT
 
 export type TeamDetailProps = {
   member: TeamMember | null
-  /** How the profile is acted upon (spec §2):
-   *  - `manager` (default) — owner/admin acting on any member: full actions.
-   *  - `self` — the employee acting on their own profile: the four self
-   *    work-tracking actions only (no payment lifecycle, assign, edit, deactivate).
-   *  - `view` — informational mode with no action affordances at all. */
   perspective?: TeamPerspective
-  /** Initial active tab, e.g. from a `?tab=` deep-link. Applied on mount only;
-   *  falls back to 'resumen' when omitted. */
   initialTab?: TeamDetailTab
   onClose: () => void
   onEdit: (member: TeamMember) => void
-  /** Absent when the person already has a login, or the viewer may not hand them out. */
   onInvite?: (member: TeamMember) => void
   onLogHours: (member: TeamMember) => void
   onAddProduction: (member: TeamMember) => void
@@ -134,7 +118,6 @@ export type TeamDetailProps = {
 
 const NO_NOTES = 'Sin notas'
 
-/** Circular leading slot with a monochrome icon (24px, matches the avatar size). */
 function LeadingIcon({ icon: Icon }: { icon: Icon }) {
   return (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-alpha-subtle bg-alpha-subtle fg-subtle">
@@ -169,12 +152,6 @@ const ALERT_VARIANT: Record<MemberAlert['tone'], 'info' | 'warning' | 'danger'> 
   danger: 'danger',
 }
 
-// ── Resumen ──────────────────────────────────────────────────────────────────
-/**
- * The insight CTA directs to the in-system action that resolves the member's top
- * signal (per `teamInsightDisplay().action`): bank incomplete → edit, sin horas →
- * log hours, pago con diferencia → approve, and so on — never a static label.
- */
 function InsightBanner({
   member,
   onAction,
@@ -208,14 +185,9 @@ function SummaryCard({ member, managerActions }: { member: TeamMember; managerAc
       <Card>
         <CardContent>
           <div className="flex flex-col gap-1">
-            {/* Pago estimado is the company payroll figure: manager-only. The
-                Equipo self-view keeps the non-money work facts below it. */}
             {managerActions ? (
               <>
                 <span className="type-caption fg-subtle">Pago estimado del mes</span>
-                {/* §6 Resumen focal → the tab's one type-metric hero (manager-only).
-                    No plan for the month renders the no-record dash, never $0: zero is
-                    a real amount and would read as "we owe them nothing". */}
                 <span className="type-metric fg-default tabular-nums">
                   {statement ? formatCurrency(statement.totalAmount) : NO_RECORD}
                 </span>
@@ -225,7 +197,6 @@ function SummaryCard({ member, managerActions }: { member: TeamMember; managerAc
           </div>
           <Separator />
           <div className="flex flex-col gap-1.5">
-            {/* Estado de pago reflects the payroll lifecycle: manager-only. */}
             {managerActions ? (
               <DetailRow
                 label="Estado de pago"
@@ -272,8 +243,6 @@ function AlertsList({
   return (
     <section className="flex flex-col gap-2">
       {alerts.map((alert) => {
-        // A payment can only be dispatched once there is somewhere to send it:
-        // block "Pagar" until the bank data alert above it is resolved.
         const payBlocked = alert.action.kind === 'payDifference' && !bankComplete
         return (
           <Alert
@@ -301,7 +270,6 @@ function AlertsList({
   )
 }
 
-// ── Carga mensual + productividad ────────────────────────────────────────────
 function LoadCard({ member }: { member: TeamMember }) {
   const td = useTeamData()
   const assignments = td.assignmentsForMember(member.id)
@@ -315,8 +283,6 @@ function LoadCard({ member }: { member: TeamMember }) {
       <Card>
         <CardContent>
           <div className="flex flex-col gap-2">
-            {/* §6 Carga focal → the tab's one type-metric hero; load state stays on
-                the badge + Progress tone, so the figure itself is fg-default. */}
             <div className="flex items-center justify-between gap-3">
               <span className="type-metric fg-default tabular-nums">{td.loadHoursLabel(member.id)}</span>
               <Badge variant={loadBadge(status).variant}>{loadBadge(status).label}</Badge>
@@ -336,7 +302,6 @@ function LoadCard({ member }: { member: TeamMember }) {
           </div>
 
           {td.isAssignmentsError ? (
-            // An empty list under an outage would say this person works on nothing.
             <p className="type-body-2 fg-subtle">No pudimos cargar los clientes asignados.</p>
           ) : assignments.length > 0 ? (
             <>
@@ -377,8 +342,6 @@ function LoadCard({ member }: { member: TeamMember }) {
 }
 
 function KpiTile({ label, value }: { label: string; value: string }) {
-  // Productividad counts are Secondary peers co-visible with the Resumen hero
-  // (Pago estimado): a standard secondary numeric token, never a second hero.
   return (
     <div className="flex flex-col gap-0.5 px-3 py-2">
       <span className="type-caption fg-subtle">{label}</span>
@@ -404,7 +367,6 @@ function ProductivityCard({ member }: { member: TeamMember }) {
   )
 }
 
-// ── Pagos ────────────────────────────────────────────────────────────────────
 function StatementCard({
   member,
   managerActions,
@@ -421,9 +383,6 @@ function StatementCard({
   const td = useTeamData()
   const navigate = useNavigate()
   const statement = td.statementForMember(member.id)
-  // No statement is a state, not an absence. Returning null used to make the whole
-  // Cuenta corriente section vanish, which reads as "nothing to say about this
-  // person's pay" — and under an outage it would hide a plan that exists.
   if (!statement) {
     return (
       <section className="flex flex-col gap-2">
@@ -488,8 +447,6 @@ function StatementCard({
             />
           ) : null}
           <Separator />
-          {/* §6 Pagos focal → the tab's one type-metric hero; the itemized rows above
-              are Secondary, the outstanding difference below keeps its status tint. */}
           <div className="flex flex-col gap-1">
             <span className="type-caption fg-subtle">Total a pagar</span>
             <span className="type-metric fg-default tabular-nums">{formatCurrency(statement.totalAmount)}</span>
@@ -567,7 +524,6 @@ function PaymentDataCard({ member }: { member: TeamMember }) {
   )
 }
 
-// ── Actividad: producciones, viáticos, extras ────────────────────────────────
 type RecordBadge = { label: string; variant: BadgeVariant }
 
 function RecordList({
@@ -625,8 +581,6 @@ function AddButton({ label, onClick }: { label: string; onClick: () => void }) {
   )
 }
 
-/** Member objectives: title + scope/due meta, a status badge, and a progress bar
- *  toned by the objective's state. Read-only (shown in the Trabajo tab). */
 function MemberObjectivesCard({ member }: { member: TeamMember }) {
   const td = useTeamData()
   const objectives = td.objectivesForMember(member.id)
@@ -672,8 +626,6 @@ function MemberObjectivesCard({ member }: { member: TeamMember }) {
   )
 }
 
-/** Member tasks: title + client/due meta and a lifecycle status badge. Read-only
- *  (shown in the Trabajo tab; mutations land on the source surfaces). */
 function MemberTasksCard({ member }: { member: TeamMember }) {
   const td = useTeamData()
   const tasks = td.tasksForMember(member.id)
@@ -792,7 +744,6 @@ function ExtrasCard({
   )
 }
 
-/** Últimos pagos — the member's recent monthly salary/honorarios payments. */
 function PaymentsCard({ member }: { member: TeamMember }) {
   const td = useTeamData()
   const rows = td.paymentHistoryForMember(member.id).map((entry) => ({
@@ -805,7 +756,6 @@ function PaymentsCard({ member }: { member: TeamMember }) {
   return <RecordList title="Últimos pagos" icon={ICON.payment} rows={rows} />
 }
 
-// ── Actividad: event row + recent glance (Resumen) ───────────────────────────
 const ACTIVITY_ICON: Record<ActivityKind, Icon> = {
   task: ICON.logHours,
   production: ICON.production,
@@ -820,7 +770,6 @@ const ACTIVITY_KIND_LABEL: Record<ActivityKind, string> = {
   extra: 'Extra',
 }
 
-/** Status badge for an activity event (productions/viáticos/extras); tasks have none. */
 function activityBadge(event: ActivityEvent): { label: string; variant: BadgeVariant } | null {
   if (!event.status) return null
   switch (event.kind) {
@@ -835,7 +784,6 @@ function activityBadge(event: ActivityEvent): { label: string; variant: BadgeVar
   }
 }
 
-/** Primary metric for an event: amount when present, else logged hours. */
 function activityMetric(event: ActivityEvent): string | null {
   if (event.amount != null) return formatCurrency(event.amount)
   if (event.hours != null) return `${event.hours} h`
@@ -869,12 +817,6 @@ function ActivityRow({ event }: { event: ActivityEvent }) {
   )
 }
 
-/**
- * The member's chronological activity feed, on the Trabajo tab: groups the month's
- * tasks, producciones, viáticos and extras into per-day cards. Each event shows
- * the client, the metric, its status and who logged it. Read-only — the records
- * are managed (added/approved) from the record lists above it.
- */
 function ActivityFeed({ member }: { member: TeamMember }) {
   const td = useTeamData()
   const events = td.activityEventsForMember(member.id)
@@ -887,7 +829,6 @@ function ActivityFeed({ member }: { member: TeamMember }) {
       </Card>
     )
   }
-  // Group consecutive same-day events (the feed is already date-desc sorted).
   const days: { date: string; events: ActivityEvent[] }[] = []
   for (const event of events) {
     const last = days[days.length - 1]
@@ -912,12 +853,9 @@ function ActivityFeed({ member }: { member: TeamMember }) {
   )
 }
 
-// ── Clientes asignados ───────────────────────────────────────────────────────
-/** Hover/tap preview body: the client's three "health" signals. */
 function ClientHealthContent({ client }: { client: Client }) {
   const { capabilities } = useRole()
   const navigate = useNavigate()
-  // Carry the trail that led into Equipo forward and append an Equipo crumb.
   const [searchParams] = useSearchParams()
   const pay = paymentDisplay(client)
   const profit = profitabilityBadge(client)
@@ -926,7 +864,6 @@ function ClientHealthContent({ client }: { client: Client }) {
       <span className="truncate type-heading fg-default">{client.name}</span>
       <Separator />
       <div className="flex flex-col gap-1.5">
-        {/* No cobro this month is the absence of a payment state, not one of its values. */}
         <DetailRow
           label="Estado de pago"
           value={
@@ -941,8 +878,6 @@ function ClientHealthContent({ client }: { client: Client }) {
           label="Fee mensual"
           value={<span className="tabular-nums">{formatCurrency(client.monthlyFee)}</span>}
         />
-        {/* Rentabilidad needs the `profitability` capability; hidden from the employee
-            read-only self-view, which both reach this assigned-clients preview. */}
         {hasCapability(capabilities, 'profitability') && (
           <DetailRow
             label="Rentabilidad"
@@ -962,11 +897,6 @@ function ClientHealthContent({ client }: { client: Client }) {
   )
 }
 
-/**
- * The assignment's client name as an inline link that reveals the client's health
- * on hover (desktop) or tap (mobile), via the shared PreviewSurface. Falls
- * back to plain text when the client record is missing.
- */
 function ClientNameLink({
   clientId,
   clientName,
@@ -978,9 +908,6 @@ function ClientNameLink({
 }) {
   const td = useTeamData()
   const client = td.clientById(clientId)
-  // The client-health preview exposes the client's fee mensual + payment status,
-  // which is owner/admin commercial data. The Equipo self-view sees only the
-  // client name; no hover/tap preview is rendered for non-manager perspectives.
   if (!managerActions || !client)
     return <span className="truncate type-button fg-default">{clientName}</span>
   return (
@@ -999,24 +926,6 @@ function ClientNameLink({
   )
 }
 
-/**
- * The member's clients, and — for a viewer who holds `teamCost` — what the studio pays
- * for them on each one.
- *
- * This card is the answer to a question the studio actually asked: "a medida que el
- * colaborador se asigna a un cliente, ¿puedo saber a qué cliente corresponde lo que le
- * pagamos?". Until now it rendered the relationship and no money at all, while the
- * Pagos tab rendered the money and no clients — two halves that never met.
- *
- * Gated on the CAPABILITY, not on `managerActions`: that prop is role-derived, so a
- * custom admin whose `member.compensation.read` was revoked would still be shown the
- * per-client payable. The server withholds it too (the DTO nulls it), so this gate is
- * about not rendering an empty row rather than about secrecy.
- *
- * The total is only ever as complete as its parts: when some assignments carry no
- * amount the card says so out loud, because a partial sum is a real-looking number
- * that understates and nothing else on screen would reveal it.
- */
 function AssignmentsCard({
   member,
   managerActions,
@@ -1028,14 +937,9 @@ function AssignmentsCard({
   const { capabilities } = useRole()
   const showCost = hasCapability(capabilities, 'teamCost')
   const assignments = td.assignmentsForMember(member.id)
-  // `assignmentsForMember` does NOT filter by status (unlike `clientsForMember`), so an
-  // ended assignment is in this list. Its cost must not be in the total: the studio
-  // stopped paying for a relationship that finished.
   const live = assignments.filter((a) => a.status !== 'ended')
   const costed = live.filter((a) => a.monthlyCost != null)
   const costTotal = costed.reduce((sum, a) => sum + (a.monthlyCost ?? 0), 0)
-  // Held by id and resolved from the store, so the dialog diffs against the row the last
-  // write returned rather than a copy taken when it opened.
   const [editingId, setEditingId] = useState<string | null>(null)
   const editing = live.find((a) => a.id === editingId)
   return (
@@ -1046,10 +950,6 @@ function AssignmentsCard({
           {showCost && live.length > 0 ? (
             <div className="flex flex-col gap-0.5 border-b border-alpha-subtle pb-3">
               <div className="flex items-baseline justify-between gap-3">
-                {/* "Asignado a clientes", never "Costo": the roster already shows a
-                    per-person money total (the payout), and two figures a click apart
-                    both labelled cost would be read as the same number. This one is the
-                    allocation across clients and is not required to match the payout. */}
                 <span className="type-body-2 fg-subtle">Asignado a clientes</span>
                 <span className="type-mono tabular-nums fg-default">
                   {costed.length > 0 ? formatCurrency(costTotal) : 'Sin costo cargado'}
@@ -1080,7 +980,6 @@ function AssignmentsCard({
                     />
                     <div className="flex items-center gap-1">
                       <Badge variant={badge.variant}>{badge.label}</Badge>
-                      {/* An ended assignment is history: the API refuses to edit it. */}
                       {managerActions && assignment.status !== 'ended' ? (
                         <IconButton
                           variant="transparent"
@@ -1099,9 +998,6 @@ function AssignmentsCard({
                   {showCost ? (
                     <div className="flex items-baseline justify-between gap-3">
                       <span className="type-caption fg-subtle">Le pagamos por este cliente</span>
-                      {/* `!= null`, so an agreed 0 renders as $ 0 and an unentered one
-                          says so. The two are different facts and the column was made
-                          nullable to keep them apart. */}
                       <span className="type-body-2 tabular-nums fg-default">
                         {assignment.monthlyCost != null
                           ? formatCurrency(assignment.monthlyCost)
@@ -1135,7 +1031,6 @@ function AssignmentsCard({
   )
 }
 
-// ── Datos: información general + datos bancarios ─────────────────────────────
 function InfoGeneralCard({ member }: { member: TeamMember }) {
   return (
     <SectionCard title="Información general">
@@ -1180,7 +1075,6 @@ function BankDataCard({ member }: { member: TeamMember }) {
   )
 }
 
-// ── Hero + sticky header ─────────────────────────────────────────────────────
 function mailtoHref(member: TeamMember): string | undefined {
   return member.email ? `mailto:${member.email}` : undefined
 }
@@ -1190,12 +1084,10 @@ function whatsappHref(member: TeamMember): string | undefined {
   return `https://wa.me/${member.phone.replace(/\D/g, '')}`
 }
 
-/** Open an external contact link (mail / WhatsApp) in a new tab when present. */
 function openExternalLink(href?: string) {
   if (href) window.open(href, '_blank', 'noopener,noreferrer')
 }
 
-/** Single hero action — outlined dense icon button with the label stacked below. */
 function HeroAction({
   icon: ActionIcon,
   label,
@@ -1226,11 +1118,6 @@ function HeroAction({
   )
 }
 
-/**
- * Hero quick actions — "Cargar" groups every logging action (horas / producción /
- * viático / extra), "Asignar" links the member to a client, and "Más" holds the
- * secondary actions plus the destructive dar de baja.
- */
 function HeroActions({
   member,
   onPayment,
@@ -1267,7 +1154,6 @@ function HeroActions({
         onClick={() => onPayment?.()}
         disabled={!onPayment}
       />
-      {/* Cargar — every logging action for the member. */}
       <div className="flex flex-col items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1299,7 +1185,6 @@ function HeroActions({
         ariaLabel="Asignar a cliente"
         onClick={() => onAssignToClient(member)}
       />
-      {/* Más — secondary actions plus the destructive dar de baja. */}
       <div className="flex flex-col items-center gap-1">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -1312,9 +1197,6 @@ function HeroActions({
               <ICON.edit aria-hidden />
               Editar persona
             </DropdownMenuItem>
-            {/* Only for someone with no login yet: the roster and the accounts are separate,
-                and this is the short path that used to mean going to Configuración and
-                finding this same person again in a selector. */}
             {onInvite ? (
               <DropdownMenuItem onSelect={() => onInvite(member)}>
                 <ICON.invitePerson aria-hidden />
@@ -1342,8 +1224,6 @@ function HeroActions({
   )
 }
 
-/** The self perspective's only hero affordance: a "Cargar" menu limited to the four
- *  self work-tracking actions (spec §4). No Pago / Asignar / Más. */
 function SelfCargarAction({ member, onLogHours, onAddProduction, onAddExpense, onAddExtra }: {
   member: TeamMember
   onLogHours: (member: TeamMember) => void
@@ -1486,22 +1366,16 @@ export function TeamDetail({
   onDeactivate,
 }: TeamDetailProps) {
   const td = useTeamData()
-  // Self gets the four work-tracking AddButtons + the hero "Cargar" menu; manager
-  // keeps the full action set; `view` shows neither.
   const selfTrack = canSelfTrack(perspective)
   const managerActions = isManagerPerspective(perspective)
   const scrollRef = useRef<HTMLDivElement>(null)
   const heroRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
   const memberId = member?.id
-  // Controlled active tab so an in-detail CTA can route to a tab (e.g. the overload
-  // alert opens Trabajo, where load/hours/assignments live, not the profile editor).
   const [activeTab, setActiveTab] = useState<TeamDetailTab>(
     !managerActions && initialTab === 'pagos' ? 'resumen' : (initialTab ?? 'resumen'),
   )
 
-  // Single dispatcher shared by the insight CTA and the inline alerts, so each
-  // signal routes to the in-system action that resolves it (per teamInsightAction).
   const runAction = (kind: TeamInsightActionKind, target: TeamMember) => {
     switch (kind) {
       case 'edit':
@@ -1536,10 +1410,6 @@ export function TeamDetail({
 
   if (!member) return null
 
-  // The single "Pago" action mirrors the Cuenta corriente card's contextual
-  // button: route to the member's next payment step, or disable it once the
-  // statement is fully paid (or absent). Shared with the roster row action via
-  // paymentActionForStatus so the two never diverge.
   const paymentAction = paymentActionForStatus(td.statementForMember(member.id)?.status)
   const onPayment = paymentAction ? () => runAction(paymentAction.kind, member) : undefined
   const paymentLabel = paymentAction?.label ?? 'Pago'
@@ -1574,8 +1444,6 @@ export function TeamDetail({
               >
                 Pago
               </Button>
-              {/* Every secondary action folds into a single overflow so the sticky
-                  bar shows only the primary Pago button beside it. */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <IconButton variant="transparent" color="primary" size="dense" aria-label="Más acciones">
@@ -1682,16 +1550,10 @@ export function TeamDetail({
           <TabsList className="self-center">
             <TabsTrigger value="resumen">Resumen</TabsTrigger>
             <TabsTrigger value="trabajo">Trabajo</TabsTrigger>
-            {/* Pagos is the payroll lifecycle (statement, tarifa, payment history,
-                bank data): manager-only. The Equipo self-view never sees company
-                payroll; the employee's own bank data lives on the Resumen tab. */}
             {managerActions ? <TabsTrigger value="pagos">Pagos</TabsTrigger> : null}
             <TabsTrigger value="clientes">Clientes</TabsTrigger>
           </TabsList>
 
-          {/* Resumen folds in Información general (personal reference). On the
-              self/view perspective it also carries the member's own bank data,
-              which for a manager lives in the Pagos payroll context instead. */}
           <TabsContent value="resumen">
             <div className="flex flex-col gap-4 md:gap-6">
               {managerActions ? <InsightBanner member={member} onAction={runAction} /> : null}
@@ -1703,9 +1565,6 @@ export function TeamDetail({
             </div>
           </TabsContent>
 
-          {/* Trabajo unifies the member's monthly work: the carga hero + record
-              lists (producciones, viáticos, extras), objetivos y tareas, and the
-              read-only chronological activity feed. */}
           <TabsContent value="trabajo">
             <div className="flex flex-col gap-4 md:gap-6">
               <LoadCard member={member} />

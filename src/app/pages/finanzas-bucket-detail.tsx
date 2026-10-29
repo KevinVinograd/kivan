@@ -10,18 +10,12 @@ import { agingBuckets, concentration } from './reports-aggregations'
 import { formatCurrency, formatPercent } from './reports-format'
 import type { ReportDataset, StatusBucket } from './reports-types'
 
-/** Which donut a bucket ref came from. Ids are namespaced because `pending` exists in more than one. */
 export type FinanzasBucketSource = 'cobros' | 'pagos' | 'facturacion' | 'gastos'
 
-/** Records with a due date, ranked by debtor — everything the drawer needs from a bucket. */
 type BucketRows = {
-  /** Records in this bucket, with a due date when the concept has one. */
   dated: { dueDate: string; totalAmount: number }[]
-  /** Records in this bucket, by counterparty name. */
   named: { name: string; amount: number }[]
-  /** Whether aging is meaningful here (cobros / pagos only). */
   ageable: boolean
-  /** Where "Ver todos" goes. */
   href: string
 }
 
@@ -32,7 +26,6 @@ const SOURCE_LABEL: Record<FinanzasBucketSource, string> = {
   gastos: 'Gastos fijos',
 }
 
-/** Split `cobros-overdue` into its source and its status key. */
 function parseBucketId(bucketId: string): { source: FinanzasBucketSource; status: string } | null {
   const separator = bucketId.indexOf('-')
   if (separator === -1) return null
@@ -43,7 +36,6 @@ function parseBucketId(bucketId: string): { source: FinanzasBucketSource; status
   return { source, status }
 }
 
-/** The bucket's own StatusBucket, and the donut it belongs to (for the share-of-total figure). */
 function findBucket(
   dataset: ReportDataset,
   source: FinanzasBucketSource,
@@ -66,17 +58,6 @@ function findBucket(
   return bucket ? { bucket, siblings } : null
 }
 
-/**
- * The records behind a bucket.
- *
- * The CTA carries only `?period=`, which `cobranza-page` actually reads (it seeds the
- * destination's period so an off-current record resolves in its list). It deliberately
- * does NOT carry a `?status=` / `?billing=` filter: no page in the app reads one, so
- * appending it would put a filter in the URL that is silently dropped and land the
- * reader on the full list while implying it was narrowed. Seeding the destination's
- * column filter is a change to `cobranza-page`, not to this drawer; until that exists,
- * the honest destination is the period's list.
- */
 function rowsFor(dataset: ReportDataset, source: FinanzasBucketSource, status: string): BucketRows {
   const f = dataset.financials
   const period = `?period=${f.period}`
@@ -103,7 +84,6 @@ function rowsFor(dataset: ReportDataset, source: FinanzasBucketSource, status: s
     return {
       dated: [],
       named: rows.map((row) => ({ name: row.clientName, amount: row.totalAmount })),
-      // Billing state is not "money late" — a not-yet-invoiced receivable has no age.
       ageable: false,
       href: `/cobros${period}`,
     }
@@ -117,20 +97,10 @@ function rowsFor(dataset: ReportDataset, source: FinanzasBucketSource, status: s
   }
 }
 
-/** Last day of the período — the reference date all aging is measured against. */
 function periodEnd(period: string): string {
   return format(endOfMonth(parseISO(period)), 'yyyy-MM-dd')
 }
 
-/**
- * Estado financiero detail (§5) — the analysis of one status bucket: how much of the
- * donut it is, how old the money is, how concentrated it is in a few counterparties,
- * and how it moved against the prior período.
- *
- * This is the only cash-risk lens in the product: nothing else anywhere ages a debt.
- * The accordion below the donuts stays untouched — it is the complete, per-record list;
- * this is the lens over it.
- */
 export function FinanzasBucketDetail({
   bucketId,
   dataset,
@@ -163,11 +133,6 @@ export function FinanzasBucketDetail({
 
   const top = concentration(rows.named, (row) => row.name, (row) => row.amount, 5)
 
-  // An ABSENT bucket in the prior período means the amount was ZERO, not that the data is
-  // missing: `bucketBy` only emits a bucket for a status that actually occurred. Reporting
-  // "sin dato" there would hide the single most alarming case — a pile of overdue money
-  // that did not exist last month. Only the oldest período, which has no prior dataset at
-  // all, is genuinely without data.
   const previousAmount = previousDataset
     ? (findBucket(previousDataset, parsed.source, parsed.status)?.bucket.amount ?? 0)
     : null
@@ -185,9 +150,6 @@ export function FinanzasBucketDetail({
     >
       <ReportFiguresCard
         figures={[
-          // The amount is the drawer's focal figure. It is NOT tinted: the status is
-          // already carried by the bucket's own label and by the aging band below, and
-          // double-encoding it on the number is exactly what figure-color-restraint bans.
           { label: 'Monto', value: formatCurrency(bucket.amount), emphasis: 'hero' },
           { label: 'Registros', value: String(bucket.count) },
         ]}
@@ -253,8 +215,7 @@ export function FinanzasBucketDetail({
               label="Variación relativa"
               value={
                 deltaPercent === null
-                  ? // Zero last período: the bucket is new. A percent change from zero is
-                    // undefined, so say what happened instead of hiding it behind a dash.
+                  ?
                     'Nuevo en el período'
                   : `${deltaPercent >= 0 ? '+' : ''}${Math.round(deltaPercent)}%`
               }

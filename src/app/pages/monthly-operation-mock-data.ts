@@ -1,25 +1,11 @@
-/**
- * Operación mensual mock data — the monthly-closing data model + a local dataset.
- *
- * No backend: in-memory month records that exercise every status, payment/invoice
- * state, payout situation, production state, expense and alert so the tables,
- * detail panels, summary, checklist and the close-month validations can be
- * validated end to end. Numbers are stored as numbers and dates as ISO strings;
- * formatting happens only at render via `monthly-operation-format.ts`. Some rows
- * intentionally violate a close-validation so the close dialog can demonstrate
- * its blockers. Replaced by a real data source later.
- */
-
 import type { PayoutStatementStatus } from '@hold/shared'
 
-// ── Shared enums ─────────────────────────────────────────────────────────────
 import { currentPeriod, toMonthId } from '@/app/lib/periods'
 
-export type MonthId = string // 'YYYY-MM'
+export type MonthId = string
 export type MonthStatus = 'draft' | 'review' | 'closed' | 'reopened'
 export type Monotributo = 'monotributo_1' | 'monotributo_2' | 'monotributo_3'
 
-// ── Clientes del mes ─────────────────────────────────────────────────────────
 export type ClientMonthStatus = 'pending_review' | 'reviewed' | 'new' | 'churned' | 'paused'
 export type MoPaymentStatus = 'paid' | 'partial' | 'pending' | 'overdue'
 export type MoInvoiceStatus = 'not_issued' | 'issued' | 'sent' | 'paid'
@@ -47,30 +33,14 @@ export type ClientMonth = {
   paymentDate?: string
   invoiceStatus: MoInvoiceStatus
   monotributo: Monotributo
-  /**
-   * Payroll allocated to this client for the month. `null` means the source does
-   * not allocate payroll per client (the live API bundle does not yet), which is
-   * NOT the same as `0` (genuinely no team cost). Anything that divides or
-   * subtracts this must branch on `null` rather than coerce it to zero, or the
-   * client reads as more profitable than it is.
-   */
   teamCost: number | null
   productionCost: number
   lastIncreaseDate?: string
-  /** Alta/baja effective date — required by the close validation for new/churned. */
   effectiveDate?: string
   notes?: string
 }
 
-// ── Pagos al equipo ──────────────────────────────────────────────────────────
 export type PayoutStatus = 'pending' | 'partial' | 'paid'
-/**
- * The statement's own lifecycle, taken straight from the API contract rather than
- * re-modelled here. It used to be a three-value view type (`not_generated |
- * generated | sent`) that collapsed `dispatched` and `confirmed` into one value —
- * which left the UI unable to tell "lo mandé al banco" from "confirmé que llegó",
- * and therefore unable to pick the one transition the server would accept next.
- */
 export type StatementStatus = PayoutStatementStatus
 
 export type TeamAdjustment = { id: string; description: string; amount: number }
@@ -93,24 +63,18 @@ export type TeamPayout = {
   adjustments: TeamAdjustment[]
   statementStatus: StatementStatus
   payoutStatus: PayoutStatus
-  /** Amount paid so far this month; drives the team paid/remaining figures. */
   paidAmount: number
   payoutDate?: string
   bank?: BankData
 }
 
-// ── Producciones ─────────────────────────────────────────────────────────────
 export type ProductionStatus = 'pending' | 'approved' | 'invoiced'
-/** Whether an approved production is internal cost, billable to the client, or both. */
 export type ProductionBillable = 'internal' | 'billable' | 'both'
 
 export type ProductionRecord = {
   id: string
   date: string
-  /** YYYY-MM the production counts in (billing, pay and cost). Absent on mock rows, where
-   *  the shoot's month stands in. */
   period?: string
-  /** Empty string models a production with no client (a close-validation target). */
   clientId: string
   clientName: string
   title: string
@@ -120,36 +84,20 @@ export type ProductionRecord = {
   hours: number
   viatics: number
   totalCost: number
-  /** `null` = not yet defined (a close-validation target once approved). */
   billable: ProductionBillable | null
   billAmount?: number
-  /** Hours its per-hour line's included hours covered that month; `billAmount` is the rest. */
   packHours?: number
   status: ProductionStatus
   notes?: string
-  /** The client's per-production service it is billed under, when linked. */
   clientServiceId?: string | null
-  /** The cobro that billed it. Set = its amount is inside that cobro: read-only. */
   receivableId?: string | null
-  /** Who coordinated it — the planilla's "Account Manager". Not a worker. */
   accountManagerId?: string | null
   accountManagerName?: string
-  /** The content creator: the person whose hours the production pays. */
   creatorId?: string | null
-  /** YYYY-MM-DD the viático was paid back; absent/null while it is owed. */
   viaticsPaidAt?: string | null
-  /** Drive link or file name of the viático receipt. */
   receipt?: string
 }
 
-// ── Gastos fijos ─────────────────────────────────────────────────────────────
-/**
- * The BUILT-IN expense categories: the ones that carry a translated label and a known
- * mapping into the cashflow's committed buckets. A studio can define its own categories
- * in Configuración → Operación mensual, so a stored category is a free string (see
- * `FixedExpense.category`) — this union is the set that is specially understood, not the
- * set that is allowed.
- */
 export type ExpenseCategory = 'software' | 'office' | 'services' | 'salaries' | 'taxes' | 'other'
 export type ExpenseRecurrence = 'monthly' | 'one_time' | 'quarterly' | 'annual'
 export type ExpensePayStatus = 'paid' | 'pending'
@@ -157,7 +105,6 @@ export type ExpensePayStatus = 'paid' | 'pending'
 export type FixedExpense = {
   id: string
   concept: string
-  /** A built-in `ExpenseCategory` key, or a category the studio defined itself. */
   category: string
   amount: number
   recurrence: ExpenseRecurrence
@@ -168,7 +115,6 @@ export type FixedExpense = {
   notes?: string
 }
 
-// ── Alertas ──────────────────────────────────────────────────────────────────
 export type AlertSeverity = 'critical' | 'high' | 'medium' | 'low'
 export type AlertType = 'cobros' | 'facturacion' | 'equipo' | 'rentabilidad' | 'comercial' | 'arca'
 export type AlertStatus = 'open' | 'in_progress' | 'resolved'
@@ -183,16 +129,12 @@ export type MonthlyAlert = {
   status: AlertStatus
 }
 
-// ── Monotributo (annual cap watch) ───────────────────────────────────────────
 export type MonotributoWatch = {
   category: Monotributo
-  /** Accumulated billing in the category's running year. */
   annualBilled: number
-  /** Annual billing ceiling for the category. */
   annualLimit: number
 }
 
-// ── Closing checklist ────────────────────────────────────────────────────────
 export type ChecklistItemId =
   | 'clients_reviewed'
   | 'changes_applied'
@@ -207,7 +149,6 @@ export type ChecklistItemId =
   | 'arca_reviewed'
   | 'profitability_reviewed'
 
-/** The 12 closing-checklist items, in render order (labels are product copy). */
 export const CHECKLIST_ITEMS: { id: ChecklistItemId; label: string }[] = [
   { id: 'clients_reviewed', label: 'Clientes del mes revisados' },
   { id: 'changes_applied', label: 'Cambios de altas/bajas aplicados' },
@@ -225,7 +166,6 @@ export const CHECKLIST_ITEMS: { id: ChecklistItemId; label: string }[] = [
 
 export type Checklist = Record<ChecklistItemId, boolean>
 
-// ── Month record ─────────────────────────────────────────────────────────────
 export type MonthlyOperationData = {
   clients: ClientMonth[]
   team: TeamPayout[]
@@ -234,30 +174,13 @@ export type MonthlyOperationData = {
   alerts: MonthlyAlert[]
   monotributo: MonotributoWatch[]
   checklist: Checklist
-  /** The API had more rows for this month than one page carries, so every figure
-   *  derived from this data is a SUBSET. Optional: the mock months are complete by
-   *  construction, and an API that predates the flag reads as not truncated. */
   truncated?: boolean
-  /**
-   * The month's outflows, owned by the Pagos module and read here.
-   *
-   * Kept in its OWN field rather than merged into `team[]`, which is not a style choice:
-   * `team[]` is what the `bank_incomplete` close blocker filters, and a payment carries no
-   * bank profile, so merging would block a close that works today.
-   *
-   * `paymentTotals` is exact and is what money is derived from. `payments` is a capped
-   * display list and MUST NOT be summed.
-   */
   paymentTotals: PaymentTotal[]
   teamPaymentTotals: TeamPaymentTotal[]
   payments: MonthPayment[]
-  /** Pagos of the period in a lane other than pesos. Every figure above excludes them,
-   *  and the list excludes them too, so without this the omission has nothing on the
-   *  page to show it. */
   otherLanePaymentCount: number
 }
 
-/** Recipient types, as the Pagos module records them. */
 export type MonthPaymentRecipient =
   | 'collaborator'
   | 'provider'
@@ -266,27 +189,19 @@ export type MonthPaymentRecipient =
   | 'monotributo'
   | 'platform'
 
-/** One recipient type's outflow for the month, in pesos. Exact: safe to sum. */
 export type PaymentTotal = {
   recipientType: MonthPaymentRecipient
-  /** Recorded as owed this month, paid or not. This is what profitability subtracts. */
   total: number
-  /** The part actually settled. */
   paid: number
   count: number
 }
 
-/**
- * One member payroll payments for the month, in pesos, keyed by the person.
- * `teamMemberId` is null for a payroll payment naming no member.
- */
 export type TeamPaymentTotal = {
   teamMemberId: string | null
   total: number
   paid: number
 }
 
-/** One outflow row, for display only. */
 export type MonthPayment = {
   id: string
   recipientType: MonthPaymentRecipient
@@ -304,26 +219,15 @@ export type MonthRecord = {
   label: string
   status: MonthStatus
   data: MonthlyOperationData
-  /** Frozen historical copy taken at close — so reopening + editing never rewrites it. */
   snapshot?: MonthlyOperationData
   closedAt?: string
 }
 
-// ── Seed builders ────────────────────────────────────────────────────────────
 function checklist(overrides: Partial<Checklist> = {}): Checklist {
   const base = Object.fromEntries(CHECKLIST_ITEMS.map((item) => [item.id, true])) as Checklist
   return { ...base, ...overrides }
 }
 
-// Cobro/pago actuals note (actuals-shared, B-1a/B-1b): for clients/members that
-// resolve to a canonical Receivable/Payment, the per-row money fields below
-// (ClientMonth.paidAmount/paymentStatus/paymentDate; TeamPayout.paidAmount/
-// payoutStatus/payoutDate) are OVERWRITTEN at read time by the finance-bridge overlay
-// (see monthly-operation-finance-bridge.ts) and re-derived from the canonical store.
-// The seeded values here are authoritative ONLY for orphan rows (no canonical match,
-// e.g. Cobre Bar) and as the frozen value baked into a closed month's snapshot. The
-// billing/payout PLAN (monthlyFee/extras/productionsAmount; base/productions/viatics/
-// adjustments), invoiceStatus, statementStatus and bank stay month-owned.
 function juneClients(): ClientMonth[] {
   return [
     {
@@ -390,7 +294,6 @@ function juneClients(): ClientMonth[] {
       monotributo: 'monotributo_2',
       teamCost: 180000,
       productionCost: 0,
-      // effectiveDate intentionally omitted → new-client close validation fires.
     },
     {
       id: 'cm-004',
@@ -408,7 +311,6 @@ function juneClients(): ClientMonth[] {
       paymentDate: '2026-06-12',
       invoiceStatus: 'issued',
       monotributo: 'monotributo_1',
-      // Negative margin (cost > revenue) → "margen negativo" surfacing.
       teamCost: 320000,
       productionCost: 90000,
       lastIncreaseDate: '2024-06-01',
@@ -489,7 +391,6 @@ function juneTeam(): TeamPayout[] {
       statementStatus: 'draft',
       payoutStatus: 'pending',
       paidAmount: 0,
-      // Missing CBU/CVU → payable-with-incomplete-bank close validation fires.
       bank: { bankName: 'Mercado Pago', alias: 'mica.torres' },
     },
     {
@@ -601,7 +502,6 @@ function juneProductions(): ProductionRecord[] {
       hours: 10,
       viatics: 18000,
       totalCost: 130000,
-      // Approved but billable not defined → close validation fires.
       billable: null,
       status: 'approved',
     },
@@ -617,7 +517,6 @@ function juneProductions(): ProductionRecord[] {
       hours: 3,
       viatics: 0,
       totalCost: 20000,
-      // No client → close validation fires.
       billable: 'internal',
       status: 'pending',
     },
@@ -704,7 +603,6 @@ function juneAlerts(): MonthlyAlert[] {
       entity: 'Monotributo 1',
       description: 'Cerca del límite de facturación anual de la categoría.',
       responsible: 'Administración',
-      // Open + critical → close validation fires.
       status: 'open',
     },
     {
@@ -745,7 +643,6 @@ function juneAlerts(): MonthlyAlert[] {
   ]
 }
 
-/** Running-year billing per monotributo category — one sits near its cap (MT 1). */
 function juneMonotributo(): MonotributoWatch[] {
   return [
     { category: 'monotributo_1', annualBilled: 16300000, annualLimit: 17700000 },
@@ -756,8 +653,6 @@ function juneMonotributo(): MonotributoWatch[] {
 
 function juneData(): MonthlyOperationData {
   return {
-    // The mock months predate the Pagos wiring; their cost side is the seeded
-    // FixedExpense rows, which no longer reach profitability.
     paymentTotals: [],
     teamPaymentTotals: [],
     payments: [],
@@ -777,12 +672,10 @@ function juneData(): MonthlyOperationData {
   }
 }
 
-/** Deep clone via structured JSON — the dataset is plain data (no Dates/functions). */
 function clone(data: MonthlyOperationData): MonthlyOperationData {
   return JSON.parse(JSON.stringify(data)) as MonthlyOperationData
 }
 
-/** A trimmed, settled copy of June for the closed previous month. */
 function mayData(): MonthlyOperationData {
   const data = clone(juneData())
   data.clients = data.clients
@@ -821,7 +714,6 @@ function mayData(): MonthlyOperationData {
   return data
 }
 
-/** Seed month records: May (closed), June (active draft) and July (empty draft). */
 export function createSeedMonths(): MonthRecord[] {
   const may = mayData()
   return [
@@ -872,28 +764,9 @@ export function createSeedMonths(): MonthRecord[] {
   ]
 }
 
-/**
- * The month the app opens on: the one we are actually in, resolved per call.
- *
- * This was the literal `'2026-06'`, and it did not only pin `/operacion-mensual` — the three
- * dashboards select their month with it too, so by July all four surfaces were reporting a
- * month in the past with no way to reach the present one. A function, not a const: a const
- * evaluated at module load goes stale in a tab left open across a month boundary, which is
- * the same trap in miniature.
- */
 export function defaultMonthId(): MonthId {
   return toMonthId(currentPeriod())
 }
 
-/**
- * The month `createSeedMonths` builds its FIXTURE around. Pinned on purpose: it identifies a
- * row inside hand-written demo data, not "now", and derivation tests assert against it. Do
- * not reach for this to pick the month a user sees — that is `defaultMonthId()`.
- */
 export const SEED_MONTH_ID: MonthId = '2026-06'
 
-// PRODUCTION_CLIENT_OPTIONS lived here: six fabricated clients with ids 'cli-001'…'cli-019'
-// that fed the production form's client picker. Removed with the picker's rewire to
-// GET /clients — `createProductionSchema` wants `clientId: z.uuid()`, so those ids could only
-// ever produce a 400. Deleted rather than left orphaned: a plausible-looking exported catalog
-// is precisely the thing a future picker gets wired back to.

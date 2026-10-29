@@ -24,8 +24,6 @@ import { COLUMN_LABELS } from './clients-columns'
 import { ClientsBulkActions } from './clients-bulk-actions'
 
 function ColumnsMenu({ table }: { table: Table<Client> }) {
-  // Below desktop (≤1023px: tablet + phone) the toolbar collapses to icon-only
-  // controls; from `lg` up the labelled "Ver columnas" button returns.
   const isBelowDesktop = useIsBelowDesktop()
   const columns = table.getAllColumns().filter((column) => column.getCanHide())
   return (
@@ -71,9 +69,6 @@ function ColumnsMenu({ table }: { table: Table<Client> }) {
 }
 
 function FiltersPopover({ table }: { table: Table<Client> }) {
-  // Below desktop (≤1023px) the labelled "Filtros" button collapses to the
-  // canonical icon-only FilterPopover (funnel + active-axis count badge); the
-  // panel body is identical at every width.
   const isBelowDesktop = useIsBelowDesktop()
   const activeCount = table.getState().columnFilters.length
   const active = activeCount > 0

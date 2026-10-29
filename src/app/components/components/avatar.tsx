@@ -3,13 +3,6 @@ import { Avatar as AvatarPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Avatar — shadcn/ui (new-york) Radix avatar, token-adapted. Core trio:
- * `Avatar` (Root) + `AvatarImage` + `AvatarFallback`. The shadcn AvatarBadge /
- * AvatarGroup / AvatarGroupCount extras are intentionally omitted (no consumer
- * yet, and they carry a background-ring affordance whose token is undecided) —
- * reintroduce them via the adoption pipeline when the team column needs them.
- */
 function Avatar({
   className,
   size = "default",
@@ -17,7 +10,6 @@ function Avatar({
   ...props
 }: React.ComponentProps<typeof AvatarPrimitive.Root> & {
   size?: "default" | "sm" | "lg" | "xxl"
-  /** Active/selected look: the fallback fills with accent-gray-emphasis + reverse text. */
   active?: boolean
 }) {
   return (

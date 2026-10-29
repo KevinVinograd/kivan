@@ -10,11 +10,6 @@ import { PreviewSurface } from './clients-preview'
 import { activityTypeIcon, activityTypeLabel, formatRelativeDate, formatShortDate } from './activity-format'
 import type { ActivityEntity, ActivityFeedItem } from './activity-data'
 
-/**
- * Large round leading glyph for the period timeline — a bigger, more prominent
- * variant of the dashboard teaser marker (size-12 ring, size-5 glyph). Local to
- * this component per the design-system repeat-locally policy.
- */
 function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   return (
     <span className="flex size-12 shrink-0 items-center justify-center rounded-full border border-alpha-subtle bg-alpha-subtle fg-default">
@@ -23,18 +18,6 @@ function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   )
 }
 
-/**
- * Inline trigger for an entity name; opens the surrounding PreviewSurface.
- *
- * Deliberately raw markup, and deliberately NOT a <button>: a button box is atomic
- * inline-level content, so the browser cannot break a multi-word name across lines —
- * it pushes the whole name onto its own line and leaves the sentence above it ragged.
- * The Button primitive renders a real <button> and exposes no `asChild` to render
- * another tag, so no primitive can express a trigger
- * that flows and breaks like the running text around it. This is the raw-markup
- * escape hatch: a focusable inline span carrying the
- * button role, plus the Enter/Space activation a native button gives for free.
- */
 const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'span'> & { name: string }>(
   function EntityTrigger({ name, className, onKeyDown, ...props }, ref) {
     return (
@@ -61,7 +44,6 @@ const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'sp
   },
 )
 
-/** Team-member preview: name + role, plus Ver perfil into the Equipo detail. */
 function MemberPreviewContent({ entity }: { entity: Extract<ActivityEntity, { kind: 'member' }> }) {
   const navigate = useNavigate()
   return (
@@ -88,7 +70,6 @@ function MemberPreviewContent({ entity }: { entity: Extract<ActivityEntity, { ki
   )
 }
 
-/** Client preview: name, plus Ver perfil into the Clientes detail. */
 function ClientPreviewContent({ entity }: { entity: Extract<ActivityEntity, { kind: 'client' }> }) {
   const navigate = useNavigate()
   return (
@@ -106,8 +87,6 @@ function ClientPreviewContent({ entity }: { entity: Extract<ActivityEntity, { ki
   )
 }
 
-/** Renders one entity: hover link-text for clients/members, plain for the rest.
- *  Non-clickable names read `fg-subtle` so the clickable ones (fg-default) stand out. */
 function ActivityEntityRef({ entity }: { entity: ActivityEntity }) {
   if (entity.kind === 'plain') {
     return <span className="fg-subtle">{entity.name}</span>
@@ -133,25 +112,16 @@ function ActivityEntityRef({ entity }: { entity: ActivityEntity }) {
 function TimelineRow({ item, isLast }: { item: ActivityFeedItem; isLast: boolean }) {
   return (
     <div className="flex gap-4">
-      {/* Leading icon + the prominent connector linking each entry to the next. */}
       <div className="flex flex-col items-center gap-2">
         <LeadingIcon icon={activityTypeIcon(item.type)} />
         {!isLast ? <span aria-hidden className="w-0.5 flex-1 rounded-full bg-alpha-emphasis" /> : null}
       </div>
       <div className={cn('flex min-w-0 flex-1 flex-col gap-1', !isLast && 'pb-6')}>
-        {/* The sentence owns the full column width — both dates sit on the meta row
-            below it, so nothing competes for the line and the text wraps as prose.
-            fg-subtle so the connecting verb phrase and any plain names recede;
-            clickable client/member names keep fg-default and pop. */}
         <p className="type-body fg-subtle">
           <ActivityEntityRef entity={item.actor} /> {item.action} <ActivityEntityRef entity={item.context} />
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="neutral">{activityTypeLabel(item.type)}</Badge>
-          {/* Each date is its own non-breaking unit. In the 1/3-width desktop drawer the
-              text column is ~211px at 1024px, so the pair does not fit on one line — it
-              may wrap between the dates, but must never split one mid-value ("11 jul" /
-              "2026"). */}
           <span className="type-caption fg-subtle">
             <span className="whitespace-nowrap">{formatRelativeDate(item.iso)}</span>
             {' · '}
@@ -164,13 +134,6 @@ function TimelineRow({ item, isLast }: { item: ActivityFeedItem; isLast: boolean
   )
 }
 
-/**
- * The full activity log as a prominent vertical timeline: a large kind-icon per
- * entry, a bold connecting line, an action-type badge, the exact + relative date
- * and an optional enrichment line. Client/team-member names are hover link-text
- * with a preview + "Ver perfil"; entries without a profile page (a production)
- * render as plain text. Read-only.
- */
 export function ActivityTimeline({ items }: { items: ActivityFeedItem[] }) {
   return (
     <div className="flex flex-col">

@@ -38,11 +38,6 @@ function receivable(over: Partial<Receivable> = {}): Receivable {
 }
 
 describe('receivablesForClient', () => {
-  /**
-   * The join is on `clientId`, never on the name. The DTO mapping used to drop the id,
-   * which forced name matching everywhere — and a name match attaches another client's
-   * money the moment two read alike.
-   */
   it('matches on the client id, not the name', () => {
     const rows = receivablesForClient(
       [
@@ -64,7 +59,6 @@ describe('receivablesForClient', () => {
     expect(rows.map((r) => r.id)).toEqual(['jul'])
   })
 
-  /** A voided cobro is not money owed; counting it would keep the client in mora forever. */
   it('excludes cancelled rows', () => {
     const rows = receivablesForClient(
       [receivable({ id: 'live' }), receivable({ id: 'void', status: 'cancelled' })],
@@ -76,13 +70,11 @@ describe('receivablesForClient', () => {
 })
 
 describe('clientMonth', () => {
-  /** The absence must stay an absence — this is the whole point of the module. */
   it('returns undefined when nothing was billed', () => {
     expect(clientMonth([], 'cli-1', PERIOD, TODAY)).toBeUndefined()
     expect(clientMonth([receivable({ clientId: 'other' })], 'cli-1', PERIOD, TODAY)).toBeUndefined()
   })
 
-  /** A client can have one cobro per service; the row shows the whole month. */
   it('sums across several cobros of the same month', () => {
     const month = clientMonth(
       [
@@ -103,10 +95,6 @@ describe('clientMonth', () => {
     expect(month?.paymentStatus).toBe('paid')
   })
 
-  /**
-   * Overdue comes from the row's real `dueDate` against today. It used to be a
-   * hardcoded status, so no client could ever become overdue by the calendar moving.
-   */
   it('derives overdue from the due date and today, not from a constant', () => {
     const past = clientMonth([receivable({ dueDate: '2026-07-10' })], 'cli-1', PERIOD, '2026-07-20')
     expect(past?.paymentStatus).toBe('overdue')
@@ -125,10 +113,6 @@ describe('clientMonth', () => {
     expect(month?.paymentStatus).toBe('partial')
   })
 
-  /**
-   * Pessimistic on purpose: one invoiced service out of two is not an invoiced client,
-   * and reporting the best row's state would hide the one still missing its factura.
-   */
   it('only reports the month as invoiced when every row is', () => {
     const partial = clientMonth(
       [
@@ -153,7 +137,6 @@ describe('clientMonth', () => {
     expect(all?.invoiceStatus).toBe('issued')
   })
 
-  /** The real collection date, not the row's createdAt, which is a different event. */
   it('takes the last payment date from collectedAt', () => {
     const month = clientMonth(
       [
@@ -171,7 +154,6 @@ describe('clientMonth', () => {
 describe('withMonth', () => {
   const client = { id: 'cli-1', name: 'Estudio Uno', monthlyFee: 999 } as Client
 
-  /** The contracted fee must never stand in for a billed amount. */
   it('leaves the money absent when there is no month', () => {
     const row = withMonth(client, undefined)
     expect(row.currentMonthDueAmount).toBeUndefined()

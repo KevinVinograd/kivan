@@ -9,20 +9,12 @@ import { NO_REGISTRO, formatCurrency, initials } from './clients-format'
 import { COMPENSATION_MODEL_LABEL, teamMemberPreview, type TeamMemberPreview } from './clients-team'
 import { PreviewSurface, PreviewInfoRow } from './clients-preview'
 
-/** Members in the "Equipo" row, capped before the row collapses to `+N`. */
 const DEFAULT_MAX_VISIBLE = 3
 
-// ── Inline trigger ───────────────────────────────────────────────────────────
 export type TeamMemberInlineProps = React.ComponentProps<'button'> & {
-  /** The label rendered as the interactive link (member name, or `+N`). */
   name: string
 }
 
-/**
- * Link-styled inline trigger for a team member. Pure visual + focus affordance;
- * the open behavior is owned by the surrounding HoverCard / bottom sheet, so this
- * forwards its ref and spreads props for Radix `asChild`.
- */
 export const TeamMemberInline = React.forwardRef<HTMLButtonElement, TeamMemberInlineProps>(
   function TeamMemberInline({ name, className, ...props }, ref) {
     return (
@@ -45,12 +37,6 @@ export type TeamMemberPreviewContentProps = {
   data: TeamMemberPreview
 }
 
-/**
- * Compact preview body, shared verbatim by the desktop HoverCard and the mobile
- * bottom sheet: avatar + name + role, then payment modality, estimated amount, and time
- * on this client. The two compensation rows are gated on viewer permission; the
- * tenure row always shows.
- */
 export function TeamMemberPreviewContent({ data }: TeamMemberPreviewContentProps) {
   const { member, currentClientAssignment: cca, compensation, permissions } = data
   const canViewComp = permissions.canViewCompensation
@@ -91,21 +77,14 @@ export function TeamMemberPreviewContent({ data }: TeamMemberPreviewContentProps
   )
 }
 
-// ── Member preview surface (hover desktop / tap mobile) ──────────────────────
 export type TeamMemberHoverCardProps = {
   memberId: string
   clientId: string
   trigger: React.ReactNode
 }
 
-/**
- * Wraps an inline trigger with the right preview surface for the device: a
- * desktop HoverCard (hover + focus) or, on mobile, a tap-driven bottom
- * sheet. Both render the same `TeamMemberPreviewContent`.
- */
 export function TeamMemberHoverCard({ memberId, clientId, trigger }: TeamMemberHoverCardProps) {
   const navigate = useNavigate()
-  // Carry the trail that led into Clientes forward and append a Clientes crumb.
   const [searchParams] = useSearchParams()
   const data = React.useMemo(() => teamMemberPreview(memberId, clientId), [memberId, clientId])
 
@@ -132,10 +111,8 @@ export function TeamMemberHoverCard({ memberId, clientId, trigger }: TeamMemberH
   )
 }
 
-// ── Overflow surface (`+N`) ──────────────────────────────────────────────────
 function TeamOverflowContent({ members }: { members: TeamMember[] }) {
   const navigate = useNavigate()
-  // Carry the trail that led into Clientes forward and append a Clientes crumb.
   const [searchParams] = useSearchParams()
   return (
     <div className="flex flex-col gap-2">
@@ -167,18 +144,12 @@ function TeamOverflow({ members, trigger }: { members: TeamMember[]; trigger: Re
   )
 }
 
-// ── Equipo row list ──────────────────────────────────────────────────────────
 export type ClientTeamInlineListProps = {
   clientId: string
   members: TeamMember[]
   maxVisible?: number
 }
 
-/**
- * The "Equipo" row body: comma-separated member names, each opening a preview,
- * collapsing to `+N` past `maxVisible`. Drop-in for the Resumen card value slot
- * (right-aligned, wraps); falls back to `NO_REGISTRO` when the team is empty.
- */
 export function ClientTeamInlineList({
   clientId,
   members,

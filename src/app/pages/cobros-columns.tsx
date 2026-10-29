@@ -29,8 +29,6 @@ import {
 import { canInvoice, isBilled } from './cobros-invoice'
 import type { Receivable } from './cobros-mock-data'
 
-/** Contextual row actions, wired by the tab. The facturación actions open the §9
- *  subflow dialogs; the collection/edit actions stay toast-stubbed for now. */
 export type CobrosRowActions = {
   onView: (receivable: Receivable) => void
   onGenerateInvoice: (receivable: Receivable) => void
@@ -95,15 +93,12 @@ export function cobrosColumns(actions: CobrosRowActions): ColumnDef<Receivable>[
       },
     },
     {
-      // Hidden by default; it exists so the Moneda filter has a column id to target. See
-      // the /pagos twin for why the lane is not shown as its own visible column.
       accessorKey: 'currency',
       id: 'currency',
       header: 'Moneda',
       cell: ({ row }) => <span className="fg-subtle">{LANE_NOUN[row.original.currency]}</span>,
     },
     {
-      // What is shown is what sorts and filters: an overdue "Pendiente" reads "Vencido".
       accessorFn: (r) => effectiveCollectionStatus(r),
       id: 'status',
       header: 'Estado de cobro',

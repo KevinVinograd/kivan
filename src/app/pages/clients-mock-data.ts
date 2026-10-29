@@ -1,12 +1,3 @@
-/**
- * Clients mock data — the §11 PRD data model + a realistic local dataset.
- *
- * No backend: in-memory records that exercise every status, payment state,
- * profitability band, invoice state and billing entity so the table, filters,
- * list and detail can be validated end to end. Numbers are stored as numbers and
- * dates as ISO strings; formatting (currency, relative dates) happens only at
- * render via `clients-format.ts`. Replaced by a real data source later.
- */
 import { addMonths, parseISO } from 'date-fns'
 
 import type { Currency } from '@hold/shared'
@@ -18,17 +9,10 @@ export type ProfitabilityStatus = 'high' | 'medium' | 'low'
 export type InvoiceStatus = 'not_issued' | 'issued' | 'sent' | 'paid'
 export type BillingEntity = 'monotributo_1' | 'monotributo_2' | 'monotributo_3'
 
-/** How the client normally pays. A property of the client, not of each cobro. */
 export type PaymentMethod = 'cash' | 'transfer'
 
-/** `arrears` = mes vencido, `current` = mes corriendo. */
 export type BillingCycle = 'arrears' | 'current'
 
-/**
- * The rubros a client can belong to. "Tipo de cliente" used to be a free-text input
- * bound to nothing, so the same rubro was typed five different ways and could never
- * be filtered on. A closed list, sentence case, with a catch-all at the end.
- */
 export const CLIENT_TYPE_CATALOG = [
   'Gastronomía',
   'Retail y comercio',
@@ -54,22 +38,14 @@ export type TeamMemberStatus = 'active' | 'paused' | 'inactive'
 export type EmploymentType = 'full_time' | 'part_time' | 'freelance' | 'external'
 export type CompensationModel = 'hourly' | 'monthly_fixed' | 'per_production' | 'mixed'
 
-/** Member-level compensation contract. Per-client cost is NOT stored here — it
- *  is a relationship attribute on {@link ClientAssignment}. */
 export type Compensation = {
   model: CompensationModel
   hourlyRate?: number
   monthlyAmount?: number
   productionRate?: number
-  /** The lane the rates above are denominated in. `TeamMember.currency` exists in the
-   *  schema and the DTO carries it, so pinning this to the literal was a front-side
-   *  claim the data never made: a colaboradora paid in dollars read as pesos. */
   currency: Currency
 }
 
-/** Bank details used to transfer the member their monthly pay (PRD §8.3).
- *  Completeness is derived (not stored): missing `cbuOrCvu` or `accountHolder`
- *  marks the member's bank data as incomplete. */
 export type BankDetails = {
   bankName?: string
   accountHolder?: string
@@ -78,11 +54,6 @@ export type BankDetails = {
   accountType?: 'checking' | 'savings'
 }
 
-/** A person on the roster. Only member-level facts live here; everything that
- *  depends on the member↔client relationship (role on client, hours, cost,
- *  allocation) lives on {@link ClientAssignment}. Contact + bank fields are the
- *  Team-module extension of the shared model — optional so the Clients page,
- *  which never reads them, keeps compiling against the same type. */
 export type TeamMember = {
   id: string
   name: string
@@ -92,64 +63,31 @@ export type TeamMember = {
   role: string
   status: TeamMemberStatus
   employmentType: EmploymentType
-  /** Agency start date (ISO), source of the "Antigüedad" tenure label. */
   startDate?: string
   compensation: Compensation
   email?: string
   phone?: string
-  /** CUIT / CUIL (Argentina tax id). */
   taxId?: string
   bank?: BankDetails
-  /** Derived from the API (holder + CBU/CVU present). The bank FIELDS live behind a
-   *  capability gate and are absent from the member DTO, so this boolean — not `bank` —
-   *  is what drives the pay-readiness signal for API-loaded members. */
   bankComplete?: boolean
-  /** Three-valued twin of `bankComplete`, also API-derived: what the Datos bancarios badge
-   *  and filter read, since `bank` is never loaded for the roster. */
   bankStatus?: 'complete' | 'incomplete' | 'none'
-  /** Internal notes for the member detail (PRD §8.1). */
   notes?: string
 }
 
-/** Normalized member↔client relationship — the source of truth for everything
- *  that is specific to "this person on this client". Backed by mock records
- *  (deterministically seeded) until a real backend supplies them. */
 export type AssignmentStatus = 'active' | 'paused' | 'ended'
 
 export type ClientAssignment = {
   id: string
   clientId: string
-  /** Denormalized for convenience in previews; mirrors clients[clientId].name. */
   clientName: string
   teamMemberId: string
   roleOnClient: string
-  /** The catalogued service this person covers on the client (PRD §8.4). */
   serviceName?: string
-  /** Relationship lifecycle, independent of the member's roster status. Soft-delete
-   *  only: ending an assignment sets `status: 'ended'` + `endedAt` — the record is
-   *  never removed, so mid-month altas/bajas and historical hours/productions stay
-   *  attributable. `assignedSince` is the start date. */
   status?: AssignmentStatus
   assignedSince?: string
-  /** Set when the assignment is ended (soft-delete). Past entries remain valid. */
   endedAt?: string
   allocationPercent?: number
-  /** Expected monthly hours for this person on this client (PRD §8.4 carga estimada). */
   estimatedMonthlyHours?: number
-  /**
-   * What the studio pays this member for this client per month.
-   *
-   * TYPED per assignment, never derived: a `monthly_fixed` collaborator has no hourly
-   * rate, so an hours-based estimate is blank for most of the team.
-   *
-   * `undefined` = nobody entered it, or the reader does not hold `teamCost`. `0` is a
-   * real amount the studio agreed to. Every surface must render the first as absence
-   * and the second as a figure; a truthiness check collapses them.
-   *
-   * This replaces a dead `currentMonth: { hours, productionsCount, estimatedCost }`
-   * that the mock builder wrote and NOTHING ever read. Two cost-shaped fields on one
-   * type, one live and one inert, is how the wrong one gets picked up later.
-   */
   monthlyCost?: number
 }
 
@@ -164,34 +102,11 @@ export type Client = {
 
   services: string[]
 
-  /**
-   * @deprecated Legacy denormalized roster. It still SEEDS `clientAssignments`
-   * (buildClientAssignments) but must NOT drive render or calculations — the
-   * normalized, mutable `clientAssignments` (via `membersForClient` /
-   * `assignmentsForClient` in the shared store) is the source of truth. The client
-   * detail is migrated; the table/list previews are a tracked follow-up.
-   */
   assignedTeam: TeamMember[]
 
   monthlyFee: number
-  /**
-   * The fee's own currency. Segregated lanes, never converted: there is no FX rate
-   * anywhere in the product and `money.ts` makes cross-currency arithmetic throw by
-   * design, so a USD fee is shown as its own figure rather than blended into a peso
-   * total.
-   */
   currency: Currency
 
-  /**
-   * The month's money, projected from the CANONICAL receivables
-   * (`clients-receivables.ts`) — not owned here.
-   *
-   * All four are OPTIONAL, and `undefined` means "nothing was billed to this client
-   * this month". That is a state to render, not a zero to substitute: `$0` reads as a
-   * real amount owed to nobody, and defaulting `currentMonthDueAmount` to `monthlyFee`
-   * (which is what `dtoToClient` used to do on every successful fetch) presents the
-   * contracted fee as though somebody had billed it.
-   */
   paymentStatus?: PaymentStatus
   currentMonthPaidAmount?: number
   currentMonthDueAmount?: number
@@ -201,13 +116,7 @@ export type Client = {
   profitabilityPercent?: number
   profitabilityStatus?: ProfitabilityStatus
 
-  /**
-   * The monotributo emisor that bills this client. OPTIONAL on purpose: most of the
-   * book is loaded before anyone decides who invoices it, and coercing a blank to
-   * the first emisor would turn an unanswered question into a fabricated answer.
-   */
   billingEntity?: BillingEntity
-  /** Undefined when the client has no receivable this month — see the block above. */
   invoiceStatus?: InvoiceStatus
 
   startDate?: string
@@ -218,36 +127,18 @@ export type Client = {
   nextAction?: string
   notes?: string
 
-  /** Search-only fields (PRD §7.1 searches contacto principal + email de facturación). */
   contactName?: string
   billingEmail?: string
-  /** Contact phone. Drives the WhatsApp contact action. */
   phone?: string
-  /** The client's domicilio. Display only: nothing parses, sorts or geocodes it. */
   address?: string
-  /** A second contact email. Some clients bill to one address and read another. */
   secondaryEmail?: string
-  /** The administrative contact, distinct from the day-to-day one. */
   adminContactName?: string
   adminContactEmail?: string
   adminContactPhone?: string
 
-  /** How the client normally pays. */
   paymentMethod?: PaymentMethod
-  /**
-   * A standing discount off the monthly fee, in basis points (1000 = 10%).
-   *
-   * Kept in basis points rather than a percent so the value the UI shows and the value
-   * the generator prices with are the same integer. `undefined` means no discount was
-   * agreed, which every surface renders as absence rather than as 0%.
-   */
   discountPercentBp?: number
-  /** Recorded, not enforced: nothing derives a due date from it yet. */
   billingCycle?: BillingCycle
-  /**
-   * A one-off project fee alongside the monthly retainer, and when it ends. The fee
-   * TYPE (monthly / project / both) is derived from which amounts are present.
-   */
   projectFee?: number
   projectEndDate?: string
 
@@ -255,8 +146,6 @@ export type Client = {
   updatedAt: string
 }
 
-/** Shared team roster reused across clients. Compensation spans all four models
- *  so the detail preview can exercise every "Cálculo" layout. */
 const team: Record<string, TeamMember> = {
   flor: {
     id: 'tm-flor',
@@ -292,7 +181,6 @@ const team: Record<string, TeamMember> = {
     email: 'mica@holdstudio.com',
     phone: '+54 9 11 5544-2244',
     taxId: '27-38920114-1',
-    // Incomplete bank data (no CBU/CVU) — exercises the "Incompleto" state.
     bank: { bankName: 'Mercado Pago', alias: 'mica.torres' },
   },
   juan: {
@@ -370,15 +258,9 @@ const team: Record<string, TeamMember> = {
     compensation: { model: 'mixed', currency: 'ARS' },
     email: 'lara@holdstudio.com',
     phone: '+54 9 11 5544-6650',
-    // No bank data at all — exercises the "Sin datos" state.
   },
 }
 
-/** All catalogued services (PRD §6.3 Servicios — also the dynamic filter source). */
-// Sentence case, and the exact strings are load-bearing: a client's services are
-// compared by string equality (`client.services.includes(...)` in the filter), so
-// re-adding an existing entry under different casing would create a second
-// checkbox and a filter option that matches no existing client.
 export const SERVICE_CATALOG = [
   'Redes',
   'Ads',
@@ -981,39 +863,25 @@ const clientsSeed: Client[] = [
   },
 ]
 
-/** Deterministic AR mobile per client (mock) for the WhatsApp contact action. */
 function seedPhone(index: number): string {
   return `+54 9 11 5555-${String(1000 + index).padStart(4, '0')}`
 }
 
-/** Clients enriched with a deterministic mock phone where none was authored. */
 export const clients: Client[] = clientsSeed.map((client, index) => ({
   ...client,
   phone: client.phone ?? seedPhone(index),
 }))
 
-// ── Normalized assignments (member ↔ client) ────────────────────────────────
-/** Numeric suffix of a client id (`cli-007` → 7), for deterministic seeding. */
 function clientNumber(client: Client): number {
   return Number(client.id.replace(/\D/g, '')) || 1
 }
 
-/** Stable hash of a member id, so the seed varies per (client, member) pair. */
 function memberHash(id: string): number {
   let sum = 0
   for (let i = 0; i < id.length; i++) sum += id.charCodeAt(i)
   return sum
 }
 
-/**
- * Builds the normalized `ClientAssignment` table from the client roster. The
- * table is the source of truth for per-client attributes (role on client,
- * assigned-since, allocation, monthly hours/productions/cost); values are
- * seeded deterministically from the (client, member) pair so the dataset is
- * stable across reloads. A few records intentionally omit hours / cost /
- * assigned-since so the preview can exercise its empty states. Mock stand-in —
- * a real backend supplies these rows later.
- */
 function buildClientAssignments(source: Client[]): ClientAssignment[] {
   const out: ClientAssignment[] = []
   for (const client of source) {
@@ -1024,15 +892,9 @@ function buildClientAssignments(source: Client[]): ClientAssignment[] {
       const assignedSince =
         seed % 13 === 0 ? undefined : toIsoDate(addMonths(anchor, seed % 10))
 
-      // Only the allocation survives. The hours / productions / estimated-cost figures
-      // this block used to compute fed `currentMonth`, which nothing read — see the
-      // note on `ClientAssignment.monthlyCost`. Seeding a per-client cost here would
-      // be worse than seeding nothing: it is the exact figure the studio is now being
-      // asked to enter, and a fabricated one is indistinguishable from a real one.
       const allocationPercent =
         comp.model === 'monthly_fixed' ? 15 + (seed % 4) * 10 : undefined
 
-      // Service covered + relationship status + expected monthly load (Team §8.4).
       const serviceName = client.services[idx % client.services.length]
       const status: AssignmentStatus =
         seed % 17 === 0 ? 'ended' : seed % 7 === 0 ? 'paused' : 'active'
@@ -1055,8 +917,6 @@ function buildClientAssignments(source: Client[]): ClientAssignment[] {
   return out
 }
 
-/** The normalized assignment table — iterate/query this, not `assignedTeam`. */
 export const clientAssignments: ClientAssignment[] = buildClientAssignments(clients)
 
-/** All roster members (for member-level lookups in the preview DTO). */
 export const teamMembers: TeamMember[] = Object.values(team)

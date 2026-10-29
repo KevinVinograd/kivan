@@ -1,17 +1,3 @@
-/**
- * Reportes — derivation layer (real, backend-driven).
- *
- * Every figure comes from the API: `financials`/`summary` from the real
- * receivables + payments the page already fetches, `profitability` from
- * `GET /reports/profitability` (per-client six-area cost + margin), and
- * `capacity` from `GET /reports/capacity` (per-member real monthly cost; hours
- * stay "sin datos" until HOLD loads them), `productividad` from
- * `GET /reports/productivity` (one row per logged `TimeEntry`, hours by
- * person/client/task), and the two trend charts from `GET /reports/margin-history`
- * and `GET /reports/hours-history` (a rolling window of real per-month totals).
- * An empty studio sees honest empty states instead of invented data.
- * No mock, no mutation, no fake delays.
- */
 import type {
   ClientProfitabilityDto,
   MarginHistoryPointDto,
@@ -35,7 +21,6 @@ import type {
   TeamCapacityStatus,
 } from './reports-types'
 
-// ── Small label maps (Finanzas buckets) ─────────────────────────────────────
 const COLLECTION_LABEL: Record<CollectionStatus, string> = {
   pending: 'Pendiente',
   collected: 'Cobrado',
@@ -63,9 +48,6 @@ const BILLING_LABEL: Record<BillingStatus, string> = {
 
 const sum = <T,>(items: T[], pick: (item: T) => number) => items.reduce((t, i) => t + pick(i), 0)
 
-/** Minor units (centavos) string → major units (pesos) number. */
-
-// ── Status classifiers (shared with the API mappers) ─────────────────────────
 function profitabilityStatusOf(
   margen: number,
   monthsSinceIncrease: number | null,
@@ -81,13 +63,6 @@ function profitabilityStatusOf(
   return 'rentable'
 }
 
-/**
- * Load band for a person. Both inputs can be absent, and each absence means something
- * different: no hours logged is "sin carga" (we know they logged nothing), while no
- * configured capacity is "sin capacidad" (we cannot judge their load at all). The
- * capacity check comes FIRST because judging someone under-loaded against a capacity
- * nobody ever set is a fabricated verdict, not a lenient one.
- */
 function capacityStatusOf(hoursLogged: number, utilization: number | null): TeamCapacityStatus {
   if (utilization == null) return 'sin_capacidad'
   if (hoursLogged <= 0) return 'sin_carga'
@@ -96,17 +71,6 @@ function capacityStatusOf(hoursLogged: number, utilization: number | null): Team
   return 'balanceada'
 }
 
-// ── API → report-item mappers ────────────────────────────────────────────────
-/**
- * Map the API's per-client profitability onto the report item. `costos` and
- * `rentabilidad` come straight from the API, which already subtracts everything; the
- * buckets here only split it for display. Production and viáticos keep their own; the
- * `teamCost` bucket carries what the studio pays the people assigned to the client
- * (`costTeamMinor`, from the assignments) plus pauta and fijos — and the legacy
- * design/communication columns, which are always zero now that they are no longer
- * writable. The buckets therefore still add up to `costos`. `horas` and increase history
- * have no backend source yet (null/0).
- */
 export function mapApiProfitability(byClient: ClientProfitabilityDto[]): ClientProfitabilityReportItem[] {
   return byClient.map((c) => {
     const ingresos = toMajor(c.billedMinor)
@@ -143,21 +107,6 @@ export function mapApiProfitability(byClient: ClientProfitabilityDto[]): ClientP
   })
 }
 
-/**
- * Map the API's per-member capacity onto the report item. `personCost` is the real
- * monthly cost ("Le pagamos x cliente" summed); hours read as "sin carga" until HOLD
- * loads them.
- *
- * `personCost` must NOT go through `toMajor`: that helper is `minor ? .../100 : 0`
- * (`src/lib/money.ts`), so it launders a wire `null` into a real-looking zero and every
- * absence test downstream is dead on arrival — which would re-print the `$ 0` this
- * change exists to remove, through its own fix.
- *
- * Capacity stays NULL when the backend has none (`capacityHoursMonthly` is nullable and
- * no screen sets it yet) instead of collapsing to 0. A 0 here used to make a person with
- * assigned hours compute to 0% utilization and render "0 h · Subutilizada" — a verdict
- * about someone's workload measured against a capacity nobody had configured.
- */
 export function mapApiCapacity(members: MemberCapacityDto[]): TeamCapacityReportItem[] {
   return members.map((m) => {
     const hoursLogged = m.hoursAllocated
@@ -179,9 +128,6 @@ export function mapApiCapacity(members: MemberCapacityDto[]): TeamCapacityReport
       capacity,
       utilization,
       personCost,
-      // Null when there is no COST, not only when there are no hours. The old form
-      // keyed on hours alone, so a person with hours logged and no cost divided zero
-      // by them and produced a second confident `$ 0`.
       costPerHour: personCost != null && hoursLogged > 0 ? personCost / hoursLogged : null,
       costedAssignments: m.costedAssignments,
       totalAssignments: m.totalAssignments,
@@ -191,7 +137,6 @@ export function mapApiCapacity(members: MemberCapacityDto[]): TeamCapacityReport
 }
 
 
-// ── Finanzas operativas (real per-period cobros/pagos) ───────────────────────
 function bucketBy<T, K extends string>(
   items: T[],
   keyOf: (item: T) => K,
@@ -219,22 +164,6 @@ function buildFinancials(
   receivables: Receivable[],
   payments: Payment[],
 ): FinancialOperationsReport {
-  // EVERY figure in this report is PESOS — the totals, the buckets, their counts, and the
-  // rows of the detail tables alike. One invariant, stated once, because the alternative
-  // was tried and does not survive contact with this file's consumers.
-  //
-  // The alternative was: lists carry every lane, each row rendered in its own currency.
-  // It reads better in the abstract and it is what /cobros and /pagos do — but those pages
-  // render ROWS. This report's lists feed nine other files that AGGREGATE them: two
-  // donuts, a collapsed accordion summary, the bucket drawer's aging and concentration
-  // buckets, the record drawer, the CSV export and the owner dashboard's pendientes. Every
-  // one of them sums or peso-formats without asking, so widening the lists put dollars
-  // back into peso totals in eight places at once — the exact defect this work exists to
-  // remove. Lane-awareness spread across nine files is a rule whose next omission is
-  // invisible; a peso-only report is a rule the type carries.
-  //
-  // The non-peso rows are not lost: they are COUNTED here, said on screen, and shown with
-  // their own currency on /cobros and /pagos, which is where rows belong.
   const allRecs = receivables.filter((r) => r.period === period)
   const allPays = payments.filter((p) => p.period === period)
   const recs = allRecs.filter((r) => r.currency === 'ARS')
@@ -268,9 +197,6 @@ function buildFinancials(
     (r) => r.extraAmount,
   )
 
-  // `livePays`, not `pays`: a CANCELLED fixed expense is excluded from the `gastosFijos`
-  // total three lines up, and listing it anyway put it in the donut as "Pendiente" — a
-  // slice for money nobody owes, next to a total that correctly leaves it out.
   const gastosFijosList: FixedExpenseLine[] = livePays
     .filter((p) => p.recipientType === 'fixed_expense')
     .map((p) => ({
@@ -342,8 +268,6 @@ function buildSummary(
 ): ReportSummary {
   const liveRecs = receivables.filter((r) => r.period === period && r.status !== 'cancelled')
   const livePays = payments.filter((p) => p.period === period && p.status !== 'cancelled')
-  // Peso lane only. `ingresos - egresos` is a subtraction, so a dollar cobro counted at
-  // face value against peso costs moves Rentabilidad by roughly the exchange rate.
   const recs = liveRecs.filter((r) => r.currency === 'ARS')
   const pays = livePays.filter((p) => p.currency === 'ARS')
   const ingresos = sum(recs, (r) => r.totalAmount)
@@ -365,22 +289,16 @@ function buildSummary(
   }
 }
 
-/** Inputs for one report period: the real stores plus the mapped API aggregates. */
 export type ReportInputs = {
   receivables: Receivable[]
   payments: Payment[]
   profitability?: ClientProfitabilityReportItem[]
-  /** Clients whose period billing is entirely in another lane, and which `profitability`
-   *  therefore omits — not as a zero row, as no row. */
   otherLaneClientCount?: number
-  /** What clients with no peso cobro cost — no row either (see `ReportDataset`). */
   unbilledCost?: { clientCount: number; cost: number }
   capacity?: TeamCapacityReportItem[]
   productivity?: ProductivityReportItem[]
 }
 
-/** Build the full dataset for a period from real inputs. Pure; safe to memoize.
- *  With no inputs it yields an all-empty dataset (the honest empty state). */
 export function getReportData(
   period: ReportPeriod,
   inputs: ReportInputs = { receivables: [], payments: [] },
@@ -408,12 +326,7 @@ export function getReportData(
   }
 }
 
-/** Map the API's per-month margin trend onto the chart point (minor → pesos). */
 export function mapApiMarginHistory(points: MarginHistoryPointDto[]): MarginHistoryPoint[] {
   return points.map((p) => ({ period: p.period, label: p.period, margin: toMajor(p.marginMinor) }))
 }
 
-// The per-person hours trend and the per-client margin trend are no longer derived
-// here: they come from `GET /reports/hours-history` and `GET /reports/margin-history
-// ?clientId=`, consumed by the drawers via `useReportsHoursHistory` /
-// `useReportsMarginHistory` (see reports-api-data.ts).

@@ -1,13 +1,3 @@
-/**
- * The client view's productions: the history of what was shot for the client, where a
- * communication lead approves it and anyone allowed loads a new one.
- *
- * HOLD asked for it on 2026-10-19: a production loaded in Operación mensual showed nowhere
- * on the client, so its cost looked like it was not counted ("el costo del equipo
- * variable no se suma"). Who shot a given month, and what it cost, moved to the Resumen's
- * "Equipo variable" card on 2026-10-21 (`client-variable-team.tsx`), where HOLD asked for
- * it. Money is shown only to viewers holding `teamCost`, like the fixed team above it.
- */
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { hasCapability } from '@hold/shared'
@@ -25,10 +15,6 @@ import { formatCurrency, formatDate, productionStatusBadge } from './monthly-ope
 import { ViaticsCell, formatDuration, packCaption } from './monthly-production-viatics'
 import { useCanApproveProduction, useCanCreateProduction } from './log-production-item'
 
-/**
- * "Aprobar" on one production — the lead's "se hizo". Only approved productions are billed
- * to the client and paid to whoever shot them, so this is the button that releases both.
- */
 function ApprovalButton({ production }: { production: ProductionRecord }) {
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
@@ -76,8 +62,6 @@ export function ClientProductionsModule({
   const showCost = hasCapability(capabilities, 'teamCost')
   const canLog = useCanCreateProduction()
   const canApprove = useCanApproveProduction()
-  // Owner/admin, or a communication lead holding a production grant (who sees no money:
-  // `showCost` is false for them, and the API sends them none).
   const enabled = role !== 'employee' || canLog || canApprove
   const query = useClientProductions(client.id, enabled)
   if (!enabled) return null

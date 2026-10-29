@@ -56,15 +56,6 @@ import {
   type TeamMemberFormValues,
 } from './team-data'
 
-/**
- * What actually went wrong with an invitation, in the words the operator needs.
- *
- * The statuses are distinct problems with distinct next moves: a taken email or an
- * already-linked person is somebody else's account (go look at Configuración), a rejected
- * payload is a typo in this form, and anything else is not their fault and is worth
- * retrying. One sentence for all four would hide exactly the difference that decides
- * what to do next.
- */
 function inviteFailureMessage(error: unknown): string {
   if (error instanceof ApiError) {
     if (error.status === 409) return 'Ese email o esa persona ya tienen una cuenta. Revisalo en Configuración → Miembros y roles.'
@@ -90,8 +81,6 @@ export type TeamDialogState =
   | { kind: 'invite'; member: TeamMember }
   | { kind: 'deactivate'; member: TeamMember }
 
-/** Today, resolved per call. It was the 16th of a month pinned to June 2026, so every
- *  work-log dialog opened on a date in the past. See team-mock-data.ts for the full story. */
 const defaultLogDate = () => todayIso()
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -151,8 +140,6 @@ function formFromMember(member: TeamMember): TeamMemberFormValues {
     bankAlias: member.bank?.alias ?? '',
     taxId: member.taxId ?? '',
     notes: member.notes ?? '',
-    // Editing never re-invites: access is granted once, and changing it afterwards belongs
-    // to Configuración, which owns role changes and deactivation.
     grantAccess: false,
     accessRole: 'employee',
   }
@@ -169,12 +156,7 @@ function MemberFormDialog({
 }) {
   const td = useTeamData()
   const { capabilities, role } = useRole()
-  // Bank details are capability-gated (BD001): only shown, fetched and saved for a role that
-  // holds `teamBankDetails`. The member DTO never carries them — they ride their own route.
   const canBank = hasCapability(capabilities, 'teamBankDetails')
-  // Granting access is a DIFFERENT authority from creating a roster person: `POST /users` is
-  // gated by `user.invite` server-side. Someone who may build the roster but not hand out
-  // logins must not even see the offer.
   const canInvite = role === 'owner' || role === 'admin'
   const [values, setValues] = useState<TeamMemberFormValues>(
     member ? formFromMember(member) : emptyForm(),
@@ -183,8 +165,6 @@ function MemberFormDialog({
   const queryClient = useQueryClient()
   const accessId = useId()
 
-  // Prefill the bank fields on edit from the gated sub-resource (they are absent from the
-  // member DTO, so formFromMember left them blank).
   useEffect(() => {
     if (mode !== 'edit' || !member || !canBank) return
     let alive = true
@@ -200,7 +180,6 @@ function MemberFormDialog({
         }))
       })
       .catch(() => {
-        // A failed bank fetch leaves the fields blank; the member's other data still edits.
       })
     return () => {
       alive = false
@@ -219,12 +198,7 @@ function MemberFormDialog({
           onSubmit={async (event) => {
             event.preventDefault()
             if (submitting) return
-            // The invitation is an email; without one there is nothing to send it to, and
-            // the alta would half-succeed. Caught here rather than at the API so the person
-            // is never created before the problem is named.
             if (canInvite && values.grantAccess) {
-              // Both are required by `POST /users`. Caught here rather than at the API so
-              // the person is not created first and the invitation left to fail after.
               if (!values.email.trim()) {
                 toast.error('Cargá el email para poder enviar la invitación')
                 return
@@ -244,9 +218,6 @@ function MemberFormDialog({
                 const created = await td.addMember(values)
                 if (canBank) await td.saveMemberBank(created.id, values)
                 if (canInvite && values.grantAccess) {
-                  // Sequential on purpose: the person on the roster is a VALID end state on
-                  // its own, so a failed invitation must not undo the alta. It reports the
-                  // partial truth and the ficha's own "Invitar" button retries it.
                   try {
                     await usersApi.create({
                       email: values.email,
@@ -258,10 +229,6 @@ function MemberFormDialog({
                     await queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
                     toast.success('Persona agregada y invitación enviada')
                   } catch (error) {
-                    // The person LANDED — only the invitation failed — so the toast must say
-                    // both halves, and it must say WHICH failure, because "ese email ya tiene
-                    // cuenta" and "el servidor no respondió" need different next moves. Her
-                    // ficha now carries an "Invitar" action, which is the retry.
                     toast.error('Se agregó la persona, pero no se pudo invitar', {
                       description: inviteFailureMessage(error),
                     })
@@ -401,10 +368,6 @@ function MemberFormDialog({
             />
           </Field>
 
-          {/* Access lives here so the alta is ONE action: the roster person and their login
-              used to be created on two different screens, retyping the same name and email,
-              and a person created without the second step could be paid but never sign in.
-              Only on create — an existing person is invited from their own ficha. */}
           {mode === 'new' && canInvite ? (
             <div className="flex flex-col gap-3 border-t border-alpha-subtle pt-4">
               <label htmlFor={accessId} className="flex items-center gap-2 type-body-2 fg-default">
@@ -463,7 +426,6 @@ function MemberFormDialog({
   )
 }
 
-/** Unique {id,name} clients for a member, for the activity forms' client select. */
 function useMemberClients(memberId: string): { id: string; name: string }[] {
   const td = useTeamData()
   const seen = new Set<string>()
@@ -584,11 +546,6 @@ function LogHoursDialog({ member, onClose }: { member: TeamMember; onClose: () =
   )
 }
 
-/**
- * "Cargar producción" for this person: the planilla form with them as the content creator.
- * Their client is prefilled only when they have exactly one live assignment; with more it
- * would be a guess.
- */
 function LogProductionDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   const live = td.assignmentsForMember(member.id).filter((a) => a.status !== 'ended')
@@ -783,16 +740,6 @@ function LogExtraDialog({ member, onClose }: { member: TeamMember; onClose: () =
   )
 }
 
-/**
- * Two steps of the same lifecycle, because they are the same decision at two moments:
- * approve the statement (draft → aprobado) and then send the money (aprobado → en
- * proceso). The step is derived from the row's REAL status, never picked by the user —
- * each transition is a conditional server update that refuses an out-of-order call.
- *
- * "Marcar pagado" is deliberately NOT offered here any more: dispatching money and
- * confirming it cleared are two different facts, and collapsing them let the UI
- * declare a payment settled the moment it was sent.
- */
 function ApprovePaymentDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   const [pending, setPending] = useState(false)
@@ -820,8 +767,6 @@ function ApprovePaymentDialog({ member, onClose }: { member: TeamMember; onClose
             color="primary"
             disabled={pending}
             onClick={async (event) => {
-              // The action closes the AlertDialog by default; keep it open so a failed
-              // write leaves the user where they were instead of vanishing silently.
               event.preventDefault()
               setPending(true)
               const ok = isApproved
@@ -844,11 +789,6 @@ function ApprovePaymentDialog({ member, onClose }: { member: TeamMember; onClose
   )
 }
 
-/**
- * What a payment dialog shows when the member has no statement for the month. The
- * plan is created in Operación mensual, so this points there instead of offering an
- * action that has nothing to act on.
- */
 function NoStatementDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   return (
@@ -881,9 +821,6 @@ function NoStatementDialog({ member, onClose }: { member: TeamMember; onClose: (
   )
 }
 
-/** Review and approve the member's pending trabajos extra in one step. Approving
- *  flips them pending -> approved so they enter the payable total; wiring this is
- *  what makes the "N extras sin aprobar" alert/insight CTA actually resolvable. */
 function ApproveExtrasDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   const pending = td.extrasForMember(member.id).filter((extra) => extra.status === 'pending')
@@ -920,8 +857,6 @@ function ApproveExtrasDialog({ member, onClose }: { member: TeamMember; onClose:
             color="primary"
             disabled={pending.length === 0}
             onClick={async () => {
-              // Persists now (POST /member-extras/approve flips pending→approved), so a
-              // success toast is honest. A failure keeps the dialog open and says so.
               try {
                 await td.approveExtras(member.id)
               } catch {
@@ -940,8 +875,6 @@ function ApproveExtrasDialog({ member, onClose }: { member: TeamMember; onClose:
   )
 }
 
-/** Register the outstanding amount as actually paid against the statement. Idempotent
- *  server-side (a key per attempt), so a retry after a network error cannot double-post. */
 function PayDifferenceDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   const [pending, setPending] = useState(false)
@@ -987,7 +920,6 @@ function PayDifferenceDialog({ member, onClose }: { member: TeamMember; onClose:
   )
 }
 
-/** Confirm a dispatched payment cleared: moves "Pago en proceso" → Pagado. */
 function ConfirmPaidDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   const [pending, setPending] = useState(false)
@@ -1031,15 +963,8 @@ function ConfirmPaidDialog({ member, onClose }: { member: TeamMember; onClose: (
   )
 }
 
-/**
- * Assign the member to a client (team-side inverse of the Clients "Asignar
- * persona" flow). Offers the clients the member is not already actively assigned
- * to; writes an active assignment via the shared `assignMemberToClient`.
- */
 function AssignClientDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
-  // Real clients roster (the same list the Clientes page reads); the picker offers
-  // those the member is not already actively assigned to.
   const clientsQuery = useQuery({
     queryKey: queryKeys.clients.lists(),
     queryFn: fetchClients,
@@ -1053,37 +978,16 @@ function AssignClientDialog({ member, onClose }: { member: TeamMember; onClose: 
       .map((assignment) => assignment.clientId),
   )
   const candidates = allClients.filter((client) => !assignedIds.has(client.id))
-  /**
-   * DERIVED, not seeded once.
-   *
-   * `useState(candidates[0]?.id ?? '')` ran on the first render, and the clients query
-   * is cold on the session's first open — so `candidates` was guaranteed empty at that
-   * moment and the value froze at `''`. When the fetch landed the Select re-enabled but
-   * kept showing its placeholder, "Sin clientes disponibles", over a list that had
-   * loaded, with `Asignar` disabled until the user opened the dropdown by hand.
-   */
   const [picked, setPicked] = useState<string | null>(null)
-  // Nothing is pre-picked any more: with a searchable list the operator types the client
-  // they mean. Still derived, so a pick that drops out of `candidates` clears itself.
   const clientId = candidates.some((c) => c.id === picked) ? picked! : ''
   const setClientId = setPicked
   const [area, setArea] = useState<AssignmentArea | ''>('')
   const [estimatedMonthlyHours, setEstimatedMonthlyHours] = useState(0)
-  // Raw string, so EMPTY (nobody said) stays distinct from `0` (agreed to be free).
-  // Mirrors the client-side dialog field for field: a relationship assigned from one
-  // side must not record less than the same relationship assigned from the other.
   const [costInput, setCostInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const monthlyCost = parseCostInput(costInput)
 
-  /**
-   * Either fetch failing means we cannot say which clients this person is free to
-   * take. An empty `candidates` renders "Sin clientes disponibles" — a statement —
-   * and under an ASSIGNMENT outage `assignedIds` is empty too, so the picker offers
-   * clients they are already on and the assignment 409s against the live-pair index
-   * on every retry.
-   */
   if (clientsQuery.isError || td.isAssignmentsError) {
     return (
       <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -1119,12 +1023,9 @@ function AssignClientDialog({ member, onClose }: { member: TeamMember; onClose: 
             setSaving(true)
             setError(null)
             try {
-              // AWAITED — same invariant as the client-side dialog: no success toast
-              // before the write resolves.
               await td.assignMemberToClient(client.id, member.id, {
                 roleOnClient: area,
                 ...(estimatedMonthlyHours ? { estimatedMonthlyHours } : {}),
-                // `!== undefined`, not truthiness: a typed 0 is a decision.
                 ...(monthlyCost !== undefined ? { monthlyCost } : {}),
               })
               toast.success('Persona asignada al cliente')
@@ -1180,11 +1081,6 @@ function AssignClientDialog({ member, onClose }: { member: TeamMember; onClose: 
   )
 }
 
-/**
- * Confirm before deactivating a person (destructive: removes them from the active
- * roster). No undo is wired, so the AlertDialog is the only safety net; the danger
- * action runs the mutation and confirms with a toast (feedback Section 7).
- */
 function DeactivateMemberDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const td = useTeamData()
   return (
@@ -1219,20 +1115,11 @@ function DeactivateMemberDialog({ member, onClose }: { member: TeamMember; onClo
   )
 }
 
-/**
- * Invite a person who is ALREADY on the roster — the second half of unifying the alta.
- * The roster id is resolved here, so nobody has to go to Configuración and find this same
- * person again in a selector; and the email defaults to the one their ficha already carries,
- * which is the field the two screens used to ask for twice and then never reconcile.
- */
 function InviteMemberDialog({ member, onClose }: { member: TeamMember; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [email, setEmail] = useState(member.email ?? '')
   const [accessRole, setAccessRole] = useState<'admin' | 'employee'>('employee')
   const [submitting, setSubmitting] = useState(false)
-  // The ficha's own fields first; splitting the display name is only the fallback. And the
-  // last name falls back to the FIRST — `inviteUserSchema` requires both to be non-empty, so
-  // a one-word roster name ("Sofía", a studio alias) would 400 on every attempt otherwise.
   const [splitFirst, ...splitRest] = member.name.split(' ')
   const firstName = member.firstName ?? splitFirst ?? member.name
   const lastName = member.lastName ?? (splitRest.join(' ') || firstName)
@@ -1258,9 +1145,6 @@ function InviteMemberDialog({ member, onClose }: { member: TeamMember; onClose: 
                 role: accessRole,
                 teamMemberId: member.id,
               })
-              // The shared cache both screens read: without this, Equipo keeps offering
-              // "Invitar" to somebody who now has a login (a guaranteed 409) and
-              // Configuración's list lags behind. It is the whole reason the key is shared.
               await queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
               toast.success('Invitación enviada')
               onClose()

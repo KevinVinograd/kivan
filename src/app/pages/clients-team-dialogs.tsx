@@ -37,32 +37,16 @@ import { EditAssignmentDialog } from './assignment-edit-dialog'
 import { LogProductionForm } from './monthly-production-form'
 import { ClientProductionsModule } from './client-productions-module'
 
-/**
- * Client-scoped activity + assignment dialogs (PRD). The Clients detail logs hours
- * and productions and assigns/ends team members from the client's side — against
- * the SAME shared store the Team module mutates (`useTeamData`), so a change here
- * reflects in the member's Team view at once. Member pickers default to the
- * client's ACTIVE assigned members; assigning offers the rest of the roster.
- */
 export type ClientTeamDialogState =
   | { kind: 'none' }
-  // `selfMemberId`, when set, fixes the entry to the signed-in employee and hides
-  // the Persona picker — the employee logs their OWN work against the client. The
-  // manager flows omit it and keep the picker.
   | { kind: 'hours'; client: Client; selfMemberId?: string }
   | { kind: 'production'; client: Client; selfMemberId?: string }
   | { kind: 'extra'; client: Client; selfMemberId?: string }
   | { kind: 'assign'; client: Client }
   | { kind: 'end'; client: Client; assignmentId: string; memberName: string }
   | { kind: 'editAssignment'; client: Client; assignmentId: string; memberName: string }
-  // A communication lead's window on a client's productions (history, approve, load),
-  // opened from the employee roster, which has no client view to hold it.
   | { kind: 'productions'; client: Client }
 
-/** Today, resolved per call. This was `${CURRENT_MONTH}-16` — the 16th of a month pinned to
- *  June 2026 — so every work-log dialog opened pre-filled with a date in the past, and an
- *  operator who did not notice filed the entry there. A function, not a const, so a tab left
- *  open across midnight does not keep offering yesterday. */
 const defaultLogDate = () => todayIso()
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -74,7 +58,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-/** Member <Select> bound to a list, with the field label echoed as aria-label. */
 function MemberSelect({
   label,
   members,
@@ -125,8 +108,6 @@ function LogHoursDialog({
   const [description, setDescription] = useState('')
   const [isOutOfScope, setIsOutOfScope] = useState(false)
 
-  // A client with no assigned members would otherwise trap the manager on a
-  // disabled picker + disabled submit; guide them to assign someone first.
   if (!selfMemberId && members.length === 0) {
     return (
       <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -240,12 +221,6 @@ function LogHoursDialog({
   )
 }
 
-/**
- * "Cargar producción" from a client: the planilla form with the client (and so its
- * Comunicación account manager) prefilled. The content creator starts EMPTY unless an
- * employee is logging their own work: a client has no single creator, and a pre-picked one
- * is one Enter away from attributing hours and cost to the wrong person.
- */
 function LogProductionDialog({
   client,
   onClose,
@@ -284,8 +259,6 @@ function LogExtraDialog({
   const [hours, setHours] = useState(0)
   const [amount, setAmount] = useState(0)
 
-  // A client with no assigned members would otherwise trap the manager on a
-  // disabled picker + disabled submit; guide them to assign someone first.
   if (!selfMemberId && members.length === 0) {
     return (
       <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -316,9 +289,6 @@ function LogExtraDialog({
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
-            // Logs the member's OWN extra work against the client. It never bills
-            // the client (no currentMonthDueAmount mutation) — that is the manager
-            // ClientAddExtraWorkDialog, a different flow.
             td.addExtra(memberId, {
               date,
               clientId: client.id,
@@ -394,17 +364,11 @@ function LogExtraDialog({
 
 function AssignMemberDialog({ client, onClose }: { client: Client; onClose: () => void }) {
   const td = useTeamData()
-  // Offer the roster minus the client's already-active members.
   const activeIds = new Set(td.membersForClient(client.id).map((m) => m.id))
   const candidates = td.members.filter((m) => !activeIds.has(m.id) && m.status !== 'inactive')
-  // Starts EMPTY, not on the first candidate: with a searchable list the operator types
-  // the name they want, and a pre-picked stranger is one Enter away from being assigned.
   const [memberId, setMemberId] = useState('')
   const [area, setArea] = useState<AssignmentArea | ''>('')
   const [estimatedMonthlyHours, setEstimatedMonthlyHours] = useState(0)
-  // Held as the raw string, not a number, because EMPTY and ZERO are different
-  // answers: empty means nobody has said what this client costs, `0` means the studio
-  // agreed it costs nothing. A numeric state would collapse them at the first render.
   const [costInput, setCostInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -421,22 +385,14 @@ function AssignMemberDialog({ client, onClose }: { client: Client; onClose: () =
             setSaving(true)
             setError(null)
             try {
-              // AWAITED. This used to toast success on top of a synchronous local
-              // `setData`, so an assignment that never left the browser reported
-              // itself saved and was gone on the next reload
-              //.
               await td.assignMemberToClient(client.id, memberId, {
                 roleOnClient: area,
                 ...(estimatedMonthlyHours ? { estimatedMonthlyHours } : {}),
-                // `!== undefined`, not truthiness — a typed 0 is an agreed amount and
-                // must reach the server, or it silently becomes "never entered".
                 ...(monthlyCost !== undefined ? { monthlyCost } : {}),
               })
               toast.success('Miembro asignado al cliente')
               onClose()
             } catch {
-              // The dialog STAYS OPEN with the operator's input intact: closing it
-              // after a failure loses what they typed and reads as if it worked.
               setError('No pudimos asignar a la persona. Probá de nuevo.')
             } finally {
               setSaving(false)
@@ -514,8 +470,6 @@ function EndAssignmentDialog({
             color="danger"
             disabled={saving}
             onClick={async (event) => {
-              // Radix closes an AlertDialogAction on click; prevent that so a failed
-              // request does not vanish the confirm along with its own error.
               event.preventDefault()
               setSaving(true)
               try {
@@ -537,14 +491,6 @@ function EndAssignmentDialog({
   )
 }
 
-/**
- * Shown in place of any of the five dialogs when the roster fetch failed.
- *
- * Every one of them picks a person from `membersForClient`, and the store collapses to an empty
- * roster on failure — so each would have opened with an EMPTY member picker, which reads as
- * "this client has no team" rather than "we could not load the team". The user would have closed
- * the dialog and drawn the wrong conclusion about their own data.
- */
 function TeamRosterUnavailable({ onClose, onRetry }: { onClose: () => void; onRetry: () => void }) {
   return (
     <Dialog open onOpenChange={(open) => (open ? undefined : onClose())}>
@@ -576,18 +522,8 @@ export function ClientTeamDialogs({
 }: {
   state: ClientTeamDialogState
   onClose: () => void
-  /** Move to another dialog (the productions window → "Cargar producción"). */
   onSwitch?: (next: ClientTeamDialogState) => void
 }) {
-  // Gated ONCE, here, rather than five times inside the dialogs: this dispatcher is the only way
-  // any of them mounts, so one check structurally guarantees none of them opens over a roster
-  // that never loaded. Five local checks would guarantee it only until someone adds a sixth.
-  //
-  // The ASSIGNMENT fetch counts as much as the roster: every one of these dialogs picks from
-  // `membersForClient`, which reads `clientAssignments`. Under that outage the log dialogs told
-  // the operator "Este cliente no tiene personas asignadas" — a fact manufactured from a failed
-  // request — and the assign dialog re-offered people who were already on the client, whose
-  // assignment then 409s against the live-pair index every single retry.
   const td = useTeamData()
   if (state.kind !== 'none' && (td.isError || td.isAssignmentsError)) {
     return <TeamRosterUnavailable onClose={onClose} onRetry={td.refetch} />
@@ -620,8 +556,6 @@ export function ClientTeamDialogs({
     return <LogExtraDialog client={state.client} onClose={onClose} selfMemberId={state.selfMemberId} />
   if (state.kind === 'assign') return <AssignMemberDialog client={state.client} onClose={onClose} />
   if (state.kind === 'editAssignment') {
-    // Resolved from the store, not carried in the state: the row on screen is whatever the
-    // last write returned, and a stale copy would diff against values already replaced.
     const assignment = td
       .assignmentsForClient(state.client.id)
       .find((a) => a.id === state.assignmentId)

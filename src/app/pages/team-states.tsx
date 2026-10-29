@@ -1,13 +1,8 @@
 import { Button, Skeleton } from '@/app/components/components'
 
-/** Loading state (§14): toolbar skeleton + header + 8 skeleton rows. */
 export function TeamLoading() {
   return (
     <div className="flex flex-col gap-4" aria-hidden>
-      {/* Mirrors `Toolbar`'s geometry (patterns/toolbar.tsx) and `TeamToolbar`'s actual
-          slots — search + one filter + one columns menu. See the note in `clients-states`:
-          modelling the toolbar's OLD hand-rolled shape here kept the two-row phone wrap
-          alive in the loading state. */}
       <div className="flex items-center gap-2">
         <Skeleton className="h-10 min-w-0 flex-1 sm:max-w-72" />
         <Skeleton className="size-10 shrink-0" />
@@ -47,7 +42,6 @@ function StateMessage({
   )
 }
 
-/** Empty state, no people loaded at all (§14). */
 export function TeamEmptyGeneral({ onNewMember }: { onNewMember: () => void }) {
   return (
     <StateMessage
@@ -59,7 +53,6 @@ export function TeamEmptyGeneral({ onNewMember }: { onNewMember: () => void }) {
   )
 }
 
-/** Error state (§14). */
 export function TeamError({ onRetry }: { onRetry: () => void }) {
   return (
     <StateMessage
@@ -71,7 +64,6 @@ export function TeamError({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-/** Empty state with active filters (§14), rendered inside the table body. */
 export function TeamEmptyFiltered({ onClearFilters }: { onClearFilters: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">

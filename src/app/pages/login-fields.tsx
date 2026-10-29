@@ -5,23 +5,6 @@ import { AFFORDANCE } from '@/app/lib/icon-registry'
 import { Button, Checkbox, IconButton, Input } from '@/app/components/components'
 import { useLoginForm } from './use-login-form'
 
-/**
- * Shared sign-in form body for the /login split. It sits on the solid surface of
- * the right panel, so it uses the default fg tokens and a primary submit. The
- * password reveal is an icon toggle handed to Input's `trailingAction` slot —
- * the slot owns the positioning and the `bg-control` fill that masks a long
- * value, so no padding override lands on the primitive. "Recordarme" chooses token
- * persistence: on → survives a browser restart, off → session-only (see api/token.ts).
- *
- * "¿Olvidaste tu contraseña?" sits under the password field, as its helper line.
- * It keeps `type-body-2` rather than dropping to `type-caption`: the page-context
- * ranks it Secondary and the reveal toggle Tertiary, so shrinking it would leave
- * it reading smaller than something less important. Placement demotes it; size
- * does not.
- *
- * Vertical rhythm: 32px (gap-8) between the field group and the submit button; the
- * title-to-fields 32px gap is owned by the host column.
- */
 export function LoginFields() {
   const { email, setEmail, password, setPassword, remember, setRemember, pending, error, onSubmit } =
     useLoginForm()
@@ -71,9 +54,6 @@ export function LoginFields() {
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword((value) => !value)}
               >
-                {/* `size-4` is explicit: Phosphor defaults to `1em`, and IconButton's
-                    `type-button` is 14px — so an unsized glyph renders at 14px, off the
-                    product's 16px icon convention. Every other icon call-site sizes itself. */}
                 {showPassword ? (
                   <AFFORDANCE.hidePassword className="size-4" aria-hidden />
                 ) : (

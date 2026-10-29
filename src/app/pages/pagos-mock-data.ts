@@ -1,20 +1,8 @@
-/**
- * Pagos mock data — the PRD §22.2 Payment model + a local demo dataset.
- *
- * No backend: in-memory pagos to colaboradoras, proveedores, empleados, gastos
- * fijos, monotributos and plataformas that exercise every payment state, type and
- * method so the table, filters, KPIs and states can be validated end to end.
- * Single demo period (Junio 2026). Numbers are numbers, dates are ISO strings;
- * formatting happens only at render (`pagos-format.ts`). Replaced by a real data
- * source later.
- */
 import type { Currency } from '@hold/shared'
 
 
-/** Estado de pago (badges §25.2). */
 export type PaymentStatus = 'pending' | 'approved' | 'paid' | 'partial' | 'overdue' | 'cancelled'
 
-/** Tipo de pago / destinatario (§11.2). */
 export type RecipientType =
   | 'collaborator'
   | 'provider'
@@ -29,49 +17,23 @@ export type Payment = {
   id: string
   recipientName: string
   recipientType: RecipientType
-  /**
-   * The recipient's real FK, when it has one. Polymorphic by `recipientType`:
-   * `teamMemberId` for colaboradora / empleado, `providerId` for proveedor or for the
-   * gasto fijo / plataforma that names who it is paid TO, and `invoiceEmitterId` for a
-   * monotributo cuota.
-   *
-   * A gasto fijo and a plataforma used to carry none of these, on the reasoning that
-   * they had no counterparty record. They do: the landlord and the subscription are
-   * proveedores, and the column was always there — the dialog simply never offered it.
-   * Still optional, because a bank fee genuinely has nobody to name.
-   *
-   * The detail panel needs these to reach the period's liquidación and the ledger;
-   * `recipientName` cannot stand in, because two people may share a name.
-   */
   teamMemberId?: string
   providerId?: string
   invoiceEmitterId?: string
 
-  /** First day of the period (ISO), rendered as "Mes Año". */
   period: string
   concept: string
 
   totalAmount: number
   paidAmount: number
-  /**
-   * The lane the money moved in.
-   *
-   * This was declared as the LITERAL 'ARS', which is why no compiler error ever flagged
-   * the mapper that hardcoded the same literal: a USD pago arrived relabelled as pesos and
-   * was added to peso totals at face value, printing USD 1.000 as $ 1.000. Widened so
-   * every consumer has to say what it does with a non-peso row.
-   */
   currency: Currency
 
   expectedDate: string
   paymentDate?: string
   status: PaymentStatus
   method?: PaymentMethod
-  /** Where the cash left from — a treasury account, named. Undefined when the payment
-   *  did not say. Rendered only when present. */
   treasuryAccountId?: string
   treasuryAccountName?: string
-  /** Cuenta / Alias for the transfer (PRD §11.4). */
   accountAlias?: string
 
   lastActivityLabel: string
@@ -89,7 +51,6 @@ const paymentsSeed: PaymentSeed[] = [
     recipientName: 'Mica Torres',
     recipientType: 'collaborator',
     concept: 'Horas mensuales',
-    // B-1b: aligned to Operación mensual (viáticos 35k + ajuste 90k = 125k owed, unpaid).
     totalAmount: 125000,
     paidAmount: 0,
     expectedDate: '2026-06-10',
@@ -104,7 +65,6 @@ const paymentsSeed: PaymentSeed[] = [
     recipientName: 'Juan Pérez',
     recipientType: 'collaborator',
     concept: 'Producción de contenido',
-    // B-1b: aligned to Operación mensual (owed 240k, fully paid on 2026-06-10).
     totalAmount: 240000,
     paidAmount: 240000,
     expectedDate: '2026-06-10',
@@ -120,7 +80,6 @@ const paymentsSeed: PaymentSeed[] = [
     recipientName: 'Sol Ramírez',
     recipientType: 'collaborator',
     concept: 'Producciones del mes',
-    // B-1b: aligned to Operación mensual (owed 288k = prod 270k + viáticos 18k, partial 150k).
     totalAmount: 288000,
     paidAmount: 150000,
     expectedDate: '2026-06-05',
@@ -135,7 +94,6 @@ const paymentsSeed: PaymentSeed[] = [
     recipientName: 'Nico Vega',
     recipientType: 'employee',
     concept: 'Fee fijo',
-    // B-1b: aligned to Operación mensual (owed 1442k = fee 1400k + viáticos 42k, unpaid).
     totalAmount: 1442000,
     paidAmount: 0,
     expectedDate: '2026-06-05',
@@ -150,7 +108,6 @@ const paymentsSeed: PaymentSeed[] = [
     recipientName: 'Flor Giménez',
     recipientType: 'employee',
     concept: 'Fee fijo',
-    // B-1b: aligned to Operación mensual (owed 1200k, unpaid in the draft close).
     totalAmount: 1200000,
     paidAmount: 0,
     expectedDate: '2026-06-05',
@@ -296,7 +253,6 @@ const paymentsSeed: PaymentSeed[] = [
     lastActivityAt: '2026-06-14T11:30:00',
   },
 
-  // ── Mayo 2026 (prior month, settled) ─────────────────────────────────────
   {
     id: 'pay-101',
     recipientName: 'Mica Torres',
@@ -392,7 +348,6 @@ const paymentsSeed: PaymentSeed[] = [
     lastActivityAt: '2026-05-14T10:00:00',
   },
 
-  // ── Abril 2026 (prior month, settled) ────────────────────────────────────
   {
     id: 'pay-201',
     recipientName: 'Mica Torres',
@@ -490,7 +445,6 @@ const paymentsSeed: PaymentSeed[] = [
   },
 ]
 
-/** The demo payments, with the shared period and currency applied. */
 export const payments: Payment[] = paymentsSeed.map((seed) => ({
   ...seed,
   period: seed.period ?? PERIOD,

@@ -1,8 +1,3 @@
-/**
- * Typed fetch wrapper for the Hold API. JSON in / JSON out, bearer token from
- * the token holder, errors normalized to `ApiError`. On a 401 it transparently
- * tries the rotating refresh once and retries the request.
- */
 import type { ZodType } from 'zod'
 import { env } from '@/lib/env'
 import { clearTokens, getAccessToken, getRefreshToken, setTokens } from './token'
@@ -22,7 +17,6 @@ interface RequestOptions {
   readonly params?: Record<string, string | number | undefined>
   readonly body?: unknown
   readonly signal?: AbortSignal
-  /** Internal: set on the retried request after a refresh to avoid a loop. */
   readonly _retried?: boolean
 }
 
@@ -70,12 +64,8 @@ async function doRefresh(): Promise<boolean> {
   }
 }
 
-// Single-flight: concurrent 401s must share ONE rotation. The refresh token is
-// single-use (the backend revokes the chain on reuse), so firing it N times
-// would trip reuse-detection and force a spurious logout.
 let refreshInFlight: Promise<boolean> | null = null
 
-/** Try the rotating refresh (deduplicated); true if a fresh access token was stored. */
 function tryRefresh(): Promise<boolean> {
   if (!refreshInFlight) {
     refreshInFlight = doRefresh().finally(() => {
@@ -85,17 +75,10 @@ function tryRefresh(): Promise<boolean> {
   return refreshInFlight
 }
 
-/** Told about every CONFIRMED write: a non-GET request the server answered 2xx. */
 export type ApiWriteListener = (write: { method: string; path: string }) => void
 
 const writeListeners = new Set<ApiWriteListener>()
 
-/**
- * Subscribe to every confirmed write; returns the unsubscribe. The seam for read models that
- * any write can change (reports, balances, usage): one listener invalidates them all, instead
- * of every write site having to remember which ones its change reaches. A listener's own
- * failure never fails the write that already committed.
- */
 export function onApiWrite(listener: ApiWriteListener): () => void {
   writeListeners.add(listener)
   return () => writeListeners.delete(listener)
@@ -107,7 +90,6 @@ function announceWrite(method: string, path: string): void {
     try {
       listener({ method, path })
     } catch {
-      // The write is done; a listener that throws must not turn it into a reported failure.
     }
   }
 }
@@ -148,12 +130,7 @@ async function request<T>(
         : `Request failed with status ${response.status}`
     throw new ApiError(response.status, message, parsed)
   }
-  // Before the schema parse: a write the server committed is committed, even if its reply
-  // then fails boundary validation.
   announceWrite(method, path)
-  // When a schema is supplied, VALIDATE the success body at the boundary (a mismatch
-  // throws a ZodError — contract drift is a bug, not an HTTP error, so it is not wrapped
-  // as ApiError). Without a schema the body is cast, preserving the pre-migration path.
   return options.schema ? options.schema.parse(parsed) : (parsed as T)
 }
 

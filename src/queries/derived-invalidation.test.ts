@@ -52,7 +52,6 @@ describe('invalidateDerivedOnWrite', () => {
     invalidate.mockClear()
     write('/clients/c-1', 'PUT')
     vi.advanceTimersByTime(WRITE_BURST_MS)
-    // The cobros carry the client's name, razón social and CUIT.
     expect(invalidatedKeys()).toContain(JSON.stringify(queryKeys.receivables.all))
   })
 

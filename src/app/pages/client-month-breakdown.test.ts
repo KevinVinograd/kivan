@@ -6,7 +6,6 @@ import type { ClientMonthFigures } from './client-month-data'
 import { clientProfitBreakdown, contractedFeeOf, monthCostDetail } from './client-month-breakdown'
 import { formatCompactCurrency as money } from './clients-format'
 
-/** Only the fields the breakdown reads; the rest of a client is irrelevant to it. */
 function client(over: Partial<Client>): Client {
   return { currency: 'ARS', monthlyFee: 0, services: [], ...over } as Client
 }

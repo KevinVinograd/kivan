@@ -1,28 +1,10 @@
 import { cn } from '@/app/lib/utils'
 
-/**
- * Login illustration — the dashboard wireframe. A wireframe of the owner
- * dashboard (route `/dashboard`): the greeting header, the 5-KPI health strip with
- * one active card, a low-fi chart panel (bars + sparkline) with a donut rail, and a
- * footer row of two summary chips. Two popover-styled cards (the DS `surface-raised`
- * recipe + a caret): the at-risk-client card sits over the top-left with its caret
- * pointing up at the active KPI (shifted left so its body leans toward the edge); the
- * employee card (avatar, role, salary) overhangs the bottom-right facing outward with
- * its caret pointing up at the right rail.
- *
- * Pure decoration (`aria-hidden`). Neutral wireframe marks sit on the reverse shader
- * base, so they use the reverse-polarity fg tokens via `border-current` /
- * `bg-current` (fg-reverse-*), NOT `bg-alpha-*`. Chart accents and the active KPI
- * use accent tokens; the popover cards are solid surfaces (fixed size — only the
- * wireframe scales). Fills the host column (width governed there) with intrinsic
- * height.
- */
 const BARS = ['h-[45%]', 'h-[68%]', 'h-[40%]', 'h-[88%]', 'h-[58%]', 'h-[76%]', 'h-[62%]']
 
 export function LoginIllustrationDashboard() {
   return (
     <div className="relative w-full" aria-hidden="true">
-      {/* Header — greeting title + month badge */}
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-2.5">
           <span className="block h-5 w-64 rounded-full bg-current fg-reverse-subtle" />
@@ -31,7 +13,6 @@ export function LoginIllustrationDashboard() {
         <span className="block h-8 w-24 rounded-full border border-current fg-reverse-disabled" />
       </div>
 
-      {/* Health KPI strip — 5 cards, the first one active (accent glow) */}
       <div className="mt-6 flex gap-4">
         {Array.from({ length: 5 }, (_, i) => {
           const active = i === 0
@@ -54,7 +35,6 @@ export function LoginIllustrationDashboard() {
         })}
       </div>
 
-      {/* Low-fi charts — bar chart + sparkline panel, donut rail */}
       <div className="mt-6 flex gap-6">
         <div className="flex flex-1 flex-col gap-4 rounded-control border border-current fg-reverse-disabled p-6">
           <span className="block h-3.5 w-28 rounded-full bg-current fg-reverse-subtle" />
@@ -117,7 +97,6 @@ export function LoginIllustrationDashboard() {
         </div>
       </div>
 
-      {/* Footer — two mini summary chips (more low-fi content) */}
       <div className="mt-6 flex gap-6">
         {[0, 1].map((i) => (
           <div
@@ -136,8 +115,6 @@ export function LoginIllustrationDashboard() {
         ))}
       </div>
 
-      {/* Popover-styled info card below the active KPI, caret pointing up at it; the
-          body is shifted 40px left (toward the edge) while the caret stays on the KPI */}
       <div className="absolute left-1 top-[8.5rem] w-56 max-w-full -translate-x-10 rounded-container border border-alpha-subtle bg-surface-flat p-3.5 shadow-raised">
         <span className="absolute -top-1.5 left-16 size-3 rotate-45 rounded-tl-[2px] border-l border-t border-alpha-subtle bg-surface-flat" />
         <div className="relative flex items-center justify-between">
@@ -148,9 +125,6 @@ export function LoginIllustrationDashboard() {
         <p className="relative type-caption fg-subtle">Riesgo alto · sin cobros hace 45 días</p>
       </div>
 
-      {/* Popover-styled card, overhanging the bottom-right corner facing outward:
-          body faces down and is shifted 40px right (toward the edge) while the caret
-          stays on the right rail, pointing up. Employee with salary */}
       <div className="absolute -right-3 -bottom-12 w-52 max-w-full translate-x-10 rounded-container border border-alpha-subtle bg-surface-flat p-3 shadow-raised">
         <span className="absolute -top-1.5 right-24 size-3 rotate-45 rounded-tl-[2px] border-l border-t border-alpha-subtle bg-surface-flat" />
         <div className="relative flex items-center gap-2.5">

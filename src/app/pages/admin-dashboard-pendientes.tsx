@@ -6,12 +6,6 @@ import { FloatingCardCta } from './dashboard-cta'
 import { PENDING_TYPE_LABEL, severityBadge } from './admin-dashboard-format'
 import type { OperationPending } from './admin-dashboard-types'
 
-/**
- * One critical pending: a severity + type badge pair, a title and description,
- * the responsible person when known, and a hover/focus CTA into the workflow that
- * resolves it (the whole card navigates there). This is the most important block
- * of the admin dashboard.
- */
 function OperationPendingItem({ item }: { item: OperationPending }) {
   const navigate = useNavigate()
   const severity = severityBadge(item.severity)
@@ -19,7 +13,6 @@ function OperationPendingItem({ item }: { item: OperationPending }) {
     <Card interactive onClick={() => navigate(item.ctaHref)} className="group relative overflow-hidden">
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          {/* Primary: what the blocker is + its severity and type. */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="type-section fg-default">{item.title}</span>
             <Badge variant={severity.variant}>{severity.label}</Badge>
@@ -28,7 +21,6 @@ function OperationPendingItem({ item }: { item: OperationPending }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          {/* Secondary: the detail. Tertiary: who owns it. */}
           <span className="type-body-2 fg-subtle">{item.description}</span>
           {item.responsible ? (
             <span className="type-caption fg-subtle">Responsable: {item.responsible}</span>
@@ -40,12 +32,6 @@ function OperationPendingItem({ item }: { item: OperationPending }) {
   )
 }
 
-/**
- * §2 Pendientes críticos. The prioritized list of unresolved operational
- * blockers (missing hours, viáticos, blocked payments, missing banking data,
- * unregistered cobros, pending invoices, ARCA warnings, open productions), sorted
- * highest-severity first. Each item routes to the workflow that resolves it.
- */
 export function CriticalOperationsList({ pendings }: { pendings: OperationPending[] }) {
   return (
     <section aria-label="Pendientes críticos" className="flex flex-col">

@@ -43,7 +43,6 @@ const uniqueOptions = (values: string[]) =>
     .sort()
     .map((value) => ({ value, label: value }))
 
-/** Filter axes for the rentabilidad toolbar (período is the global header control). */
 export function rentabilidadFilterFields(items: ClientProfitabilityReportItem[]): FilterField[] {
   return [
     { id: 'clientName', label: 'Cliente', options: uniqueOptions(items.map((i) => i.clientName)) },
@@ -149,7 +148,6 @@ export function rentabilidadColumns(
         return <Badge variant={badge.variant}>{badge.label}</Badge>
       },
     },
-    // Filter-only column for the Tipo de cliente axis (hidden in the table).
     {
       id: 'clientType',
       accessorFn: (row) => row.clientType ?? '',
@@ -158,7 +156,6 @@ export function rentabilidadColumns(
       header: () => null,
       cell: () => null,
     },
-    // Filter-only column for the Estado de pago axis (hidden in the table).
     {
       id: 'paymentState',
       accessorFn: (row) => (row.paymentPending ? 'pendiente' : 'al_dia'),
@@ -167,7 +164,6 @@ export function rentabilidadColumns(
       header: () => null,
       cell: () => null,
     },
-    // Filter-only column for the Equipo asignado axis.
     {
       id: 'team',
       accessorFn: (row) => row.team.join(', '),

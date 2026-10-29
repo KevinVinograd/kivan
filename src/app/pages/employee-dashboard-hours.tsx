@@ -30,10 +30,6 @@ function ClientHoursBreakdownCard({ row }: { row: ClientHours }) {
   )
 }
 
-/**
- * §5 Horas cargadas. Helps keep time tracking complete: week/month/expected/
- * missing metrics plus a per-client breakdown with its loading status.
- */
 export function EmployeeHoursSnapshot({ hours }: { hours: HoursSummary }) {
   return (
     <section aria-label="Horas cargadas" className="flex flex-col">
@@ -42,7 +38,6 @@ export function EmployeeHoursSnapshot({ hours }: { hours: HoursSummary }) {
         description="Mantené tu carga de horas al día por cliente."
       />
       <div className="flex flex-col gap-4 md:gap-6 px-4 md:px-6 lg:pl-8 lg:pr-5 desktop:pl-10">
-        {/* Hero: hours loaded this month — the figure this section exists to surface. */}
         <KpiSummaryCard
           figures={[
             { id: 'this-month', label: 'Este mes', value: formatHours(hours.loadedThisMonth) },

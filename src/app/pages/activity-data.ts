@@ -1,17 +1,7 @@
-/**
- * Actividad por período — feed model + pure selectors.
- *
- * The full log behind the dashboards' "Ver actividad" drawer. There is no backend
- * activity-log endpoint yet, so `getActivityFeed` returns an empty feed and the drawer
- * shows its honest empty state. The types + selectors (filter by preset/type/entity,
- * entity options, summary) are the reusable machinery, ready to run over a real feed
- * once an endpoint exists. Formatting lives in `activity-format.ts`.
- */
 import { parseISO } from 'date-fns'
 
 import type { Role } from '@/app/lib/use-role'
 
-/** The nine workspace action kinds (owner/admin ∪ employee). Each maps to a registered icon. */
 export type ActivityType =
   | 'cobro'
   | 'horas'
@@ -23,33 +13,23 @@ export type ActivityType =
   | 'produccion'
   | 'reunion'
 
-/**
- * An entity referenced in an activity line. `client` / `member` render as hover
- * link-text with a preview + "Ver perfil"; `plain` (e.g. a production, which has
- * no profile page) renders as static text.
- */
 export type ActivityEntity =
   | { kind: 'client'; id: string; name: string }
   | { kind: 'member'; id: string; name: string; role: string }
   | { kind: 'plain'; name: string }
 
-/** One feed entry: actor + action + context, newest first. */
 export type ActivityFeedItem = {
   id: string
   type: ActivityType
   actor: ActivityEntity
-  /** Connecting verb phrase between actor and context, e.g. "registró el cobro de". */
   action: string
   context: ActivityEntity
   iso: string
-  /** Optional enrichment line under the sentence (amount, hours, reference). */
   detail?: string
 }
 
-// ── Time presets ──────────────────────────────────────────────────────────────
 export type ActivityPreset = 'hoy' | 'last-week' | 'last-month' | 'last-3-months' | 'all'
 
-/** Preset chips, newest-narrow to widest. Labels are sentence case (C2). */
 export const ACTIVITY_PRESETS: { value: ActivityPreset; label: string }[] = [
   { value: 'hoy', label: 'Hoy' },
   { value: 'last-week', label: 'Última semana' },
@@ -58,11 +38,6 @@ export const ACTIVITY_PRESETS: { value: ActivityPreset; label: string }[] = [
   { value: 'all', label: 'Todo' },
 ]
 
-/**
- * The active preset as a standalone scope label, for the count line under the
- * toolbar ("25 movimientos · Último mes"). "all" reads as "Todo el período" —
- * the bare chip label ("Todo") does not stand on its own next to a count.
- */
 const PRESET_SCOPE_LABEL: Record<ActivityPreset, string> = {
   hoy: 'Hoy',
   'last-week': 'Última semana',
@@ -74,7 +49,6 @@ export function presetScopeLabel(preset: ActivityPreset): string {
   return PRESET_SCOPE_LABEL[preset]
 }
 
-/** The cutoff a preset filters from, or `null` for "all". */
 function presetCutoff(preset: ActivityPreset): Date | null {
   const now = new Date()
   switch (preset) {
@@ -94,20 +68,13 @@ function presetCutoff(preset: ActivityPreset): Date | null {
   }
 }
 
-/**
- * The expanded activity feed for a role. No backend activity-log endpoint exists yet,
- * so this returns an empty feed and the drawer renders its honest empty state; the pure
- * selectors below are the reusable machinery, ready to run over a real feed later.
- */
 export function getActivityFeed(_role: Role): ActivityFeedItem[] {
   return []
 }
 
-// ── Selectors ─────────────────────────────────────────────────────────────────
 export type ActivityFilters = {
   search: string
   type: ActivityType | 'all'
-  /** A specific entity id (client or member) or "all". */
   entity: string | 'all'
   preset: ActivityPreset
 }
@@ -117,7 +84,6 @@ function matchesSearch(item: ActivityFeedItem, query: string): boolean {
   return haystack.includes(query)
 }
 
-/** Filter by preset window + type + entity + free text, newest first. */
 export function filterActivity(items: ActivityFeedItem[], filters: ActivityFilters): ActivityFeedItem[] {
   const cutoff = presetCutoff(filters.preset)
   const query = filters.search.trim().toLowerCase()
@@ -138,7 +104,6 @@ export function filterActivity(items: ActivityFeedItem[], filters: ActivityFilte
 
 export type EntityOption = { id: string; name: string }
 
-/** Distinct named entities present in the feed, split into members and clients. */
 export function entityOptions(items: ActivityFeedItem[]): { members: EntityOption[]; clients: EntityOption[] } {
   const members = new Map<string, string>()
   const clients = new Map<string, string>()
@@ -160,7 +125,6 @@ export type ActivityStats = {
   topActorName: string | null
 }
 
-/** Aggregate counts over an already-filtered set, for the AI insight. */
 export function summarizeActivity(items: ActivityFeedItem[]): ActivityStats {
   const byType: Partial<Record<ActivityType, number>> = {}
   const actorCounts = new Map<string, number>()

@@ -4,7 +4,6 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks'
 
 export default tseslint.config(
   {
-    // Build output and the Vite dependency cache are not source.
     ignores: ['dist/**', 'build/**', '.vite/**', 'apps/**', 'packages/**'],
   },
   {

@@ -2,21 +2,13 @@ import { Button } from '@/app/components/components'
 import type { Client } from './clients-mock-data'
 
 export type ClientsBulkActionsProps = {
-  /** The currently selected clients; the bar hides itself when empty. */
   clients: Client[]
   onInvoice: (clients: Client[]) => void
   onChangeStatus: (clients: Client[]) => void
   onExport: (clients: Client[]) => void
-  /** Optional "Limpiar" affordance to clear the selection. */
   onClear?: () => void
 }
 
-/**
- * Selection bulk-action bar shared by the table toolbar and the master-detail
- * list, so the count + Facturar / Cambiar estado / Exportar actions live in one
- * place instead of being duplicated per view. Renders nothing when the selection
- * is empty. Styled as a reverse (dark) bar with inverse controls.
- */
 export function ClientsBulkActions({
   clients,
   onInvoice,

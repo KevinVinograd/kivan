@@ -3,17 +3,6 @@ import { Switch as SwitchPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Switch — shadcn/ui Radix switch, token-adapted to the form-control token
- * family (`semantics-control.css`, which names Switch as a consumer). The
- * off-track uses the Switch-local `bg-switch-background` outlier; the on-track
- * fills with the neutral brand `bg-control-on`. The thumb is a `bg-surface-flat`
- * disc lifted with `shadow-subtle`. Focus uses the shared `ring-focus` halo.
- * Theme is handled by the tokens (no `dark:` overrides).
- *
- * Use for an immediate on/off toggle with a visible track (e.g. enabling a
- * comparison). For an independent boolean in a form/list, prefer Checkbox.
- */
 function Switch({
   className,
   ...props

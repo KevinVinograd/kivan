@@ -31,24 +31,6 @@ import { queryKeys } from '@/queries/keys'
 import { RoleEditor } from './settings-roles-editor'
 import { AREAS, materializeGrants, roleEditorState, type AccessLevel } from './settings-roles-data'
 
-/**
- * Roles y permisos — owner-only. Defines what a role can do, as opposed to
- * `Miembros y roles`, which assigns people to roles.
- *
- * The section is the role LIST; everything about one role lives in a dialog
- * opened from its card, so the page never leaves the reader guessing whose
- * permissions are on screen.
- *
- * SAVING AND ENFORCEMENT ARE BOTH REAL. A role written here persists, is assigned
- * to a member in Miembros y roles, and is enforced end-to-end: its grant keys ride
- * the JWT (`permissions`), the backend gates the catalogue with `requirePermission`
- * (alongside the built-in `requireRole`), and the front narrows nav/pages/actions
- * via `canAccessPath` + `canDo`. Enforcement only NARROWS a built-in role, never
- * escalates. The old top-of-section "todavía no cambian los accesos" notice is gone
- * (it predated enforcement). What the editor still states honestly, per permission,
- * is enforceability — `enforced` / `Solo lo oculta` / `Todavía sin efecto` — so a
- * "guardado" never implies a boundary a given permission does not hold.
- */
 export function SettingsRoles() {
   const queryClient = useQueryClient()
   const rolesQuery = useQuery({ queryKey: queryKeys.roles.lists(), queryFn: rolesApi.list })
@@ -68,9 +50,6 @@ export function SettingsRoles() {
   const editing = roles.find((role) => role.id === editingId) ?? null
 
   function openRole(role: RoleDto) {
-    // System roles carry no stored grants (their authority is the built-in table), so
-    // their editor view comes from SYSTEM_ROLES, not from an empty `grants`. Custom roles
-    // read back from what they stored. See roleEditorState.
     const state = roleEditorState(role)
     setEditingId(role.id)
     setDraft({
@@ -127,7 +106,6 @@ export function SettingsRoles() {
     },
   })
 
-  /** A blank role: nothing is granted until it is granted on purpose. */
   function createRole() {
     createMutation.mutate({
       name: `Rol nuevo ${roles.filter((role) => !role.isSystem).length + 1}`,
@@ -135,8 +113,6 @@ export function SettingsRoles() {
     })
   }
 
-  /** Copy the open role into an editable one. The only way to modify a system
-   *  role, and the reason it lives inside the dialog. */
   function duplicateEditing() {
     if (!editing || !draft) return
     createMutation.mutate({
@@ -190,8 +166,6 @@ export function SettingsRoles() {
       />
       <PanelContent layout="stacked">
         {rolesQuery.isError ? (
-          // Never render a partial roster over a failed fetch: an empty list here
-          // reads as "no roles", which is a different fact (SE001).
           <Alert variant="danger">
             <AlertTitle>No pudimos cargar los roles</AlertTitle>
             <AlertDescription>

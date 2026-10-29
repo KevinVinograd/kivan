@@ -1,14 +1,3 @@
-/**
- * Bridges the real TeamMember (roster) API to the front's `TeamMember` shape.
- * The API returns a FLAT entity with money in minor units; the front nests a
- * `compensation` object in major units (pesos) and carries a few fields the
- * backend can't persist yet (bank details, firstName/lastName split, avatarUrl).
- *
- * NOTE: bank details are NOT part of this flat DTO. They are third-party PII served on
- * their own capability-gated sub-resource (`fetchMemberBank` / `saveMemberBankViaApi`,
- * behind requireCapability('teamBankDetails')) so `teamBankDetails` closes read+write in
- * one line — never inline on the member, which would leak them to any reader.
- */
 import type { Currency } from '@hold/shared'
 
 import {
@@ -47,8 +36,6 @@ import type {
 import type { ProductionInput } from './monthly-operation-data'
 import { productionPayload } from './production-payload'
 
-/** Money crosses the wire in minor units (cents); the front holds pesos. */
-
 const STATUSES: readonly string[] = ['active', 'paused', 'inactive']
 const EMPLOYMENT_TYPES: readonly string[] = ['full_time', 'part_time', 'freelance', 'external']
 const COMPENSATION_MODELS: readonly string[] = ['hourly', 'monthly_fixed', 'per_production', 'mixed']
@@ -67,9 +54,6 @@ function asCompensationModel(value: string): CompensationModel {
   return COMPENSATION_MODELS.includes(value) ? (value as CompensationModel) : 'monthly_fixed'
 }
 
-/** Map the raw API entity onto the front TeamMember. `name` is split into
- *  first/last on a best-effort basis so the edit form can prefill; bank details
- *  have no backend source and stay undefined. */
 export function dtoToTeamMember(d: TeamMemberDto): TeamMember {
   const parts = d.name.trim().split(/\s+/)
   const firstName = parts[0] || undefined
@@ -88,26 +72,17 @@ export function dtoToTeamMember(d: TeamMemberDto): TeamMember {
       hourlyRate: minorToMajor(d.hourlyRateMinor),
       monthlyAmount: minorToMajor(d.monthlyAmountMinor),
       productionRate: minorToMajor(d.productionRateMinor),
-      // Read, not assumed. The DTO carries it.
       currency: d.currency as Currency,
     },
     email: d.email ?? undefined,
     phone: d.phone ?? undefined,
     taxId: d.taxId ?? undefined,
     notes: d.notes ?? undefined,
-    // Bank FIELDS are gated (absent here); this derived flag drives the pay-readiness signal.
     bankComplete: d.bankComplete,
     bankStatus: d.bankStatus,
   }
 }
 
-/** Map the flat dialog form onto the create/update body. Combines the name and
- *  converts rates to minor units; bank details have no backend home and are omitted.
- *
- *  On CREATE, empty/zero optional fields are omitted (unset = null). On UPDATE the
- *  three rate fields are ALWAYS sent (0 → "0") so a rate can be zeroed and a stale
- *  rate never lingers after a compensation-model switch (a partial update omitting a
- *  field means "leave unchanged", not "clear"). */
 export function formToTeamInput(
   values: TeamMemberFormValues,
   mode: 'create' | 'update' = 'create',
@@ -128,14 +103,9 @@ export function formToTeamInput(
   return {
     name,
     role: values.role.trim() || 'Sin rol',
-    // Persist the roster status so Editar persona / En pausa survive a reload.
     status: values.status,
     employmentType: values.employmentType,
     compensationModel: values.paymentModel,
-    // NOT sent. This form has no currency field, so sending one could only ever send a
-    // guess: it wrote 'ARS' on every save, which RESET the lane of a member paid in
-    // another one. Omitted, a create takes the server default and an edit leaves the
-    // stored value alone.
     ...rates,
     ...(values.taxId.trim() ? { taxId: values.taxId.trim() } : {}),
     ...(values.email.trim() ? { email: values.email.trim() } : {}),
@@ -144,8 +114,6 @@ export function formToTeamInput(
   }
 }
 
-/** Load the workspace's team roster from the API, mapped to the front shape.
- *  The list endpoint caps `limit` at 100, so page through until exhausted. */
 export async function fetchTeamMembers(): Promise<TeamMember[]> {
   const LIMIT = 100
   const all: TeamMemberDto[] = []
@@ -157,12 +125,10 @@ export async function fetchTeamMembers(): Promise<TeamMember[]> {
   return all.map(dtoToTeamMember)
 }
 
-/** Persist a new member and return it in the front shape. */
 export async function createTeamMemberViaApi(values: TeamMemberFormValues): Promise<TeamMember> {
   return dtoToTeamMember(await teamApi.create(formToTeamInput(values)))
 }
 
-/** Persist an edit to a member and return the updated front shape. */
 export async function updateTeamMemberViaApi(
   id: string,
   values: TeamMemberFormValues,
@@ -170,8 +136,6 @@ export async function updateTeamMemberViaApi(
   return dtoToTeamMember(await teamApi.update(id, formToTeamInput(values, 'update')))
 }
 
-/** Set ONLY a member's roster status (active/paused) — the lightweight write behind the
- *  bulk "Cambiar estado". Deactivation ('inactive') goes through the soft-delete endpoint. */
 export async function setTeamMemberStatusViaApi(
   id: string,
   status: TeamMember['status'],
@@ -179,15 +143,10 @@ export async function setTeamMemberStatusViaApi(
   return dtoToTeamMember(await teamApi.update(id, { status }))
 }
 
-/** Deactivate (soft-delete) a member; the API removes it from the roster list. */
 export async function deactivateTeamMemberViaApi(id: string): Promise<void> {
   await teamApi.deactivate(id)
 }
 
-/**
- * A member's bank details, from the capability-gated sub-resource. Only call this when the
- * signed-in role holds `teamBankDetails` (else the API 403s). Null when none is on file.
- */
 export async function fetchMemberBank(id: string): Promise<BankDetails | null> {
   const dto = await teamApi.getBank(id)
   if (!dto) return null
@@ -199,7 +158,6 @@ export async function fetchMemberBank(id: string): Promise<BankDetails | null> {
   }
 }
 
-/** Upsert a member's bank details (capability-gated). '' clears a field; upserts the Bank row. */
 export async function saveMemberBankViaApi(
   id: string,
   values: TeamMemberFormValues,
@@ -212,7 +170,6 @@ export async function saveMemberBankViaApi(
   })
 }
 
-// ── Time entries (Cargar horas) ──────────────────────────────────────────────
 function dtoToTimeEntry(d: TimeEntryDto): TimeEntry {
   return {
     id: d.id,
@@ -228,13 +185,11 @@ function dtoToTimeEntry(d: TimeEntryDto): TimeEntry {
   }
 }
 
-/** All logged hours for a period (workspace-wide; the API scopes an employee to their own). */
 export async function fetchTimeEntries(period?: string): Promise<TimeEntry[]> {
   const rows = await timeEntriesApi.list(period ? { period } : undefined)
   return rows.map(dtoToTimeEntry)
 }
 
-/** Persist one logged-hours entry and return it in the front shape. */
 export async function addTimeEntryViaApi(
   memberId: string,
   input: TimeEntryInput,
@@ -250,8 +205,6 @@ export async function addTimeEntryViaApi(
   })
   return dtoToTimeEntry(dto)
 }
-
-// ── Member activity: viáticos + extra work ───────────────────────────────────
 
 function dtoToExpense(d: MemberExpenseDto): ExpenseEntry {
   return {
@@ -281,12 +234,10 @@ function dtoToExtra(d: MemberExtraDto): ExtraWorkEntry {
   }
 }
 
-/** All viáticos (workspace-wide; the API scopes an employee to their own). */
 export async function fetchMemberExpenses(teamMemberId?: string): Promise<ExpenseEntry[]> {
   return (await memberActivityApi.listExpenses(teamMemberId)).map(dtoToExpense)
 }
 
-/** All extra work (workspace-wide; the API scopes an employee to their own). */
 export async function fetchMemberExtras(teamMemberId?: string): Promise<ExtraWorkEntry[]> {
   return (await memberActivityApi.listExtras(teamMemberId)).map(dtoToExtra)
 }
@@ -322,22 +273,12 @@ export async function addMemberExtraViaApi(
   return dtoToExtra(dto)
 }
 
-/** Approve every pending extra for a member. Returns rows approved. */
 export async function approveMemberExtrasViaApi(memberId: string): Promise<number> {
   const { approved } = await memberActivityApi.approveExtras(memberId)
   return approved
 }
 
-/**
- * Persist a production loaded from a person or a client. It is the SAME entity the monthly
- * operation owns (`POST /months/:period/productions`), sent with the SAME body
- * (`productionPayload`), so the team surface has neither a parallel store nor a parallel
- * shape. The month comes from the production's own date, so loading into a past month lands
- * there.
- */
 export async function addMemberProductionViaApi(input: ProductionInput): Promise<ProductionEntry[]> {
   const dto = await monthlyApi.createProduction(input.date.slice(0, 7), productionPayload(input))
-  // One entry per person who worked it, and NONE when nobody did: a production loaded with no
-  // content creator used to come back as `undefined` and take Equipo down on its next render.
   return productionsToEntries([dto])
 }

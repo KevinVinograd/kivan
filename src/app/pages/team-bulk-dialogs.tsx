@@ -22,12 +22,6 @@ import { useTeamData } from './team-data'
 
 const STATUS_OPTIONS: TeamMemberStatus[] = ['active', 'paused', 'inactive']
 
-/**
- * Bulk "Cambiar estado" dialog: pick a target status and apply it to the selected
- * members in one shot via the shared `setMembersStatus`. The explicit status choice
- * plus the named count is the confirmation surface for this materially-changing
- * action (feedback Section 7); it confirms with a success toast (Section 4).
- */
 export function TeamChangeStatusDialog({
   members,
   onClose,

@@ -6,7 +6,6 @@ import { FloatingCardCta } from './dashboard-cta'
 import { pendingStatusBadge, pendingTypeLabel } from './employee-dashboard-format'
 import type { PendingItem } from './employee-dashboard-types'
 
-/** One prioritized pending-work row: title, type, client, due, status and its CTA. */
 function EmployeePendingItem({ item }: { item: PendingItem }) {
   const navigate = useNavigate()
   const status = pendingStatusBadge(item.status)
@@ -14,13 +13,11 @@ function EmployeePendingItem({ item }: { item: PendingItem }) {
     <Card interactive onClick={() => navigate(item.cta.href)} className="group relative overflow-hidden">
       <CardContent className="flex flex-col gap-2">
         <div className="flex items-start gap-3">
-          {/* Primary: the pending work item + its status. */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="type-section fg-default">{item.title}</span>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
         </div>
-        {/* Secondary: type, client and due. */}
         <div className="flex flex-wrap items-center gap-2 type-caption fg-subtle">
           <Badge variant="neutral" shape="pill">
             {pendingTypeLabel(item.type)}
@@ -28,7 +25,6 @@ function EmployeePendingItem({ item }: { item: PendingItem }) {
           <span>{item.client}</span>
           <span>Vence: {item.due}</span>
         </div>
-        {/* Tertiary: the detail. */}
         <p className="type-body-2 fg-subtle">{item.description}</p>
         <FloatingCardCta href={item.cta.href}>{item.cta.label}</FloatingCardCta>
       </CardContent>
@@ -36,11 +32,6 @@ function EmployeePendingItem({ item }: { item: PendingItem }) {
   )
 }
 
-/**
- * §2 Mis pendientes. The most important section: a prioritized list of the
- * employee's pending work (hours, tasks, productions, extras, viáticos,
- * follow-ups, objectives at risk), each with its own resolving CTA.
- */
 export function EmployeePendingList({ pending }: { pending: PendingItem[] }) {
   return (
     <section aria-label="Mis pendientes" className="flex flex-col">

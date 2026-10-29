@@ -12,25 +12,13 @@ import type { Icon } from '@/app/lib/icon-registry'
 import { useIsMobile } from '@/app/lib/use-is-mobile'
 
 export type PreviewSurfaceProps = {
-  /** Inline trigger control; wrapped with Radix `asChild` so focus/tap opens it. */
   trigger: ReactNode
-  /** Accessible name for the tap-driven mobile bottom sheet (visually hidden). */
   title: string
   content: ReactNode
-  /** HoverCard horizontal alignment (desktop only). */
   align?: 'start' | 'center' | 'end'
-  /** Desktop HoverCard width/layout override. Defaults to `w-64`. */
   contentClassName?: string
 }
 
-/**
- * Shared hover-preview surface: a desktop HoverCard, or a tap-driven bottom sheet
- * on mobile (≤767px via `useIsMobile`, where hover does not exist), reusing the
- * responsive `Dialog` — which docks to the bottom edge as a slide-up sheet on
- * mobile. The single source of the hover-vs-tap scaffold — the team-member,
- * invoice, payment and risk-client previews compose it instead of each repeating
- * the branch.
- */
 export function PreviewSurface({
   trigger,
   title,
@@ -62,7 +50,6 @@ export function PreviewSurface({
   )
 }
 
-/** Icon + single-line text row used inside preview bodies. */
 export function PreviewInfoRow({ icon: Glyph, children }: { icon: Icon; children: ReactNode }) {
   return (
     <div className="flex items-center gap-2">

@@ -38,8 +38,6 @@ describe('laneAmount', () => {
 
 describe('sumMoney', () => {
   it('sums lane by lane and omits zero-sum lanes', () => {
-    // The third operand carries a lane the first two are missing, which is what keeps
-    // this from passing on a sum that only ever visits the lanes of its first argument.
     expect(sumMoney([{ ARS: 100 }, { ARS: 50 }, { USD: 5 }])).toEqual({
       ARS: 150,
       USD: 5,
@@ -51,8 +49,6 @@ describe('sumMoney', () => {
 
 describe('addMoney / subtractMoney', () => {
   it('adds lane-wise', () => {
-    // A lane present only on the RIGHT has to survive, the same way one present only on
-    // the left does.
     expect(addMoney({ ARS: 100 }, { ARS: 25, USD: 1 })).toEqual({ ARS: 125, USD: 1 })
   })
 
@@ -77,7 +73,6 @@ describe('operating vs reserve partitioning', () => {
 
 describe('saldosByLane / reserveByLane over the seed', () => {
   it('totals operating Saldos per lane', () => {
-    // Operating ARS = 820k+640k+410k+180k+240k+95k; USD = 1500+300.
     expect(saldosByLane(seedAccounts)).toEqual({ ARS: 2_385_000, USD: 1_800 })
   })
 
@@ -135,12 +130,6 @@ describe('installmentsPaid / outstandingAmount', () => {
   })
 })
 
-/**
- * The projection is lane-SCOPED: it takes `payments.filter((p) => p.currency === lane)`.
- * So a lane the selector does not offer is not merely missing a tab — its money is in no
- * projection at all. These pin the clause that keeps a real cobro or pago from falling
- * through that gap.
- */
 describe('projectionLanes', () => {
   function makeCommitment(partial: Partial<CommittedItem>): CommittedItem {
     return {
@@ -165,8 +154,6 @@ describe('projectionLanes', () => {
   })
 
   it('opens a lane for a pago that has neither a balance nor a commitment behind it', () => {
-    // The blocking case: a USD 5.000 pago to a foreign supplier, no USD account, no USD
-    // commitment. Without this the outflow appears on no tab and in no projection.
     const lanes = projectionLanes([], [], [{ currency: 'USD', status: 'pending' }])
     expect(lanes).toContain('USD')
   })

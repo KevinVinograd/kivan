@@ -9,8 +9,6 @@ import { initials } from './clients-format'
 import { formatHours, teamLoadBadge } from './dashboard-format'
 import type { TeamLoad, TeamLoadMember } from './dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const TEAM_LOAD_CTA_HREF = buildTrailHref(
   '/reports?tab=carga',
   { label: 'Dashboard', to: '/dashboard' },
@@ -20,8 +18,6 @@ const TEAM_LOAD_CTA_HREF = buildTrailHref(
 function MemberCard({ member }: { member: TeamLoadMember }) {
   const navigate = useNavigate()
   const status = teamLoadBadge(member.status)
-  // Deep-link into Equipo: open this person's detail and carry a Dashboard crumb
-  // so Equipo shows a back-to-dashboard trail.
   const href = buildTrailHref(
     `/team?open=${member.personId}`,
     { label: 'Dashboard', to: '/dashboard' },
@@ -41,11 +37,9 @@ function MemberCard({ member }: { member: TeamLoadMember }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          {/* Secondary: hours logged against the stipulated monthly capacity. */}
           <span className="type-mono-2 tabular-nums fg-default">
             {formatHours(member.hours)} / {formatHours(member.capacity)} estipuladas
           </span>
-          {/* Tertiary: how many clients this person carries. */}
           <span className="type-caption tabular-nums fg-subtle">{member.clientsCount} clientes</span>
         </div>
         <FloatingCardCta href={href}>Ver persona</FloatingCardCta>
@@ -54,15 +48,7 @@ function MemberCard({ member }: { member: TeamLoadMember }) {
   )
 }
 
-/**
- * §7 Carga del equipo. Helps owners spot overload, bottlenecks and delivery
- * risk, not police hours: the load totals plus a per-person list (one card each,
- * mirroring Clientes en riesgo) with status, any related client risk and a
- * hover/focus "Ver persona" deep-link.
- */
 export function TeamLoadSnapshot({ teamLoad }: { teamLoad: TeamLoad }) {
-  // Hero: how many people are overloaded — the panel's whole reason to exist. The rest is
-  // the load context behind that count.
   const figures: Kpi[] = [
     {
       id: 'overloaded',
@@ -83,9 +69,6 @@ export function TeamLoadSnapshot({ teamLoad }: { teamLoad: TeamLoad }) {
 
   return (
     <section aria-label="Carga del equipo" className="group/team flex flex-col">
-      {/* "Ver equipo" is hidden on hover-capable pointers and fades in (motion-standard)
-          when the mouse enters the section or the button takes keyboard focus; on touch it
-          stays visible. The action keeps to the title row, far right, at every width. */}
       <SectionHeader
         title="Carga del equipo"
         actions={

@@ -24,12 +24,6 @@ import {
 } from './reports-format'
 import type { ClientProfitabilityReportItem } from './reports-types'
 
-/**
- * The client's alerts. The margin and team-cost alerts are restatements of the
- * manager-only P&L, so they are only raised when money is visible: "Margen por
- * debajo del objetivo" leaks the same fact the Margen figure does, in words. The
- * price-erosion and payment alerts are operational and stay for every role.
- */
 function buildAlerts(item: ClientProfitabilityReportItem, showMoney: boolean): string[] {
   const alerts: string[] = []
   if ((item.monthsSinceIncrease ?? 0) >= 6) alerts.push('Más de 6 meses sin aumento de precio')
@@ -40,42 +34,23 @@ function buildAlerts(item: ClientProfitabilityReportItem, showMoney: boolean): s
   return alerts
 }
 
-/** Whole percentage points, for the "X pp sobre la mediana" caption. */
 function formatPoints(value: number): string {
   const rounded = Math.round(value)
   const sign = rounded > 0 ? '+' : ''
   return `${sign}${rounded} pp`
 }
 
-/**
- * Cliente detail (§3) — the read-only client report shared by Rentabilidad and
- * Resumen: economic summary, the margin comparison against the portfolio, direct
- * costs, uncharged extras, price erosion, margin history and alerts, plus
- * navigation CTAs. Reports never edit; this panel only reads and links out.
- *
- * Money needs the `profitability` capability. Rentabilidad opens only for a role that
- * holds it, but Resumen is
- * admin-visible (`role-access.ts`: `/reports` → owner + admin) and its risk table
- * opens this same drawer — from the table cell, from the phone list and from a
- * `?open=client:<id>` deep link. The gate therefore lives HERE, at render, so every
- * one of those paths is covered: an admin reads the operational subset (horas,
- * erosión de precio, últimos aumentos, equipo, alertas no financieras) and never the
- * studio P&L. Mirrors `PersonDetail`'s `showMoney`.
- */
 export function ClientDetail({
   item,
   cohort,
   onClose,
 }: {
   item: ClientProfitabilityReportItem | null
-  /** Every client in this período — the cohort. */
   cohort: ClientProfitabilityReportItem[]
   onClose: () => void
 }) {
   const navigate = useNavigate()
   const { capabilities } = useRole()
-  // Hooks run unconditionally (rules-of-hooks): the query is `enabled`-gated on there
-  // being an open client + the money capability, so a closed drawer fires nothing.
   const showMoneyForQuery = hasCapability(capabilities, 'profitability')
   const historyQuery = useReportsMarginHistory(
     item != null && showMoneyForQuery,
@@ -84,14 +59,9 @@ export function ClientDetail({
   if (!item) return null
   const showMoney = showMoneyForQuery
   const badge = profitabilityStatusBadge(item.status)
-  // On a failed load the trend renders empty rather than as a flat zero line — a
-  // fabricated $0 month is worse than an absent chart (SE001).
   const history = historyQuery.isError ? [] : historyQuery.data
   const alerts = buildAlerts(item, showMoney)
 
-  // The cohort is EVERY client, on MARGIN % — a normalized axis. Absolute profit scales
-  // with the size of the client, so an $8M account and a $300k one are not comparable on
-  // it; the share of revenue they keep is.
   const ranking = cohortRanking(
     cohort.map((client) => ({
       id: client.clientId,
@@ -101,10 +71,6 @@ export function ClientDetail({
     item.clientId,
     COHORT_WINDOW,
   )
-  // A second read, as a caption rather than a second ReferenceLine: two lines on one
-  // small chart read as noise, and the service median is a check, not a co-equal
-  // benchmark. Its own client is included — a median of one is that client, which is
-  // honest (there is no peer group) and is labelled by the count.
   const serviceCohort = cohort.filter((client) => client.service === item.service)
   const serviceMedian = median(serviceCohort.map((client) => client.margen))
   const increaseMedian = median(
@@ -118,8 +84,6 @@ export function ClientDetail({
     <ReportDetailShell
       title={item.clientName}
       subtitle={item.clientType ? `${item.clientType} · ${item.service}` : item.service}
-      // The status badge is the profitability tier — a capability-gated read, exactly as the
-      // Resumen hover preview this drawer replaced gated it.
       badges={showMoney ? <Badge variant={badge.variant}>{badge.label}</Badge> : undefined}
       onClose={onClose}
     >
@@ -127,9 +91,6 @@ export function ClientDetail({
         figures={
           showMoney
             ? [
-                // Rentabilidad is the panel's focal figure (hero) and carries the one
-                // profit/loss tint; Margen steps to the supporting tier, fg-default
-                // (figure-color-restraint: one tinted figure per viewport).
                 {
                   label: 'Rentabilidad',
                   value: formatCurrency(item.rentabilidad),
@@ -139,8 +100,6 @@ export function ClientDetail({
                 { label: 'Margen', value: formatPercent(item.margen) },
               ]
             : [
-                // Without the P&L, the client's load is the panel's focal figure. No
-                // figure is tinted here: neither of these encodes a status.
                 { label: 'Horas cargadas', value: formatHours(item.horas), emphasis: 'hero' },
                 { label: 'Último aumento', value: formatRelativeDate(item.lastIncreaseDate) },
               ]

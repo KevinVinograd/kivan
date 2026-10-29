@@ -1,17 +1,8 @@
-/**
- * The batch bar of the Producciones tab: approve what the communication leads confirmed,
- * and settle the week's viáticos.
- *
- * Each action applies only to the selected rows it makes sense for, and says how many.
- * Approving is locked on a closed month and skips productions already on a cobro;
- * paying back viáticos is not locked (HOLD pays them weekly, after the month closes too).
- */
 import { Button } from '@/app/components/components'
 import { todayIso } from '@/app/lib/iso-date'
 import type { ProductionRecord } from './monthly-operation-mock-data'
 import { formatCurrency } from './monthly-operation-format'
 
-/** Selected rows each action would touch. */
 export function bulkTargets(selected: ProductionRecord[], locked: boolean) {
   const open = locked ? [] : selected.filter((p) => !p.receivableId)
   return {

@@ -4,15 +4,6 @@ import { Button } from '@/app/components/components'
 type ErrorBoundaryProps = { children: ReactNode }
 type ErrorBoundaryState = { hasError: boolean }
 
-/**
- * Top-level error boundary. Catches render-time errors thrown by the data
- * providers or any routed page so a single failure degrades to a recoverable
- * fallback instead of a blank screen. Implemented as a class because React
- * exposes error boundaries only through the class lifecycle
- * (`getDerivedStateFromError` / `componentDidCatch`). Mock data does not throw
- * today, but real data and edge cases will once the backend lands, so this is
- * the graceful-degradation seam.
- */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false }
 
@@ -21,8 +12,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    // Surface the failure for debugging. A real logger/telemetry sink replaces
-    // this console once the backend is wired (logs tagged with the userId).
     console.error('[ErrorBoundary] Unhandled render error', error, info.componentStack)
   }
 

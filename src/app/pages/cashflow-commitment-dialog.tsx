@@ -47,7 +47,6 @@ const RECURRENCE_OPTIONS: Recurrence[] = ['monthly', 'quarterly', 'annual', 'one
 const CONFIDENCE_OPTIONS: Confidence[] = ['committed', 'projected']
 const CURRENCY_OPTIONS: Currency[] = ['ARS', 'USD']
 
-/** Caption label stacked over a control, matching the finance dialog idiom. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1.5">
@@ -57,36 +56,13 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   )
 }
 
-/**
- * Add / edit a committed item. `item` present → edit (preserves provenance, returns the
- * full `CommittedItem` via `onSave`); absent → create a manual item (returns
- * `Omit<CommittedItem, 'id'>` via `onCreate`, the store mints the id). The currency lane
- * (ARS / USD) is selectable; only the ARS lane feeds the 13-week projection, while
- * USD items surface in the Posición. Installments and reintegro are preserved on
- * edit (no entry form yet).
- *
- * The COUNTERPARTY field is what lets the projection supersede this commitment by
- * identity instead of by a (week, category) guess. It renders only for the three
- * categories whose money records carry a matching id, and it is required on a new one.
- */
-/**
- * The two modes are mutually exclusive, and the type says so.
- *
- * Both handlers used to be required, so every call site passed both and each one carried a
- * handler that could never fire: `submit` reaches `onCreate` only when `item` is absent and
- * `onSave` only when it is present. That dead wiring is how the register kept a live
- * subscription to `addCommitment` long after it stopped creating anything. Discriminating on
- * `item` makes the compiler ask for exactly the handler the mode can actually reach.
- */
 type CashflowCommitmentDialogProps = { onClose: () => void } & (
   | {
-      /** Edit an existing item: preserves provenance and `linkedEntityId`. */
       item: CommittedItem
       onSave: (next: CommittedItem) => Promise<void>
       onCreate?: never
     }
   | {
-      /** Create a manual item: the store mints the id. */
       item?: undefined
       onCreate: (next: Omit<CommittedItem, 'id'>) => Promise<void>
       onSave?: never
@@ -98,21 +74,10 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
   const [description, setDescription] = useState(item?.description ?? '')
   const [direction, setDirection] = useState<Direction>(item?.direction ?? 'outflow')
   const [category, setCategory] = useState<CommittedCategory>(item?.category ?? 'fixed_expense')
-  // Empty, not '0': a zero reads as an answered field, so the submit stayed disabled
-  // over a form that looked complete. Same reason `startDate` opens on today rather
-  // than blank, matching `cobros-registrar-cobro-dialog.tsx` — the dialog the feedback
-  // rule cites as canonical, which opens already valid.
   const [amount, setAmount] = useState(item ? String(item.amount) : '')
   const [recurrence, setRecurrence] = useState<Recurrence>(item?.recurrence ?? 'monthly')
   const [startDate, setStartDate] = useState(item?.startDate ?? todayIso())
   const [endDate, setEndDate] = useState(item?.endDate ?? '')
-  // Today's day-of-month, not 1, so the two date defaults agree. `expandCommitment`
-  // resolves an occurrence as `onAnchor(startDate, anchorDay)` — it keeps the start MONTH
-  // and forces the DAY — so `startDate = today` paired with `anchorDay = 1` places a
-  // one_time commitment on the 1st of the current month, which is already behind
-  // `windowStart` and gets dropped from the projection entirely. The user would have
-  // filled the form, saved it, and watched it not appear. Capped at 28, the field's own
-  // limit, because months are not all the same length.
   const [anchorDay, setAnchorDay] = useState(
     item ? String(item.anchorDay) : String(Math.min(Number(todayIso().slice(8, 10)), 28)),
   )
@@ -123,10 +88,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
   const [submitting, setSubmitting] = useState(false)
   const { keepOpen, setKeepOpen, fieldsRef, focusFirstField } = useKeepOpen()
 
-  // Which counterparty kind this commitment can name, from the CATEGORY AND THE DIRECTION
-  // together. Either one changing can change the kind, so both handlers clear the id: a
-  // client id left on a row that is now an outflow names a row the netting pool can never
-  // reach, and the register would show it as linked while it silently netted nothing.
   const entityType = entityTypeFor(category, direction)
   const [entityId, setEntityId] = useState(item?.linkedEntityId ?? '')
   const entityOptions = useEntityOptions(entityType)
@@ -141,9 +102,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
     if (entityTypeFor(category, next) !== entityType) setEntityId('')
   }
 
-  /** Back to a blank create form, keeping the toggle itself ticked. The counterparty is
-   *  KEPT, like the client in `cobros-create-cobro-dialog.tsx`: loading several
-   *  commitments for the same client or member in a row is the reason to stay open. */
   function resetForm() {
     setDescription('')
     setAmount('')
@@ -155,14 +113,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
   const amountN = Number(amount)
   const anchorDayN = Number(anchorDay)
 
-  // What is still blocking the submit, named. The button was disabled with nothing
-  // explaining why, which is indistinguishable from a broken button: this dialog was
-  // reported as "Agregar compromiso does not work" when the write path was fine and
-  // the form was simply two fields short of valid.
-  // The link is required on a NEW commitment whose category names a counterparty, and
-  // only there. An EXISTING row keeps its own answer: every commitment created before
-  // this field existed has none, and blocking an unrelated edit behind a migration of
-  // old data would make the register read-only for exactly the rows most worth fixing.
   const entityMissing =
     !item && entityLinkRequired(category, direction) && !entityLinkSatisfied(entityOptions, entityId)
   const missing = [
@@ -189,8 +139,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
       anchorDay: anchorDayN,
       confidence,
       source: item?.source ?? ('manual' as const),
-      // Both halves or neither, always derived from the CURRENT category. Moving a row to
-      // a category that names nothing clears the link rather than leaving a stale one.
       ...(entityType && entityId
         ? { linkedEntityType: entityType, linkedEntityId: entityId }
         : { linkedEntityType: undefined, linkedEntityId: undefined }),
@@ -199,16 +147,12 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
     }
     setSubmitting(true)
     try {
-      // Narrowed on `props`, not on the destructured `item`: the discriminated union lives on
-      // the props object, so this is what proves to TS that the handler for this mode exists.
       if (props.item) {
         await props.onSave({ ...props.item, ...base })
         toast.success('Compromiso actualizado')
       } else {
         await props.onCreate(base)
         toast.success('Compromiso agregado')
-        // Only after the write landed. Staying open is a convenience; it never buys
-        // the toast the right to fire early.
         if (keepOpen) {
           resetForm()
           setSubmitting(false)
@@ -323,9 +267,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
             </Field>
           </div>
 
-          {/* Only the three categories whose money records carry a matching id. A gasto
-              fijo, a monotributo cuota and a plataforma have no counterparty record, so
-              there is nothing to point at and no field to show. */}
           {entityType ? (
             <CommitmentEntityPicker
               type={entityType}
@@ -389,10 +330,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
           </label>
         </div>
 
-        {/* Two different things, so two different tokens. A contradiction the user typed is
-            an error state (`fg-danger`); a field they have not reached
-            yet is not their mistake, so it takes `fg-default` — which still separates it from
-            the `fg-subtle` field labels it would otherwise be indistinguishable from. */}
         {endBeforeStart ? (
           <p className="type-caption fg-danger" role="alert">
             La fecha de fin no puede ser anterior a la de inicio
@@ -404,7 +341,6 @@ export function CashflowCommitmentDialog(props: CashflowCommitmentDialogProps) {
         ) : null}
 
         <DialogFooter>
-          {/* Create only: "seguir agregando" has no meaning when you are editing one row. */}
           {item ? null : <KeepOpenToggle checked={keepOpen} onCheckedChange={setKeepOpen} />}
           <Button variant="outlined" color="primary" onClick={onClose}>
             Cancelar

@@ -7,14 +7,6 @@ import { Avatar, AvatarFallback, Card, CardContent, IconButton } from '@/app/com
 import { PanelContent, SectionHeader } from '@/app/components/templates'
 import { formatRelativeDate, formatShortDate, initials, type ActivityEntry, type ActivityKind } from './cobranza-format'
 
-/**
- * Scroll-reveal detail scaffold, mirroring the Clients/Team detail pattern: a
- * centered hero (avatar + name + subtitle + badges) is the resting header inside
- * the scrolling body, and a compact `SectionHeader` bar fades in — pinned at the
- * top — only once the hero scrolls out of view. `children` are the stacked content
- * blocks below the hero. The consumer passes the record's name/subtitle/badges and
- * the close handler; the scaffold owns the scroll observer and both headers.
- */
 export function ScrollRevealDetail({
   name,
   subtitle,
@@ -27,13 +19,7 @@ export function ScrollRevealDetail({
   name: string
   subtitle?: string
   badges?: ReactNode
-  /** Optional contextual back-trail rendered above the record (resting bar + the
-   *  sticky compact header), so a detail reached via a deep link keeps a return
-   *  path even when the page header is collapsed (and in the mobile Sheet, which
-   *  covers the list/navigator). Default off — intra-page selections pass none. */
   breadcrumb?: ReactNode
-  /** Optional control(s) shown left of the close affordance (both headers), e.g. a
-   *  period picker — kept reachable in the mobile detail Sheet, which covers the list. */
   controls?: ReactNode
   onClose: () => void
   children: ReactNode
@@ -42,7 +28,6 @@ export function ScrollRevealDetail({
   const heroRef = useRef<HTMLDivElement>(null)
   const [scrolled, setScrolled] = useState(false)
 
-  // Reveal the compact header once the centered hero scrolls out of the panel.
   useEffect(() => {
     setScrolled(false)
     const root = scrollRef.current
@@ -58,7 +43,6 @@ export function ScrollRevealDetail({
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      {/* Sticky compact header — fades in once the hero scrolls out of view. */}
       <div
         className={cn(
           'absolute inset-x-0 top-0 z-20 bg-page transition-opacity duration-[var(--motion-duration-quick)]',
@@ -86,9 +70,6 @@ export function ScrollRevealDetail({
       </div>
 
       <PanelContent ref={scrollRef} layout="stacked">
-        {/* Contextual back-trail above the hero — a single placement (not also in
-            the sticky compact header) so the detail exposes one breadcrumb nav
-            landmark. Left-aligned so it does not center with the hero. */}
         {breadcrumb ? <div className="self-start">{breadcrumb}</div> : null}
         <div ref={heroRef} className="relative flex flex-col items-center gap-4 text-center">
           <div className="absolute top-0 right-0 flex items-center gap-1">
@@ -119,11 +100,6 @@ export function ScrollRevealDetail({
   )
 }
 
-/**
- * Empty detail placeholder shown when the master-detail split stays open after a
- * tab switch but the active tab has nothing selected. Keeps the close affordance
- * so the user can collapse back to the table.
- */
 export function CobranzaDetailEmpty({ label, onClose }: { label: string; onClose: () => void }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -147,7 +123,6 @@ export function LeadingIcon({ icon: GlyphIcon }: { icon: Icon }) {
   )
 }
 
-/** One key/value row inside a detail card. */
 export function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -157,7 +132,6 @@ export function DetailRow({ label, value }: { label: string; value: ReactNode })
   )
 }
 
-/** A titled detail section: caption heading over a card body. */
 export function DetailSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
@@ -169,8 +143,6 @@ export function DetailSection({ title, children }: { title: string; children: Re
   )
 }
 
-/** Activity event kind to registry icon (semantic where one exists; structural
- *  create/close for created/cancelled). */
 const ACTIVITY_ICON: Record<ActivityKind, Icon> = {
   created: AFFORDANCE.create,
   invoice: ICON.invoice,
@@ -183,7 +155,6 @@ const ACTIVITY_ICON: Record<ActivityKind, Icon> = {
   cancelled: AFFORDANCE.close,
 }
 
-/** Vertical activity timeline: a leading icon + connector per entry, newest first. */
 export function ActivityTimeline({ items }: { items: ActivityEntry[] }) {
   if (items.length === 0) {
     return <span className="type-body-2 fg-subtle">Sin actividad</span>
@@ -206,9 +177,6 @@ export function ActivityTimeline({ items }: { items: ActivityEntry[] }) {
             >
               <span className="type-body-2 fg-default">{item.label}</span>
               <span className="whitespace-nowrap type-caption fg-subtle">
-                {/* Derived from the value, not from a flag a producer must remember to set: a calendar
-                    day has no time of day, so a relative distance from it is measured from local
-                    midnight and reads hours off ("hace 17 horas" for something entered minutes ago). */}
                 {isCalendarDay(item.iso) ? formatShortDate(item.iso) : formatRelativeDate(item.iso)}
               </span>
             </div>

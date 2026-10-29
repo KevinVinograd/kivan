@@ -36,16 +36,8 @@ import {
 import { formatCompactLaneAmount, formatLaneAmount } from './treasury-position-view'
 import { CashflowLaneSelect } from './cashflow-lane-select'
 
-// Recharts forwards `className` from the tick object to the SVG <text> (verified: the
-// rendered node carries `type-caption` and computes to 12px, with no font-size attribute),
-// so axis ticks take their size from the type scale instead of a raw `fontSize: 12`.
 const AXIS_TICK = { fill: 'var(--color-fg-subtle)', className: 'type-caption' }
 
-/**
- * A money cell in the 13-week matrix — compact, lane-aware, right-aligned, tabular.
- * Category / total rows show "-" for a zero week (noise reduction); balance rows
- * (Apertura / Cierre) pass `dash={false}` so a real 0 balance always shows a figure.
- */
 function MoneyCell({
   amount,
   currency,
@@ -64,7 +56,6 @@ function MoneyCell({
   )
 }
 
-/** A grouped category row (Sueldos, Abonos, …) inside the inflow / outflow band. */
 function CategoryRow({ row, currency }: { row: CashflowCategoryRow; currency: Currency }) {
   return (
     <TableRow>
@@ -76,16 +67,6 @@ function CategoryRow({ row, currency }: { row: CashflowCategoryRow; currency: Cu
   )
 }
 
-/**
- * Proyección tab — the projective view of the 13-week window for the selected
- * currency lane: a lane selector, the KPI strip, the running-balance line chart
- * with a zero baseline, a cash-crunch warning, and the matrix table (weeks as
- * columns; opening / inflows by category / total in / outflows by category / total
- * out / closing). All figures come from the pure `treasury-view` model over the
- * engine output; this file only composes approved components and maps tones to
- * tokens. Only the ARS lane carries cobros/pagos actuals; other lanes project from
- * their manual commitments alone.
- */
 export function CashflowProjection({
   weeks,
   lane,
@@ -106,7 +87,6 @@ export function CashflowProjection({
     <div className="flex flex-col gap-4 md:gap-6">
       <CashflowLaneSelect lane={lane} lanes={lanes} onChange={onLaneChange} />
 
-      {/* §6 Proyección focal → Cierre proyectado (the single card's 52px hero). */}
       <div className="px-4 md:px-6 lg:px-8 desktop:px-10">
         <KpiSummaryCard figures={kpis} heroId="closing" collapsible storageKey="cashflow-projection" />
       </div>

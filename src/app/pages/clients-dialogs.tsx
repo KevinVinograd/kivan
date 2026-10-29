@@ -68,11 +68,6 @@ export type ClientFormValues = {
   status: ClientStatus
   monthlyFee: number
   currency: Currency
-  /**
-   * `''` = no emisor was ever stated. Distinct from "the operator chose the first
-   * one": defaulting a blank to `monotributo_1` and then persisting it turns an
-   * unanswered question into a fabricated answer on the whole book.
-   */
   billingEntity: BillingEntity | ''
   services: string[]
   contactName: string
@@ -83,20 +78,11 @@ export type ClientFormValues = {
   adminContactName: string
   adminContactEmail: string
   adminContactPhone: string
-  /** `''` = the term was never stated. Never defaulted, which would assert one. */
   paymentMethod: PaymentMethod | ''
-  /**
-   * The standing discount as a PERCENT, because that is the unit the operator agreed
-   * it in ("10% por pago en efectivo"). It is converted to basis points on the way
-   * out and back on the way in, so the form never has to think in ten-thousandths.
-   * `0` = no discount.
-   */
   discountPercent: number
   billingCycle: BillingCycle | ''
-  /** A one-off project alongside the retainer. `0` = no project. */
   projectFee: number
   projectEndDate: string
-  /** ISO `yyyy-MM-dd`. Drives antigüedad, which reads `startDate ?? createdAt`. */
   startDate: string
 }
 
@@ -124,10 +110,6 @@ function emptyForm(): ClientFormValues {
     billingCycle: '',
     projectFee: 0,
     projectEndDate: '',
-    // The load date is the sensible default for a client being entered today, but
-    // most of the book predates the system: an operator loading a client of three
-    // years must be able to move it back, or every antigüedad reads zero and the
-    // fee-increase alerts key off a date that never happened.
     startDate: todayIso(),
   }
 }
@@ -156,51 +138,24 @@ function formFromClient(client: Client): ClientFormValues {
     billingCycle: client.billingCycle ?? '',
     projectFee: client.projectFee ?? 0,
     projectEndDate: client.projectEndDate?.slice(0, 10) ?? '',
-    // The stored value is a full ISO timestamp; DatePicker's contract is the date part.
     startDate: client.startDate?.slice(0, 10) ?? '',
   }
 }
 
-/** Mirrors `CURRENCY_OPTIONS` in cashflow-commitment-dialog.tsx (the same two lanes). */
 const CURRENCY_OPTIONS: readonly Currency[] = ['ARS', 'USD']
 
-/**
- * Read an amount typed in es-AR notation, where `.` groups thousands and `,` is
- * the decimal separator. Naive `Number('150.000')` is 150, off by a thousand on
- * the most natural way to type a fee.
- */
 export function parseAmountInput(raw: string): number {
   const normalized = raw.replace(/\./g, '').replace(',', '.')
   const parsed = Number(normalized)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
 }
 
-/**
- * Seed an amount input in the SAME notation `parseAmountInput` reads.
- *
- * This has to be the exact inverse, or the field silently corrupts money: seeding
- * with `String(12500.5)` produces "12500.5", whose dot the parser strips as a
- * thousands separator, so merely touching the field re-reads a stored 12.500,50 as
- * 125.005 and saves it with a success toast.
- */
 const amountSeedFormatter = new Intl.NumberFormat('es-AR', {
   maximumFractionDigits: 2,
   useGrouping: true,
 })
 
-/**
- * Read a PERCENTAGE from the field, which `parseAmountInput` cannot do.
- *
- * That parser reads es-AR money, where `.` is a THOUSANDS separator — so it turns a
- * typed `12.5` into 125. On an amount that is correct and load-bearing; on a rate it is
- * a silent 10x that then clamps to a 100% discount, billing the client zero.
- *
- * A percentage here is 0..100 and can never carry a thousands separator, so both `.` and
- * `,` are read as the decimal point and the ambiguity disappears. Clamped rather than
- * rejected, and the caller writes the clamped value back into the field: a stored value
- * that disagrees with what the operator is looking at is how a wrong rate gets saved
- * with a success toast.
- */
+// Not parseAmountInput: that reads es-AR money ('.' = thousands), so '12.5' would become 125.
 export function parsePercentInput(raw: string): number {
   const parsed = Number(raw.replace(',', '.'))
   if (!Number.isFinite(parsed) || parsed <= 0) return 0
@@ -238,19 +193,8 @@ function ClientFormDialog({
   const [values, setValues] = useState<ClientFormValues>(
     client ? formFromClient(client) : emptyForm(),
   )
-  // The submit is a network round trip and the dialog stays open for its whole
-  // duration, so without this the operator can fire POST /clients once per click
-  // (or per Enter in any text field) and get one client row per press. That is how
-  // the same client got loaded five times.
   const [pending, setPending] = useState(false)
-  // The fee is held as the raw typed string so the operator can clear it, type a
-  // partial number, and use es-AR separators. Deriving it from the numeric value
-  // was what produced the leading zero on an empty field.
   const [feeInput, setFeeInput] = useState(formatAmountSeed(client?.monthlyFee))
-  // A client priced by MONTHLY service lines has a fee the server keeps as their sum and
-  // refuses to take typed (clients.service `update`). The field showed a number to type
-  // over anyway, so HOLD read it as "el fee no suma los servicios". It shows the sum
-  // read-only instead, and says where it changes.
   const lines = useQuery({
     queryKey: queryKeys.clients.serviceLines(client?.id ?? ''),
     queryFn: () => clientsApi.listServiceLines(client?.id ?? ''),
@@ -260,9 +204,6 @@ function ClientFormDialog({
     ? monthlyTotal(lines.data ?? [])
     : null
   const [projectFeeInput, setProjectFeeInput] = useState(formatAmountSeed(client?.projectFee))
-  // Held as a string for the same reason as the two amounts above, and seeded from
-  // basis points: the column is the rate the generator prices with, the input is the
-  // percent the operator agreed.
   const [discountInput, setDiscountInput] = useState(
     formatAmountSeed(client?.discountPercentBp ? client.discountPercentBp / 100 : undefined),
   )
@@ -326,11 +267,6 @@ function ClientFormDialog({
                 onValueChange={(value) => update('clientType', value)}
               >
                 <SelectTrigger className="w-full">
-                  {/* Explicit children — see cobros-generar-mes-row. Radix otherwise
-                      portals the picked item's text node into this value node, and a
-                      machine-translated page turns that move into a NotFoundError that
-                      blanks the app. This is the other picker the crash was reported
-                      from; the rubro's value IS its label, so this renders identically. */}
                   <SelectValue placeholder="Elegí un rubro">
                     <span>{values.clientType}</span>
                   </SelectValue>
@@ -364,8 +300,6 @@ function ClientFormDialog({
             <Field label="Fee mensual">
               <div className="flex gap-2">
                 <Input
-                  // Not type="number": that renders the spinner arrows, refuses a
-                  // free-typed amount and keeps a leading zero on an empty field.
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
@@ -471,15 +405,9 @@ function ClientFormDialog({
                 </SelectContent>
               </Select>
             </Field>
-            {/* Sits next to Medio de pago because that is the term the studio agrees it
-                against ("10% por pago en efectivo"), but it is NOT conditional on it:
-                the rate comes off every cobro this client is generated, whatever they
-                end up paying with. Per-cobro exceptions stay in the Descuentos field
-                on the cobro itself. */}
             <Field label="Descuento">
               <div className="flex items-center gap-2">
                 <Input
-                  // Same reasoning as Fee mensual above: not type="number".
                   type="text"
                   inputMode="decimal"
                   placeholder="0"
@@ -488,8 +416,6 @@ function ClientFormDialog({
                   onChange={(event) => {
                     const next = event.target.value.replace(/[^\d.,]/g, '')
                     const percent = parsePercentInput(next)
-                    // Reflect the clamp. Without this the field keeps showing `250` while
-                    // 100 is what gets saved, and only the second read reveals it.
                     setDiscountInput(percent === 100 && parseFloat(next.replace(',', '.')) > 100 ? '100' : next)
                     update('discountPercent', percent)
                   }}
@@ -585,13 +511,6 @@ function ClientFormDialog({
 
           <DialogFooter>
             <DialogClose asChild>
-              {/* Deliberately NOT disabled while pending. Cancelar is the escape hatch, and
-                  disabling it takes the hatch down together with the request it exists to
-                  escape: an operator whose save never settled was left with a dialog she
-                  could neither submit nor close, and only a page reload got her out. The
-                  double-trigger guard belongs on submit — it is there,
-                  plus an `if (pending) return` in handleSubmit. Closing does not cancel the
-                  in-flight write; it stops holding the operator hostage to it. */}
               <Button variant="outlined" color="primary">
                 Cancelar
               </Button>
@@ -605,13 +524,6 @@ function ClientFormDialog({
     </Dialog>
   )
 }
-
-// `RegisterPaymentDialog` was deleted here. It collected an amount against a
-// FABRICATED balance (`currentMonthDueAmount - currentMonthPaidAmount`, both
-// invented by `dtoToClient`) and handed it to a handler that only called setData.
-// Registering a payment now goes through the month's real receivable and reuses
-// `CobrosRegistrarCobroDialog`, which /cobros already owns — see
-// `clients-receivable-dialogs.tsx`.
 
 function ConfirmActionDialog({
   client,
@@ -649,18 +561,6 @@ function ConfirmActionDialog({
   )
 }
 
-/**
- * "Eliminar permanente" — the removal, as opposed to the reversible Deshabilitar above.
- *
- * A `Dialog` rather than an `AlertDialog` because it carries a form field: the operator types
- * the client's name to confirm (reserves AlertDialog for form-free
- * confirmations). The typed name is the friction that separates this from Deshabilitar sitting
- * above it in the same menu — a mis-click cannot delete a client.
- *
- * The copy states what actually happens: the client leaves every screen, and its historical
- * cobros and facturas stay. It does NOT promise the record is unrecoverable — the backend
- * soft-deletes, and claiming otherwise would be a guarantee the system does not make.
- */
 function DeleteClientDialog({
   client,
   onClose,
@@ -681,8 +581,6 @@ function DeleteClientDialog({
     try {
       await onConfirm(client)
     } finally {
-      // The page closes this dialog on success; on failure it stays open with the
-      // typed name intact, so the operator can retry without redoing the confirmation.
       setPending(false)
     }
   }
@@ -716,10 +614,6 @@ function DeleteClientDialog({
 
           <DialogFooter>
             <DialogClose asChild>
-              {/* Not disabled while pending, for the reason given on the form dialog above —
-                  and it matters more here. This is the permanent-delete confirmation: a
-                  request that never settles would pin the operator inside a destructive
-                  dialog with no way out but a reload. Submit keeps its guard. */}
               <Button variant="outlined" color="primary">
                 Cancelar
               </Button>
@@ -736,9 +630,6 @@ function DeleteClientDialog({
 
 function ContactClientDialog({ client, onClose }: { client: Client; onClose: () => void }) {
   const draft = contactDraft(client)
-  // Each row carries a stable id so React keys survive removal: keying by array
-  // index would reuse DOM nodes across shifted rows, so deleting a middle email
-  // would leave focus/caret on the wrong input.
   const nextEmailId = useRef(0)
   const makeEmailRow = (value: string) => ({ id: nextEmailId.current++, value })
   const [emails, setEmails] = useState<{ id: number; value: string }[]>(() => [

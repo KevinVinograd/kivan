@@ -12,9 +12,6 @@ function DashboardAlertCard({ alert }: { alert: DashboardAlert }) {
   return (
     <Card interactive onClick={() => navigate(alert.ctaHref)} className="group relative overflow-hidden">
       <CardContent className="flex flex-col gap-2">
-        {/* The whole card navigates; the title spans the card's full width (no reserved
-            CTA column). The CTA floats over the bottom-right corner as the last child, so
-            its opaque surface-matched backing covers the card text (see FloatingCardCta). */}
         <div className="flex items-start gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={severity.variant} highContrast={severity.highContrast}>{severity.label}</Badge>
@@ -28,13 +25,6 @@ function DashboardAlertCard({ alert }: { alert: DashboardAlert }) {
   )
 }
 
-/**
- * §3 Alertas críticas. Operational and business signals that need owner
- * attention this week (ARCA/monotributo near limit, overdue cobros, low margin,
- * team blockers, stale follow-up), each with a severity and a CTA into the
- * workflow that resolves it (the whole card navigates there, mirroring Clientes
- * en riesgo).
- */
 export function CriticalAlertsList({ alerts }: { alerts: DashboardAlert[] }) {
   return (
     <section aria-label="Alertas críticas" className="flex flex-col">

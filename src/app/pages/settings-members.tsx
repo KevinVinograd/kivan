@@ -52,18 +52,11 @@ type Member = {
   name: string
   email: string
   role: Role
-  /** `disabled` members keep their row but cannot log in until reactivated. `pending` is an
-   *  invited person who has not set their password yet — distinct from a live `active` login. */
   status: 'active' | 'disabled' | 'pending'
-  /** The signed-in person (cannot change their own role or deactivate themselves). */
   isYou?: boolean
-  /** Assigned custom WorkspaceRole id (null = built-in role only). Narrows capabilities. */
   workspaceRoleId: string | null
 }
 
-/** Query key for the workspace users list (GET /users). */
-
-/** The two assignable roles (ownership is moved via the transfer block, not here). */
 const ASSIGNABLE_ROLES: Role[] = ['admin', 'employee']
 
 function initials(name: string): string {
@@ -75,8 +68,6 @@ function initials(name: string): string {
     .join('')
 }
 
-/** Create a workspace member: name, email, role. Email-invite flow — the person sets
- *  their OWN password via the one-time link (emailed, or shown on-screen to hand over). */
 function InviteMemberDialog({
   onClose,
   onInvite,
@@ -92,23 +83,15 @@ function InviteMemberDialog({
     teamMemberId?: string
   }) => void
   pending: boolean
-  /** Roster people not yet linked to a login — pick one to make this login "be" them. */
   rosterOptions: { id: string; name: string }[]
 }) {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<Role>('employee')
-  // Sentinel for "no link" (Radix Select forbids an empty-string item value) — the login
-  // exists without a roster person.
   const NO_LINK = '__none__'
   const [teamMemberId, setTeamMemberId] = useState<string>(NO_LINK)
 
-  // An Equipo login whose self-view ("mis clientes / mis horas") is to resolve MUST be
-  // linked to a roster person (`me.teamMemberId`); without it, client.read.own /
-  // member.read.own return empty. So when the role is employee and there is someone to
-  // link to, the link is required. (If the roster has nobody unlinked, the picker is
-  // hidden and this cannot be enforced — link later from the roster.)
   const employeeNeedsLink = role === 'employee' && rosterOptions.length > 0
   const canSubmit =
     Boolean(email.trim()) &&
@@ -189,14 +172,9 @@ function InviteMemberDialog({
               >
                 <Select value={teamMemberId} onValueChange={setTeamMemberId}>
                   <SelectTrigger className="w-full" aria-label="Persona del equipo">
-                    {/* Placeholder, not a blank: with "Sin vincular" hidden for Equipo the
-                        value matches no item, so without this the field rendered EMPTY and
-                        the disabled submit had no visible cause. */}
                     <SelectValue placeholder="Elegí la persona" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* An Equipo login must be linked, so "Sin vincular" is only offered to
-                        the other roles; for Equipo the picker forces a real person. */}
                     {!employeeNeedsLink ? <SelectItem value={NO_LINK}>Sin vincular</SelectItem> : null}
                     {rosterOptions.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
@@ -236,24 +214,10 @@ function InviteMemberDialog({
   )
 }
 
-/**
- * Miembros y roles — owner/admin section listing the people with access and their
- * role. Every mutation here is REAL: inviting posts `POST /users`, and the role
- * Select and Desactivar/Reactivar call `PATCH /users/:id/role|status`, reconciling
- * by invalidating the users query.
- *
- * Account governance is the one place owner and admin genuinely differ (they see the
- * same money everywhere else). `canGovern` mirrors the server invariants so a row
- * never offers a control the API would refuse. "Transferencia de propiedad" is
- * owner-gated in the UI but NOT yet implemented — confirming it reports that it is
- * unavailable, because no transfer endpoint exists.
- */
 export function SettingsMembers() {
   const { role } = useRole()
   const { me } = useAuth()
   const queryClient = useQueryClient()
-  // The workspace's real users (GET /users, owner+admin) — the query IS the list, so a
-  // create or role change reconciles by invalidating it (no local copy to drift).
   const { data: userDtos } = useQuery({ queryKey: queryKeys.users.all, queryFn: usersApi.list, staleTime: 60_000 })
   const members: Member[] = (userDtos ?? []).map((u) => ({
     id: u.id,
@@ -265,8 +229,6 @@ export function SettingsMembers() {
     workspaceRoleId: u.workspaceRoleId,
   }))
 
-  // The roster people available to link a NEW login to: everyone on the team who is not
-  // already tied to a login (the link is 1:1). Feeds the invite dialog's optional picker.
   const { data: roster } = useQuery({
     queryKey: queryKeys.team.roster(),
     queryFn: fetchTeamMembers,
@@ -281,31 +243,19 @@ export function SettingsMembers() {
 
   const [transferTo, setTransferTo] = useState('')
   const [inviteOpen, setInviteOpen] = useState(false)
-  // Set when a member was created but the invitation email did not go out — the
-  // one-time set-password link is shown so the admin can hand it over.
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<Member | null>(null)
   const [resetTarget, setResetTarget] = useState<Member | null>(null)
-  // Set when a reset link was minted but the email did not go out — shown so the admin
-  // can hand it over, exactly like the invite fallback.
   const [resetLink, setResetLink] = useState<string | null>(null)
   const [transferConfirm, setTransferConfirm] = useState(false)
 
   const others = members.filter((member) => !member.isYou)
 
-  /**
-   * Whether the signed-in person may change this member's role or status. Mirrors the
-   * server invariants in `settings.service.ts` so the row never offers a control the
-   * API would refuse: the owner is untouchable by anyone, and an admin is touchable
-   * only by the owner. Without this the admin got a role Select and a red Desactivar
-   * that answered with a generic "no se pudo" toast — an affordance that lies.
-   */
   const canGovern = (targetRole: Role): boolean =>
     targetRole !== 'owner' && (targetRole !== 'admin' || role === 'owner')
 
   const invalidateUsers = () => queryClient.invalidateQueries({ queryKey: queryKeys.users.all })
 
-  // Custom roles for the assign control — owner-only (assign is owner-gated server-side).
   const { data: allRoles } = useQuery({
     queryKey: ['roles'],
     queryFn: rolesApi.list,
@@ -313,7 +263,6 @@ export function SettingsMembers() {
     enabled: role === 'owner',
   })
   const customRoles = (allRoles ?? []).filter((r) => !r.isSystem)
-  // The system role that matches a built-in role — assigning it clears any custom narrowing.
   const systemRoleIdFor = (builtIn: Role): string | undefined =>
     (allRoles ?? []).find((r) => r.isSystem && r.key === builtIn)?.id
   const BASE_ROLE = '__base__'
@@ -329,8 +278,6 @@ export function SettingsMembers() {
     assignRoleMutation.mutate({ userId: member.id, roleId })
   }
 
-  // Creating a member is a real write (POST /users): the API hashes the password the
-  // owner set and the person can sign in with it right away.
   const createMutation = useMutation({
     mutationFn: usersApi.create,
     onSuccess: async (result) => {
@@ -339,7 +286,6 @@ export function SettingsMembers() {
       if (result.invite.mailed) {
         toast.success('Invitación enviada por email')
       } else {
-        // Mail off / failed: keep the one-time link on-screen to hand over by hand.
         setInviteLink(result.invite.link)
       }
     },
@@ -357,13 +303,10 @@ export function SettingsMembers() {
   })
 
   function setMemberRole(id: string, nextRole: Role) {
-    // Ownership is not assignable through this control (the API only takes admin/employee).
     if (nextRole === 'owner') return
     roleMutation.mutate({ id, nextRole })
   }
 
-  // Deactivating is the real "revoke access": the API disables the user, kills their
-  // sessions and blocks login. It is reversible, so members are never destroyed.
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: 'active' | 'disabled' }) =>
       usersApi.changeStatus(id, status),
@@ -374,9 +317,6 @@ export function SettingsMembers() {
     onError: () => toast.error('No se pudo cambiar el estado del miembro'),
   })
 
-  // Recovery path for a lockout: the API emails the member a one-time link to choose their
-  // own new password (reusing the invite flow). Nothing to reconcile in the list. When mail
-  // is off/failed the link comes back so the admin hands it over — same fallback as invites.
   const resetMutation = useMutation({
     mutationFn: (id: string) => usersApi.sendPasswordReset(id),
     onSuccess: (result) => {
@@ -387,12 +327,6 @@ export function SettingsMembers() {
         setResetLink(result.link)
       }
     },
-    // The server's refusals here are specific and actionable ("needs mail delivery
-    // enabled", "could not be emailed"), and they are reachable from a UI that looks
-    // permissive: `canGovern` mirrors the server's hierarchy off a members list cached for
-    // a minute with no refetch on focus, so a role changed in another session leaves this
-    // button rendered. Collapsing that into "no se pudo" would leave the operator unable to
-    // tell a hierarchy refusal from a network blip.
     onError: (error) =>
       toast.error(error instanceof ApiError ? error.message : 'No se pudo enviar el restablecimiento'),
   })
@@ -406,10 +340,6 @@ export function SettingsMembers() {
     statusMutation.mutate({ id, status: 'active' })
   }
 
-  // Handing over the owner seat is a real, owner-only write. The current owner steps
-  // down to admin in the same server transaction, so on success we refetch the session
-  // (`auth.me`) to drop owner-only affordances at once; the JWT catches up on its next
-  // refresh. The target gets owner power once THEIR token refreshes.
   const transferMutation = useMutation({
     mutationFn: (id: string) => usersApi.transferOwnership(id),
     onSuccess: async () => {
@@ -437,7 +367,6 @@ export function SettingsMembers() {
     role: Role
     teamMemberId?: string
   }) {
-    // Ownership is never assignable on create; the dialog only offers admin/employee.
     if (values.role === 'owner') return
     createMutation.mutate({ ...values, role: values.role as AssignableUserRole })
   }
@@ -459,12 +388,6 @@ export function SettingsMembers() {
         <SettingGroup title="Miembros" description={`${members.length} personas con acceso.`}>
           <div className="flex flex-col gap-2">
             {members.map((member) => (
-              // Each member is a STACKED block, not one wide row. Everything used to sit on a
-              // single line — identity plus two selects plus two long text buttons — which at
-              // this panel's width (~510px) squeezed the name and email down to two characters
-              // ("Fl…", "ia…"). Identity gets the first line; the controls get their own,
-              // indented to start under the name so they read as that person's, with a divider
-              // separating one member from the next.
               <div
                 key={member.id}
                 className="flex flex-col gap-2 border-b border-alpha-subtle pb-3 last:border-b-0 last:pb-0"
@@ -487,8 +410,6 @@ export function SettingsMembers() {
                 ) : null}
                 </div>
                 {member.isYou || !canGovern(member.role) ? null : (
-                  // Indented to start under the name: pl-11 = avatar (size-8) + the row gap.
-                  // Stepped down on mobile, where 44px of dead width costs more than the cue.
                   <div className="flex flex-wrap items-center gap-2 pl-4 md:pl-11">
                     <Select
                       value={member.role}
@@ -527,10 +448,6 @@ export function SettingsMembers() {
                         </SelectContent>
                       </Select>
                     ) : null}
-                    {/* The two account actions were full-width text buttons ("Restablecer
-                        contraseña", "Desactivar") — together wider than the selects. They move
-                        into the overflow menu this codebase already uses for row actions, so
-                        the line fits and the destructive one is one deliberate step away. */}
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         aria-label={`Acciones de ${member.name}`}
@@ -676,8 +593,6 @@ export function SettingsMembers() {
                 variant="outlined"
                 color="primary"
                 onClick={() => {
-                  // Toast only once the clipboard write actually resolves — reporting
-                  // success before it lands can lie when the write is denied/fails.
                   navigator.clipboard
                     .writeText(resetLink)
                     .then(() => toast.success('Enlace copiado'))
@@ -743,8 +658,6 @@ export function SettingsMembers() {
                 variant="outlined"
                 color="primary"
                 onClick={() => {
-                  // Toast only once the clipboard write actually resolves (see the reset-link
-                  // Copiar above) — a synchronous success toast can lie when the write fails.
                   navigator.clipboard
                     .writeText(inviteLink)
                     .then(() => toast.success('Enlace copiado'))

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import type { PaymentDto } from '@/api/payments'
 import { dtoToPayment } from './payments-api-data'
 
-/** A raw Payment entity DTO with neutral defaults; override only what a case asserts. */
 function paymentDto(overrides: Partial<PaymentDto> = {}): PaymentDto {
   return {
     id: 'pay-1',
@@ -39,7 +38,6 @@ describe('dtoToPayment', () => {
   it('keeps a known payment method and drops unknown/absent ones', () => {
     expect(dtoToPayment(paymentDto({ method: 'transfer' })).method).toBe('transfer')
     expect(dtoToPayment(paymentDto({ method: 'mercado_pago' })).method).toBe('mercado_pago')
-    // Unknown backend method → undefined (front only knows a fixed set).
     expect(dtoToPayment(paymentDto({ method: 'crypto' })).method).toBeUndefined()
     expect(dtoToPayment(paymentDto({ method: null })).method).toBeUndefined()
   })
@@ -49,18 +47,12 @@ describe('dtoToPayment', () => {
     expect(dtoToPayment(paymentDto({ paymentDate: '2026-06-20' })).paymentDate).toBe('2026-06-20')
   })
 
-  // The API serializes the column with toISOString(), so a date the operator picked
-  // arrives as UTC midnight. Parsed as an instant it reads as the previous day in
-  // UTC-3, which the Cashflow Posición would then compare against the anchor date.
   it('normalizes a UTC-midnight paymentDate to its calendar day', () => {
     expect(dtoToPayment(paymentDto({ paymentDate: '2026-06-20T00:00:00.000Z' })).paymentDate).toBe(
       '2026-06-20',
     )
   })
 
-  // The mapper hardcoded 'ARS' and threw `d.currency` away, so a USD row reached the
-  // table labelled as pesos and every peso sum counted its face value as centavos. The
-  // ARS assertion below passed in both worlds, so the lane needs its own case.
   it('reads the lane the server sent instead of assuming pesos', () => {
     expect(dtoToPayment(paymentDto({ currency: 'USD' })).currency).toBe('USD')
     expect(dtoToPayment(paymentDto({ currency: 'ARS' })).currency).toBe('ARS')
@@ -79,8 +71,6 @@ describe('dtoToPayment', () => {
   })
 
   it('carries the recipient FK through, and only the one that is set', () => {
-    // Without these the detail cannot reach the liquidación or the running account,
-    // and `recipientName` cannot stand in — two people may share a name.
     const provider = dtoToPayment(paymentDto({ providerId: 'prov-9', teamMemberId: null }))
     expect(provider.providerId).toBe('prov-9')
     expect(provider.teamMemberId).toBeUndefined()
@@ -93,8 +83,6 @@ describe('dtoToPayment', () => {
   })
 
   it('leaves both FKs absent for a recipient that has no counterparty', () => {
-    // Gasto fijo / monotributo / plataforma reference nobody, which is what makes
-    // the running-account and bank sections absent rather than empty.
     const p = dtoToPayment(
       paymentDto({ recipientType: 'fixed_expense', teamMemberId: null, providerId: null }),
     )

@@ -5,15 +5,6 @@ import { KpiTabCard, kpiTabFg } from './kpi-tab-card'
 import { MobileKpiStrip, type PinnedKpiItem } from './mobile-kpi-strip'
 import type { CloseSummaryKpi, CloseSummaryKpiId } from './admin-dashboard-types'
 
-/**
- * One §1 KPI tile, rendered as a naked `TabsTrigger` wrapping the shared
- * `KpiTabCard`. Radix owns role, roving focus, arrow keys and `aria-selected`;
- * the card is purely visual (no CTA — the card IS the control).
- *
- * `compact` (mobile, pinned strip) drops the supporting line and sizes the card
- * to ~40% width so 2.5 cards peek in the horizontal-scroll bar — label + figure
- * only.
- */
 function CloseKpiCard({
   kpi,
   selected,
@@ -43,14 +34,6 @@ function CloseKpiCard({
   )
 }
 
-/**
- * §1 Resumen del cierre. The four close-readiness KPIs double as the dashboard's
- * filter: the naked `TabsList` of a radio card group (one card always active,
- * defaulting to estado del cierre). Selecting a card surfaces the section it owns
- * below; the active card paints its semantic shader so its tendency reads at a
- * glance. The `Tabs` root (value + onValueChange) lives in the page so the same
- * selection drives the panels.
- */
 export function AdminCloseSummary({
   kpis,
   selectedId,
@@ -60,9 +43,6 @@ export function AdminCloseSummary({
   selectedId: CloseSummaryKpiId
   onSelect: (id: CloseSummaryKpiId) => void
 }) {
-  // Mobile: a compact, horizontally-scrollable row (label + figure, ~2.5 cards
-  // visible) that pins to the top as a fixed overlay once it scrolls away;
-  // desktop keeps the grid.
   const compact = useIsMobile()
   const triggers = kpis.map((kpi) => (
     <CloseKpiCard key={kpi.id} kpi={kpi} selected={kpi.id === selectedId} compact={compact} />

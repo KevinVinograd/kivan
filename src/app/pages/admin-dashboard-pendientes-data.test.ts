@@ -23,7 +23,6 @@ function payout(overrides: Partial<TeamPayout> = {}): TeamPayout {
   }
 }
 
-/** A month whose only payroll record is in /pagos: the state of every workspace today. */
 function month(overrides: Partial<MonthlyOperationData> = {}): MonthlyOperationData {
   return {
     clients: [],
@@ -41,18 +40,6 @@ function month(overrides: Partial<MonthlyOperationData> = {}): MonthlyOperationD
   }
 }
 
-/**
- * The admin home and Operación mensual must report ONE payroll for a month.
- *
- * `buildTeamPayments` used to recompute the three money figures as `sum(team, payoutTotal)` —
- * PayoutStatements alone. That agreed with Operación mensual only while both surfaces were
- * blind to the Pagos module. The moment the monthly screen learned to read payments, this one
- * would have kept showing "Total a pagar $0" to the same admin, one route away, during the
- * exact work the number exists for.
- *
- * Taking the figures from `summarize()` makes them agree by construction rather than by two
- * expressions happening to match, which is what stopped being true.
- */
 describe('buildTeamPayments', () => {
   const empty = { missingHours: new Set<string>(), viatics: new Set<string>() }
 
@@ -68,8 +55,6 @@ describe('buildTeamPayments', () => {
   })
 
   it('does not report $0 for a month whose payroll lives only in /pagos', () => {
-    // The regression, stated as the admin experiences it: she paid 450.000 and her own home
-    // screen said nothing was owed or paid.
     const data = month({ teamPaymentTotals: [{ teamMemberId: 'tm-1', total: 450_000, paid: 200_000 }] })
 
     const built = buildTeamPayments(data.team, summarize(data), empty.missingHours, empty.viatics)
@@ -88,8 +73,6 @@ describe('buildTeamPayments', () => {
   })
 
   it('counts a member with both records once', () => {
-    // The dedup lives in `summarize`; this asserts the admin screen inherits it rather than
-    // reintroducing the double-count with its own arithmetic.
     const data = month({
       team: [payout({ baseAmount: 300_000, paidAmount: 300_000 })],
       teamPaymentTotals: [{ teamMemberId: 'tm-1', total: 300_000, paid: 300_000 }],
@@ -101,8 +84,6 @@ describe('buildTeamPayments', () => {
   })
 
   it('keeps the rows statement-derived', () => {
-    // A payment carries no bank profile, no `payoutStatus` and no blocker, so the per-member
-    // list stays on the statements even though the totals no longer do.
     const data = month({
       team: [payout()],
       teamPaymentTotals: [{ teamMemberId: 'tm-9', total: 99_000, paid: 0 }],

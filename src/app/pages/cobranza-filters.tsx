@@ -18,19 +18,10 @@ import type { FilterField } from './cobranza-format'
 
 type AccordionProps = {
   fields: FilterField[]
-  /** Current active option value for a field, or `undefined` when unset. */
   valueFor: (id: string) => string | undefined
-  /** Toggle a field to a value, or clear it (pass `undefined`) when re-selecting. */
   onToggle: (id: string, value: string | undefined) => void
 }
 
-/**
- * Shared filter body for the Cobros / Pagos toolbars: one accordion section per
- * `FilterField`, options as toggleable outlined Buttons whose `selected` state is
- * the active value (clicking it again clears the field). Sections that already
- * carry an active filter start expanded. Single-select per axis, mirroring the
- * Clients filter pattern.
- */
 function FilterFieldsAccordion({ fields, valueFor, onToggle }: AccordionProps) {
   const defaultValue = fields.filter((field) => valueFor(field.id) != null).map((field) => field.id)
   return (
@@ -66,12 +57,6 @@ function FilterFieldsAccordion({ fields, valueFor, onToggle }: AccordionProps) {
   )
 }
 
-/**
- * Filters popover for a DataTable toolbar — generic over the row type. Reads and
- * writes tanstack column filter values keyed by `FilterField.id` (which must
- * match the table column ids), shows the active-filter count on the trigger, and
- * offers a "Limpiar" reset. Reused by both the Cobros and Pagos toolbars.
- */
 export function FiltersPopover<TData>({
   table,
   fields,
@@ -79,9 +64,6 @@ export function FiltersPopover<TData>({
   table: Table<TData>
   fields: FilterField[]
 }) {
-  // Below desktop (≤1023px: tablet + phone) the labelled "Filtros" button
-  // collapses to the canonical icon-only FilterPopover (funnel + active-axis
-  // count badge); the panel body is identical at every width.
   const isBelowDesktop = useIsBelowDesktop()
   const activeCount = table.getState().columnFilters.length
   const active = activeCount > 0

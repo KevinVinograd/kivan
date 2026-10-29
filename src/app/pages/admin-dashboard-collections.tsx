@@ -9,8 +9,6 @@ import { DashboardCta, FloatingCardCta } from './dashboard-cta'
 import { collectionStatusBadge, formatCompactCurrency, formatCurrency, formatShortDate } from './admin-dashboard-format'
 import type { ClientCollections, CollectionRow } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const COLLECTIONS_CTA_HREF = buildTrailHref(
   '/operacion-mensual?block=clientes',
   { label: 'Dashboard', to: '/dashboard' },
@@ -30,18 +28,15 @@ function CollectionCard({ row }: { row: CollectionRow }) {
     <Card interactive onClick={() => navigate(row.ctaHref)} className="group relative overflow-hidden">
       <CardContent className="flex flex-col gap-3">
         <div className="flex items-start gap-3">
-          {/* Primary: the amount owed — what this card exists to surface. */}
           <span className={cn('type-section tabular-nums', row.overdueDays != null ? 'fg-danger' : 'fg-default')}>
             {formatCurrency(row.amount)}
           </span>
         </div>
         <div className="flex flex-col gap-1">
-          {/* Secondary: who owes it + status. */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="type-body-2 fg-default">{row.clientName}</span>
             <Badge variant={status.variant}>{status.label}</Badge>
           </div>
-          {/* Tertiary: since when. */}
           <span className={cn('type-caption', row.overdueDays != null ? 'fg-danger' : 'fg-subtle')}>
             {dueLabel(row)}
           </span>
@@ -52,18 +47,9 @@ function CollectionCard({ row }: { row: CollectionRow }) {
   )
 }
 
-/**
- * §6 Cobros de clientes. Gives admin visibility into collection status, not a
- * full client finance report: the expected / collected / pending totals plus up
- * to five clients that need attention (one card each, mirroring Clientes en
- * riesgo, with a hover/focus "Ver cobro" deep-link). It summarizes issues and
- * routes to the cobros workflow.
- */
 export function ClientCollectionsOperationsCard({ collections }: { collections: ClientCollections }) {
   const figures: Kpi[] = [
-    // Hero figure: money still owed this month — what this panel exists to surface.
     { id: 'total-pending', label: 'Total pendiente', value: formatCompactCurrency(collections.totalPending) },
-    // Context behind the pending figure.
     { id: 'total-expected', label: 'Total esperado', value: formatCompactCurrency(collections.totalExpected) },
     { id: 'total-collected', label: 'Total cobrado', value: formatCompactCurrency(collections.totalCollected) },
     {

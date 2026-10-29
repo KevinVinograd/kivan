@@ -6,15 +6,6 @@ import { useAuth } from '@/app/lib/auth-store'
 import { AuthSplitLayout } from './auth-split-layout'
 import { useForgotPasswordForm } from './use-forgot-password-form'
 
-/**
- * Recuperar contraseña — the pre-auth password-reset *request* surface (route
- * `/recuperar-contrasena`), rendered outside the AppShell and reached from the
- * "¿Olvidaste tu contraseña?" trigger on `/login`. Reuses `AuthSplitLayout`.
- *
- * Front-end only for now: the submit is enumeration-safe (see `useForgotPasswordForm`)
- * and always lands on the same neutral confirmation. An already-signed-in visitor is
- * bounced to `/dashboard`.
- */
 export function ForgotPasswordPage() {
   const { isAuthenticated } = useAuth()
   const { email, setEmail, pending, submitted, onSubmit, reset } = useForgotPasswordForm()

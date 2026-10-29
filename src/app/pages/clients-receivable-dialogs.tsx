@@ -28,16 +28,6 @@ import { emitterFor, type RealEmitter } from './emitters-api-data'
 import { CobrosRegistrarCobroDialog } from './cobros-registrar-cobro-dialog'
 import { ClientAddExtraWorkDialog } from './clients-action-dialogs'
 
-/**
- * Which cobro is this action about?
- *
- * A client can have SEVERAL receivables in one month — there is no
- * `@@unique([clientId, period])` on the model, by design: one per service. So a money
- * action launched from the client row is not addressed to a single obvious record, and
- * silently picking one (or spreading an amount across them) would post money against a
- * service nobody chose. When there is exactly one the caller skips this entirely; this
- * only ever appears when the ambiguity is real.
- */
 export function ClientReceivablePicker({
   client,
   receivables,
@@ -98,12 +88,6 @@ export function ClientReceivablePicker({
   )
 }
 
-/**
- * What a client's money action says when there is no cobro of the month to act on.
- *
- * The action is not "broken" and it is not zero — nothing was billed. Cobros is where a
- * cobro is created, so this points there instead of offering a dead confirmation.
- */
 export function NoReceivableDialog({
   client,
   action,
@@ -113,8 +97,6 @@ export function NoReceivableDialog({
 }: {
   client: Client
   action: string
-  /** True when the receivables FETCH failed: an empty store is then an outage, not an
-   *  empty month, and saying "no billing this month" would be inventing the good news. */
   failed: boolean
   onRetry: () => void
   onClose: () => void
@@ -149,14 +131,6 @@ export function NoReceivableDialog({
   )
 }
 
-/**
- * The bulk-invoice plan, shown BEFORE anything is posted.
- *
- * Each factura consumes its emisor's sequence and counts against a monthly ceiling, so
- * the operator sees which monotributo issues how many, and what is being skipped and
- * why, while they can still cancel. A count-only confirmation would hide the one thing
- * that can go irreversibly wrong here.
- */
 export function BulkInvoicePlanDialog({
   plan,
   pending,
@@ -237,16 +211,6 @@ export function BulkInvoicePlanDialog({
   )
 }
 
-/**
- * Confirm issuing ONE factura, naming the emisor that will issue it.
- *
- * `/cobros` has a richer emisor-picker dialog (`cobros-generar-factura-dialog.tsx`) and
- * it is deliberately NOT reused here: it is built on the hardcoded `INVOICE_EMITTERS`
- * list, whose ids are invented strings rather than the emisor UUIDs the API needs, and
- * it applies its result to the local cache instead of calling
- * `POST /receivables/:id/invoice/generate`. Reusing it would import that phantom write
- * into `/clientes`. This one issues for real, off the emisores the server returns.
- */
 export function ClientGenerateInvoiceDialog({
   client,
   receivable,
@@ -258,11 +222,7 @@ export function ClientGenerateInvoiceDialog({
 }: {
   client: Client
   receivable: Receivable
-  /** Undefined when NO emisor can issue right now — the action is then refused, not
-   *  silently routed through a blocked monotributo. */
   emitter: RealEmitter | undefined
-  /** True when the EMISORES fetch failed. An empty list is then an outage, and saying
-   *  "todos al límite" would be a confident diagnosis of data we never received. */
   emittersFailed: boolean
   pending: boolean
   onConfirm: () => void
@@ -308,8 +268,6 @@ export function ClientGenerateInvoiceDialog({
               color="primary"
               disabled={pending}
               onClick={(event) => {
-                // Keep the confirmation standing so a failed write leaves the user where
-                // they were instead of the dialog vanishing over an error toast.
                 event.preventDefault()
                 onConfirm()
               }}
@@ -323,7 +281,6 @@ export function ClientGenerateInvoiceDialog({
   )
 }
 
-/** Local state for the receivable-scoped money dialogs launched from a client row. */
 export type ClientMoneyDialogState =
   | { kind: 'none' }
   | { kind: 'pickCollect'; client: Client; receivables: Receivable[] }
@@ -334,15 +291,10 @@ export type ClientMoneyDialogState =
   | { kind: 'extra'; client: Client; receivable: Receivable }
   | { kind: 'noReceivable'; client: Client; action: string }
 
-/** Small hook so the page keeps one state machine for all three money actions. */
 export function useMoneyDialog() {
   return useState<ClientMoneyDialogState>({ kind: 'none' })
 }
 
-/**
- * Renders whichever money dialog the state names. One switch keeps the three actions on
- * the same resolution path (pick → act → close), so a new one cannot quietly skip it.
- */
 export function ClientMoneyDialogs({
   state,
   emitters,

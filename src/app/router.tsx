@@ -26,35 +26,6 @@ import { SettingsPage } from './pages/settings-page'
 import { DocsPage } from './pages/docs-page'
 import { NotificationsPage } from './pages/notifications-page'
 
-/**
- * Application route table. The root route mounts the layout (AppShell + Outlet);
- * each nav target resolves to a page. Workspace stores live above every route, in
- * dependency order: TeamDataProvider (roster + client relationship), then the
- * canonical finance stores ReceivablesProvider + PaymentsProvider, then
- * MonthlyOperationProvider (the monthly dataset that Operación mensual reads and
- * mutates). The order matters: Operación mensual now derives its per-client cobro
- * actuals from the canonical Receivable store (actuals-shared, audit B-1a), so
- * MonthlyOperationProvider is nested BELOW ReceivablesProvider to consume it. The
- * Receivable dataset lives in ReceivablesProvider, shared by Cobros (/cobros) and
- * Facturación (/billing) so a factura issued on either surface is reflected on the
- * other. The Payment dataset lives in PaymentsProvider (the /pagos outgoing-payments
- * store, lifted out of PagosTab local state so it can be shared and derived from).
- * Clients and Team are wired to the master-detail
- * harness; Reportes reads the existing mock across modules to render its read-only
- * analytics. Settings resolves to the role-scoped Configuración module (Apariencia
- * wired to the real theme, the rest presentational over local state). The
- * role-resolved activity log is a review drawer opened from each dashboard's
- * Actividad reciente section (no route, no nav item). The index and unknown paths
- * redirect to the Owner Dashboard, /dashboard.
- *
- * RoleProvider wraps the whole tree so the active role drives the /dashboard
- * variant (owner = Owner Dashboard, employee = Employee Dashboard, admin = Admin
- * Operations Dashboard), the per-page perspectives, and the floating role-switcher
- * in App. Owner/admin-only routes (/operacion-mensual, /reports, and the Finanzas
- * group /cobros, /pagos, /billing) are wrapped in RoleGate so they redirect to
- * /dashboard for any other role, matching the SideNav filtering. It is the seam
- * future role-aware perspectives plug into.
- */
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/recuperar-contrasena', element: <ForgotPasswordPage /> },
@@ -144,9 +115,7 @@ export const router = createBrowserRouter([
         ),
       },
       { path: 'settings', element: <SettingsPage /> },
-      // Guía de uso — static docs, open to every role, so no RoleGate wrapper.
       { path: 'docs', element: <DocsPage /> },
-      // Avisos — the caller's own in-app inbox, so it is open to every role (no RoleGate).
       { path: 'notificaciones', element: <NotificationsPage /> },
       { path: '*', element: <Navigate to="/dashboard" replace /> },
     ],

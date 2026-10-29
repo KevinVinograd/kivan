@@ -9,28 +9,6 @@ import {
   type ButtonColor,
 } from "@/app/components/components/button"
 
-/**
- * AlertDialog — shadcn/ui (new-york) Radix alert dialog, token-adapted. A blocking
- * confirmation modal: the backdrop uses the `bg-overlay-default` scrim and the
- * panel uses the shared `surface-modal` recipe. The action/cancel buttons are
- * rewired off the source's `Button` import (the frozen custom Button has no
- * `asChild`/`size`) onto the `buttonVariants` recipe applied directly to the Radix
- * `Action`/`Cancel` elements (the Pagination/Calendar precedent): Action defaults
- * to `solid/primary`, Cancel to `outlined/primary`, both overridable for
- * destructive confirmations (`color="danger"`). The non-standard `AlertDialogMedia`
- * helper and its media-aware responsive grid were not adopted. Titles map to
- * `type-heading`, descriptions to `type-body-2 fg-subtle`. Theme is handled by the
- * tokens (no `dark:` overrides).
- *
- * Responsive: on mobile (≤767px via `useIsMobile`) the panel docks to the bottom
- * edge as a slide-up sheet (rounded top, single top hairline, visual grabber)
- * instead of centering; at `md`+ the centered `surface-modal` chrome and the
- * `size` cap are unchanged (`size` is ignored on mobile — the sheet is full width).
- * The mobile chrome is composed inline rather than via `surface-modal` because an
- * edge-flush sheet must not round all corners, mirroring `Sheet` `side="bottom"`.
- * Radix `AlertDialog` keeps its no-outside-click contract — the sheet is dismissed
- * via the Cancel/Action buttons or Escape, not a scrim tap.
- */
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
@@ -87,34 +65,18 @@ function AlertDialogContent({
         data-size={size}
         data-variant={isMobile ? "sheet" : "modal"}
         className={cn(
-          // Shared chrome: grid body, capped height with internal scroll.
           "fixed z-50 grid w-full gap-4 overflow-y-auto p-6",
           isMobile
-            ? // Mobile: bottom-docked slide-up sheet. Inline chrome (not
-              // `surface-modal`) so only the top corners round and only a top
-              // hairline draws. `size` does not apply — the sheet spans the full
-              // width; bottom padding comes from the shared `p-6`. Edge-flush by
-              // design, so it keeps the plain 90dvh cap.
+            ?
               "inset-x-0 bottom-0 max-h-[90dvh] rounded-t-layout border-t border-alpha-subtle bg-surface-recessed shadow-raised duration-[var(--motion-duration-panel)] data-[state=closed]:animate-out data-[state=closed]:slide-out-to-bottom data-[state=open]:animate-in data-[state=open]:slide-in-from-bottom"
-            : // Desktop: centered, top-anchored modal capped by `size`.
-              //
-              // MODAL BOTTOM GUTTER (rule) — the height cap subtracts the top
-              // offset twice, so the gap below always equals the gap above and
-              // never falls under the clamp's 40px floor. Mirrors `dialog.tsx`;
-              // keep the two in step. A plain `max-h-[90dvh]` ignores the offset
-              // and overflows the bottom edge on any laptop-height viewport.
+            :
               "surface-modal top-[clamp(40px,8vw,120px)] max-h-[calc(100dvh-2*clamp(40px,8vw,120px))] left-[50%] max-w-[calc(100%-2rem)] translate-x-[-50%] duration-[var(--motion-duration-modal)] data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-lg data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
           className,
-          // Keep the mobile sheet full-width: neutralize any consumer `sm:max-w-*`
-          // applied in the 640–767px band (Tailwind `sm` = 640px sits below the
-          // `md`/`useIsMobile` boundary). Placed after `className` so it wins.
           isMobile && "max-w-none sm:max-w-none",
         )}
         {...props}
       >
         {isMobile && (
-          // Visual grabber that reads as a bottom sheet (decorative; no drag).
-          // Dismiss via Cancel/Action or Escape. Hidden from assistive tech.
           <div
             aria-hidden="true"
             className="mx-auto h-1 w-12 shrink-0 rounded-full bg-alpha-subtle"

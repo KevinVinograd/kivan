@@ -1,11 +1,8 @@
 import { Button, Skeleton } from '@/app/components/components'
 
-/** Loading state: a search bar + table skeleton while the ledger resolves. */
 export function AccountLedgerLoading() {
   return (
     <div className="flex flex-col gap-2 px-4 md:px-6 lg:px-8 desktop:px-10" aria-hidden>
-      {/* `sm:max-w-72`, matching `Toolbar`'s search cap — not the `sm:w-72` fixed width the
-          hand-rolled toolbars used, which this skeleton was still mirroring. */}
       <Skeleton className="h-10 w-full sm:max-w-72" />
       <Skeleton className="h-10 w-full" />
       {Array.from({ length: 8 }).map((_, index) => (
@@ -15,7 +12,6 @@ export function AccountLedgerLoading() {
   )
 }
 
-/** Page-level error state with retry. */
 export function AccountLedgerError({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 md:px-6 lg:px-8 desktop:px-10 py-16 text-center">
@@ -30,7 +26,6 @@ export function AccountLedgerError({ onRetry }: { onRetry: () => void }) {
   )
 }
 
-/** Empty state, no accounts for the active entity type. */
 export function AccountLedgerEmpty({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 md:px-6 lg:px-8 desktop:px-10 py-16 text-center">
@@ -40,7 +35,6 @@ export function AccountLedgerEmpty({ label }: { label: string }) {
   )
 }
 
-/** Empty state with active filters, rendered inside the table body. */
 export function AccountLedgerEmptyFiltered({ onClearFilters }: { onClearFilters: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">

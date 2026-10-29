@@ -5,20 +5,6 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { cn } from "@/app/lib/utils"
 import { motionClass } from "@/app/lib/motion"
 
-/**
- * DropdownMenu — shadcn/ui (new-york) Radix dropdown menu, token-adapted. The
- * floating surface uses the shared `surface-raised` recipe (the token system's
- * named target for "Popover, DropdownMenu, Select listbox" — `bg-surface-flat`
- * + `border-alpha-subtle` + container radius + raised shadow). Items are leaf
- * controls: `rounded-control`, `type-body-2`, neutral `bg-alpha-subtle-hover`
- * focus, foreground inherited by icons; the destructive variant swaps to the
- * danger pair. Theme is handled by the tokens (no `dark:` overrides).
- *
- * Scope: the core set the Clients table needs (Root / Trigger / Content / Group
- * / Label / Item / CheckboxItem / Separator). Sub-menus, radio items, and the
- * shortcut hint are intentionally omitted — add them via the shadcn adoption
- * pipeline when a consumer requires them.
- */
 function DropdownMenu({
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {

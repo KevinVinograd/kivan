@@ -21,8 +21,6 @@ import { Field, SettingGroup, ToggleRow } from './settings-fields'
 
 const CLOSE_DAYS = Array.from({ length: 28 }, (_, i) => String(i + 1))
 
-/** A removable-chip list with an add input. Used for the gastos and producción
- *  vocabularies the operation defaults configure. */
 function EditableList({
   items,
   onChange,
@@ -85,15 +83,6 @@ function EditableList({
   )
 }
 
-/**
- * Operación mensual — owner/admin defaults for the monthly operating cycle: when
- * the month closes, how cobros are reminded, the gastos and producción
- * vocabularies, and the team payment rules. These feed the Operación mensual hub.
- *
- * Backed by the workspace's saved rules (`useMonthlyRules`): the form seeds itself from
- * them and the Guardar mutation persists them. On a failed load the fields fall back to
- * the defaults and the panel says so, so nobody edits from a baseline that is not theirs.
- */
 export function SettingsOperation() {
   const queryClient = useQueryClient()
   const { rules, isLoading, isError } = useMonthlyRules()
@@ -107,9 +96,6 @@ export function SettingsOperation() {
   const [expenseCategories, setExpenseCategories] = useState(rules.expenseCategories)
   const [productionTypes, setProductionTypes] = useState(rules.productionTypes)
 
-  // Seed the form from the server once it loads (and on any refetch). Keyed on the
-  // loaded document so a later refetch of the SAME rules does not clobber an edit in
-  // progress.
   const loadedKey = JSON.stringify(rules)
   useEffect(() => {
     setCloseDay(String(rules.closeDay))
@@ -165,8 +151,6 @@ export function SettingsOperation() {
       />
       <PanelContent layout="stacked">
         {isError ? (
-          // Never present the defaults as if they were the studio's saved rules: on a failed
-          // load say so, so nobody edits from a baseline that is not theirs (SE001).
           <p className="type-body-2 fg-danger">
             No pudimos cargar las reglas guardadas. Estás viendo los valores por defecto.
           </p>

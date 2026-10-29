@@ -7,7 +7,6 @@ import type { AccountEntity, AccountStatus, LedgerEntityType } from './account-l
 
 type BadgeVariant = 'neutral' | 'success' | 'warning' | 'danger' | 'outline'
 
-/** Estado badge for an account status, with an entity-aware label. */
 export function accountStatusBadge(
   status: AccountStatus,
   entityType: LedgerEntityType,
@@ -19,14 +18,6 @@ export function accountStatusBadge(
   return { label: 'Pendiente', variant: 'neutral' }
 }
 
-/**
- * Saldo cell: zero/credit reads subtle, an outstanding debit reads default.
- *
- * The figure is the PESO lane. What it leaves out is stated right here, because this
- * table is the master list: the count was computed and unit-tested and rendered only in
- * the detail hero, so the list showed a peso saldo with nothing saying it was one lane of
- * several. A subtle sub-line, not a badge — it qualifies the number, it is not a status.
- */
 function balanceCell(value: number, otherLaneCount: number) {
   return (
     <span className='flex flex-col'>

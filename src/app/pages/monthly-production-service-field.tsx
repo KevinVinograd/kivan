@@ -1,13 +1,3 @@
-/**
- * "Servicio" in the production form: which of the client's production prices this
- * production is billed under ("según que tipo de producción sea el valor puede variar").
- *
- * Two kinds of price qualify. A PER-PRODUCTION line prefills "Monto a facturar" with its
- * price, which stays editable. A PER-HOUR line ("producción con celular" / "con cámara",
- * 2026-10-19) bills hours × its price, which the API computes and the form shows. Only
- * rendered when the chosen client has such prices. A linked, approved production is what
- * Generar cobros del mes bills on the client's next cobro.
- */
 import { useQuery } from '@tanstack/react-query'
 
 import { clientsApi, type ClientServiceDto } from '@/api/clients'
@@ -21,7 +11,6 @@ import {
   SelectValue,
 } from '@/app/components/components'
 
-/** Sentinel for "not billed under a service": a Radix SelectItem cannot carry ''. */
 const NONE = 'none'
 
 export function ProductionServiceField({
@@ -31,7 +20,6 @@ export function ProductionServiceField({
 }: {
   clientId: string
   value: string | null
-  /** The picked per-production line, or null to unlink. */
   onChange: (line: ClientServiceDto | null) => void
 }) {
   const query = useQuery({
@@ -53,8 +41,6 @@ export function ProductionServiceField({
         onValueChange={(next) => onChange(options.find((l) => l.id === next) ?? null)}
       >
         <SelectTrigger className="w-full" aria-label="Servicio del cliente">
-          {/* Explicit children: Radix otherwise moves the item's text node into the value
-              node, which throws on a machine-translated page. */}
           <SelectValue>
             <span>{current ? current.name : 'Sin servicio'}</span>
           </SelectValue>

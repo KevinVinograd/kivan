@@ -16,12 +16,6 @@ import { formatMoney, formatMonthYear } from './cobranza-format'
 import type { UpdatePagoInput } from './payments-api-data'
 import type { Payment } from './pagos-mock-data'
 
-/**
- * Editar pago — edit a payment's concept, amount and expected date. On save it
- * persists via `onSave` (PATCH /payments/:id, which rejects a total below what is
- * already paid, so the balance never goes negative). The recipient is fixed once
- * the pago exists (the API does not re-point it), so it is not edited here.
- */
 export function PagosEditPagoDialog({
   payment,
   onSave,

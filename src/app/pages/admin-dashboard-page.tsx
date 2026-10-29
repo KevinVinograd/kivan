@@ -24,43 +24,21 @@ import { RecentActivityList } from './dashboard-activity'
 import { AdminDashboardEmptyMonth, AdminDashboardError, AdminDashboardLoading } from './admin-dashboard-states'
 import type { CloseSummaryKpiId } from './admin-dashboard-types'
 
-/**
- * Admin / Operations Dashboard — the monthly-close control center (route
- * `/dashboard`, `admin` role variant). A read-only page whose four close-readiness
- * KPIs double as a radio filter (a naked `Tabs` group, defaulting to estado del
- * cierre): each card owns the main-column section shown below — pendientes
- * críticos; horas + producciones y viáticos; pagos al equipo + cobros de
- * clientes; or facturación y ARCA + gastos fijos. A secondary rail holds
- * actividad reciente, always visible under any panel. It reads like an
- * operational checklist, not an analytics dashboard.
- *
- * Every figure is derived in `admin-dashboard-data.ts` from existing module data
- * (the live Operación mensual store + the Reportes capacity derivation). The page
- * is pinned to the current month (like the Owner dashboard); nothing here writes
- * data or exposes a payment / invoice / ARCA action.
- */
 export function AdminOperationsDashboardPage() {
   const op = useMonthlyOperation()
   useRevalidateOnOpen(defaultMonthId())
   const navigate = useNavigate()
   const { greeting } = useDaytime()
   const { me } = useAuth()
-  // Greet the real signed-in user (neutral greeting before /auth/me resolves).
   const greetName = me ? greetingName({ name: `${me.firstName} ${me.lastName}`.trim(), firstName: me.firstName }) : ''
-  // Radio filter: one KPI card is always active, defaulting to estado del cierre.
   const [selectedSection, setSelectedSection] = useState<CloseSummaryKpiId>('cierre')
 
-  // Pinned to the current month; `months` is newest-first so the previous month
-  // (for the gastos-fijos variation) sits at the next index.
   const { record, previous } = useMemo(() => {
     const index = op.months.findIndex((month) => month.id === defaultMonthId())
     const resolved = index >= 0 ? index : 0
     return { record: op.months[resolved], previous: op.months[resolved + 1] }
   }, [op.months])
 
-  // Real report aggregates for the month (owner+admin `/reports/*`). Admin holds both
-  // capabilities, so both are fetched; capacity is what un-deads the "Horas y productividad"
-  // card, which without it can only ever say "No disponible".
   const period = record ? monthIdToPeriod(record.id) : null
   const profitability = useReportsProfitability(period ?? '', period != null)
   const capacity = useReportsCapacity(period != null)
@@ -74,12 +52,6 @@ export function AdminOperationsDashboardPage() {
     [record, previous, profitability.data, capacity.data],
   )
 
-  // The load state comes from the bundle fetch this page reads, not from a timer. The old
-  // `setTimeout(() => setStatus('ready'), 400)` made `error` unreachable, so a failed fetch
-  // fell through to the empty-month branch and told the admin "no hay datos cargados para
-  // este mes" — a false statement of fact about a month that simply never arrived. The report
-  // aggregates are folded in so the page fails as a unit (SE001): a broken capacity fetch
-  // must not silently render the Horas card as an empty "No disponible".
   const reportBusy = profitability.isLoading || capacity.isLoading
   const reportError = profitability.isError || capacity.isError
   const retryAll = () => {
@@ -102,10 +74,7 @@ export function AdminOperationsDashboardPage() {
         className="gap-4 md:gap-6"
       >
         <AdminCloseSummary kpis={data.kpis} selectedId={selectedSection} onSelect={setSelectedSection} />
-        {/* inlineAt="xl": Actividad reciente (aside) stacks below the close-readiness panel
-            on laptops (<1280px), splitting into two columns only at xl+. */}
         <PanelGroup layout="inline" inlineAt="xl">
-          {/* Main column: the KPI-selected close-readiness panel. */}
           <Panel type="fill">
             <TabsContent value="cierre">
               <CriticalOperationsList pendings={data.pendings} />
@@ -123,7 +92,6 @@ export function AdminOperationsDashboardPage() {
               <FixedExpensesCard expenses={data.expenses} />
             </TabsContent>
           </Panel>
-          {/* Fluid secondary rail: always-on awareness, independent of the active KPI. */}
           <Panel type="aside">
             <RecentActivityList activity={data.activity} previews={data.activityPreviews} />
           </Panel>

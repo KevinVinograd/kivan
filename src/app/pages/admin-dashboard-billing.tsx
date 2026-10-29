@@ -14,8 +14,6 @@ import {
 } from './admin-dashboard-format'
 import type { BillingAndArca, BillingItemRow, MonotributoAlert, MonotributoRow } from './admin-dashboard-types'
 
-// The dashboard is the trail root, so this section CTA carries a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const BILLING_CTA_HREF = buildTrailHref('/billing', { label: 'Dashboard', to: '/dashboard' }, new URLSearchParams())
 
 const MONOTRIBUTO_BAR_TONE: Record<MonotributoAlert, ProgressTone> = {
@@ -24,9 +22,6 @@ const MONOTRIBUTO_BAR_TONE: Record<MonotributoAlert, ProgressTone> = {
   limite: 'danger',
 }
 
-// No usage estimate = the figure slot carries the prose empty state ("No disponible"),
-// which the summary card steps down and quiets on its own — leaving it untoned is what
-// keeps it `fg-subtle` there, so this returns no tone rather than `default`.
 function usageTone(pct: number | null): KpiTone | undefined {
   if (pct == null) return undefined
   if (pct >= 90) return 'danger'
@@ -83,19 +78,9 @@ function BillingItemCard({ row }: { row: BillingItemRow }) {
   )
 }
 
-/**
- * §7 Facturación y ARCA. Helps admin prevent invoicing errors and monotributo
- * limit issues: the invoice + monotributo totals, the per-account annual usage
- * (three monotributos back the agency's invoicing) with a usage bar, and the
- * pending billing items — each rendered as one card (mirroring Clientes en
- * riesgo) with a hover/focus CTA. Status is mock/local — there is no real ARCA
- * integration.
- */
 export function BillingAndArcaCard({ billing }: { billing: BillingAndArca }) {
   const figures: Kpi[] = [
-    // Hero figure: invoices still to issue — what this section exists to surface.
     { id: 'invoices-pending', label: 'Facturas pendientes', value: String(billing.invoicesPending) },
-    // Context behind the pending figure.
     { id: 'invoices-reviewed', label: 'Facturas revisadas', value: String(billing.invoicesReviewed) },
     { id: 'monotributos-active', label: 'Monotributos activos', value: String(billing.monotributosActive) },
     {

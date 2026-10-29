@@ -21,7 +21,6 @@ import {
 } from './pagos-format'
 import type { Payment } from './pagos-mock-data'
 
-/** Contextual row actions, wired by the tab (stubbed with toast in slice 1). */
 export type PagosRowActions = {
   onView: (payment: Payment) => void
   onApprove: (payment: Payment) => void
@@ -77,11 +76,6 @@ export function pagosColumns(actions: PagosRowActions): ColumnDef<Payment>[] {
       ),
     },
     {
-      // HIDDEN BY DEFAULT, and it exists for the filter rather than for the eye: the
-      // toolbar targets a filter by COLUMN id, and `Monto` already carries each row's
-      // lane through `formatMoney`, so a visible currency column would repeat it. Hiding
-      // it is what lets `Moneda` isolate a lane and answer "how much of the dollar total
-      // is overdue" from the rows, which the summary card deliberately does not.
       accessorKey: 'currency',
       id: 'currency',
       header: 'Moneda',

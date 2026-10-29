@@ -1,11 +1,3 @@
-/**
- * Report aggregates backed by TanStack Query. `profitability` (per-client six-area
- * cost + margin) and `capacity` (per-member real cost) are CAPABILITY-GATED, so
- * the queries only run when `enabled` (the caller passes the matching
- * `can(role, …)`) — a role without the capability never fires a request that would
- * 403. The hooks return the mapped report items directly, so the page assembles the
- * dataset from real, typed figures.
- */
 import { useQuery } from '@tanstack/react-query'
 
 import { reportsApi } from '@/api/reports'
@@ -18,15 +10,12 @@ import type {
   TeamCapacityReportItem,
 } from './reports-types'
 
-/** Per-client profitability for a period (needs `profitability`). Empty until enabled/loaded. */
 export function useReportsProfitability(
   period: string,
   enabled: boolean,
 ): {
   data: ClientProfitabilityReportItem[]
-  /** Clients billed only in another lane, so absent from `data` altogether. */
   otherLaneClientCount: number
-  /** What clients with no peso cobro in the period cost (pesos), and how many: no row either. */
   unbilledCost: { clientCount: number; cost: number }
   isLoading: boolean
   isError: boolean
@@ -51,7 +40,6 @@ export function useReportsProfitability(
   }
 }
 
-/** Per-task productivity for a period (owner+admin; hours, not money). Empty until enabled/loaded. */
 export function useReportsProductivity(
   period: string,
   enabled: boolean,
@@ -63,8 +51,6 @@ export function useReportsProductivity(
     staleTime: 60_000,
   })
   return {
-    // No mapper: the productivity DTO is already hours-shaped and field-for-field the report
-    // item (no minor-unit conversion to undo), so a mapper here was a rename of nothing.
     data: query.data?.items ?? [],
     isLoading: query.isLoading,
     isError: query.isError,
@@ -72,8 +58,6 @@ export function useReportsProductivity(
   }
 }
 
-/** Margin trend, last 6 months (needs `profitability`; period-agnostic). Studio-wide,
- *  or ONE client's when `clientId` is given (the Cliente drawer's trend). */
 export function useReportsMarginHistory(
   enabled: boolean,
   clientId?: string,
@@ -92,7 +76,6 @@ export function useReportsMarginHistory(
   }
 }
 
-/** One member's logged-hours trend, last 6 months (owner+admin). Shaped for the chart. */
 export function useReportsHoursHistory(
   teamMemberId: string,
   enabled: boolean,
@@ -111,7 +94,6 @@ export function useReportsHoursHistory(
   }
 }
 
-/** Per-member workload + real monthly cost (cost needs `teamCost`; period-agnostic). */
 export function useReportsCapacity(
   enabled: boolean,
 ): { data: TeamCapacityReportItem[]; isLoading: boolean; isError: boolean; refetch: () => void } {

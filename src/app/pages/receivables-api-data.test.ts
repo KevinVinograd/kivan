@@ -10,7 +10,6 @@ import {
 } from './receivables-api-data'
 import { receivablesApi } from '@/api/receivables'
 
-/** A raw Receivable entity DTO with neutral defaults; override only what a case asserts. */
 function receivableDto(overrides: Partial<ReceivableDto> = {}): ReceivableDto {
   return {
     id: 'rec-1',
@@ -84,10 +83,8 @@ describe('dtoToReceivable', () => {
   })
 
   it('defaults an unknown emitter code to unassigned, and null to unassigned/undefined', () => {
-    // taxProfileId always resolves (unassigned when unknown/null).
     expect(dtoToReceivable(receivableDto({ emitterCode: 'weird' })).taxProfileId).toBe('unassigned')
     expect(dtoToReceivable(receivableDto({ emitterCode: null })).taxProfileId).toBe('unassigned')
-    // emitterTaxProfile is undefined only when there is NO emitter code at all.
     expect(dtoToReceivable(receivableDto({ emitterCode: null })).emitterTaxProfile).toBeUndefined()
   })
 
@@ -109,10 +106,6 @@ describe('dtoToReceivable', () => {
     expect(r.currency).toBe('ARS')
   })
 
-  // The API serializes the column with toISOString() while dueDate/period come
-  // date-only, so the day the operator picked arrives as UTC midnight. Parsed as an
-  // instant it reads as the previous day in UTC-3, moving the Cobros detail back a
-  // day and able to bucket the projection a whole ISO week early.
   it('normalizes a UTC-midnight collectedAt to its calendar day', () => {
     expect(dtoToReceivable(receivableDto({ collectedAt: '2026-08-18T00:00:00.000Z' })).collectedAt).toBe(
       '2026-08-18',
@@ -122,13 +115,6 @@ describe('dtoToReceivable', () => {
 })
 
 describe('updateReceivableViaApi', () => {
-  /**
-   * The server stores `extras` as an opaque JSON blob and derives the total from
-   * `extraAmountMinor` alone. Sending the items without the aggregate persisted the
-   * description and left the amount owed untouched — the operator was told the trabajo
-   * extra was added while the client still owed the old total. Only the real API showed
-   * this; a stub echoing the request could not.
-   */
   it('sends the aggregate alongside the items, derived from them', async () => {
     const update = vi
       .spyOn(receivablesApi, 'update')
@@ -144,8 +130,6 @@ describe('updateReceivableViaApi', () => {
     const [, body] = update.mock.calls[0]
     expect(body.extraAmountMinor).toBe('5000000')
     expect(body.extras).toHaveLength(2)
-    // Untouched fields are omitted, so a partial edit cannot blank the service or
-    // zero an amount it never mentioned.
     expect(body.service).toBeUndefined()
     expect(body.baseAmountMinor).toBeUndefined()
     update.mockRestore()
@@ -161,12 +145,6 @@ describe('updateReceivableViaApi', () => {
   })
 })
 
-/**
- * The month-generator preview. Its whole job is to let the operator SEE a bulk money
- * action before pressing it, so the two things that must not drift are the amount
- * (minor units, off by 100× if read raw) and the skip state (a client shown as billable
- * that the run will not bill, or the reverse).
- */
 describe('fetchMonthlyFeePreview', () => {
   it('reads the fee in pesos, not centavos', async () => {
     vi.spyOn(receivablesApi, 'monthlyFeePreview').mockResolvedValue({
@@ -199,9 +177,6 @@ describe('fetchMonthlyFeePreview', () => {
           clientId: 'cli-2',
           clientName: 'Dos Servicios',
           services: ['Redes', 'Ads'],
-          // Null on purpose: with two contracted services nothing can choose for the
-          // operator, and defaulting to the first would file the retainer under a
-          // service picked by array order.
           suggestedService: null,
           monthlyFeeMinor: '8000000',
           currency: 'ARS',
@@ -219,11 +194,6 @@ describe('fetchMonthlyFeePreview', () => {
   })
 
   it('reads an API that predates manualServices as nothing billed by hand', async () => {
-    // An empty array is the safe reading precisely BECAUSE the server is the guard:
-    // `generateMonthlyFees` refuses a same-service duplicate whatever the browser sends,
-    // so this field only shapes what the dialog OFFERS, never whether a duplicate can be
-    // created. Reading a missing field as "nothing billed by hand" therefore costs at most
-    // one "sin generar" line, not a double charge.
     vi.spyOn(receivablesApi, 'monthlyFeePreview').mockResolvedValue({
       period: '2026-09-01',
       items: [
@@ -245,9 +215,6 @@ describe('fetchMonthlyFeePreview', () => {
   })
 
   it('reads an API that predates withoutFee as nothing to disclose, not as a crash', async () => {
-    // Deploy Web and Deploy API fire independently, so for one release the browser can be
-    // newer than the API. Reading `undefined` here and handing it to the dialog would take
-    // the whole preview down on `.length` at the exact moment the field was introduced.
     vi.spyOn(receivablesApi, 'monthlyFeePreview').mockResolvedValue({
       period: '2026-09-01',
       items: [],
@@ -283,12 +250,9 @@ describe('generateMonthlyFeesViaApi', () => {
       items: [{ clientId: 'cli-1', service: 'Redes' }],
     })
 
-    // The server re-reads each fee inside its transaction; a body carrying an amount
-    // would be the browser choosing what a client owes.
     expect(JSON.stringify(post.mock.calls[0])).not.toMatch(/Minor|amount/i)
     expect(result.created).toHaveLength(1)
     expect(result.created[0]?.totalAmount).toBe(1500)
-    // Skips are carried, not swallowed: the caller has to be able to report them.
     expect(result.skipped).toEqual([
       { clientId: 'cli-2', clientName: 'Dos Servicios', reason: 'manual_exists' },
     ])

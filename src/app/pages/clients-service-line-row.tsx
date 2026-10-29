@@ -1,10 +1,3 @@
-/**
- * One priced service in "Servicios valorizados": its name, how it is billed, its price.
- *
- * The price is committed on blur rather than on every keystroke: each save recomputes the
- * client's fee server-side and invalidates the roster, so a per-character mutation would
- * be a write per digit against the number the whole page is built on.
- */
 import { useState } from 'react'
 import type { Currency, ServiceBillingMode } from '@hold/shared'
 
@@ -32,11 +25,6 @@ import {
   toMinor,
 } from './clients-service-lines-format'
 
-/**
- * The caption under the name: the mode, and for a one-time price how much of it is
- * already in cobros. "Cobros generados", not "cobrado": in this product "cobrado" means
- * the money arrived, and an anticipo that was billed but not paid has not.
- */
 function captionFor(line: ClientServiceDto, currency: Currency): string {
   const mode = BILLING_MODE_LABEL[line.billingMode]
   const pack = includedHoursLabel(line)
@@ -63,15 +51,12 @@ export function ServiceLineRow({
   onRemove,
 }: {
   line: ClientServiceDto
-  /** The client's lane. A priced line is the client's money, not always pesos. */
   currency: Currency
   canEdit: boolean
   busy: boolean
   onPrice: (priceMinor: string) => void
-  /** Per-hour lines only: the hours a month the retainer includes (null = none). */
   onIncludedHours: (hours: number | null) => void
   onMode: (billingMode: ServiceBillingMode) => void
-  /** Only offered on an active one-time line with something left to bill. */
   onCharge: () => void
   onRemove: () => void
 }) {
@@ -81,9 +66,6 @@ export function ServiceLineRow({
   const chargeable = line.active && line.billingMode === 'one_time' && remainingOf(line) > 0
 
   return (
-    // Stacked when editable (name, then its controls) so every row has the same shape:
-    // side by side, a long name pushed the controls to the next line and a short one did
-    // not, and the list read as two different layouts.
     <div
       className={
         canEdit ? 'flex flex-col gap-2' : 'flex items-center justify-between gap-3'
@@ -103,8 +85,6 @@ export function ServiceLineRow({
             }}
           >
             <SelectTrigger className="w-40" aria-label={`Tipo de cobro de ${line.name}`}>
-              {/* Explicit children: without them Radix moves the item's text node into
-                  this value node, which throws on a machine-translated page. */}
               <SelectValue>
                 <span>{BILLING_MODE_LABEL[line.billingMode]}</span>
               </SelectValue>
@@ -126,8 +106,6 @@ export function ServiceLineRow({
             onChange={(event) => setDraft(event.target.value.replace(/[^\d.,]/g, ''))}
             onBlur={() => {
               const price = parseAmountInput(draft)
-              // Unchanged, or unreadable: do not fire a write that would either be a no-op
-              // or set a price the operator did not type.
               if (price <= 0 || toMinor(price) === line.priceMinor) {
                 setDraft(formatAmountSeed(toMajor(line.priceMinor)))
                 return
@@ -136,8 +114,6 @@ export function ServiceLineRow({
             }}
           />
           {line.billingMode === 'per_hour' ? (
-            // The pack is committed on blur like the price: each save re-bills the line's
-            // productions of every open month.
             <label className="flex items-center gap-1.5">
               <Input
                 type="text"

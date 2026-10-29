@@ -1,13 +1,3 @@
-/**
- * "Equipo variable" on the client's Resumen: who shot the client's productions in a month,
- * their hours and what they cost, right under the fixed team.
- *
- * HOLD's review of 2026-10-21: "Agregar una tarjeta 'Equipo variable' debajo de 'Equipo
- * fijo' en el Resumen del cliente, filtrable por mes (no siempre va el mismo filmmaker)".
- * The fixed team is paid a monthly amount per client; the variable team is whoever shot
- * the month's productions, paid by the hour. Money is shown only to viewers holding
- * `teamCost`, like the fixed team's amounts.
- */
 import { useState } from 'react'
 import { hasCapability } from '@hold/shared'
 
@@ -31,7 +21,6 @@ import { NO_VALUE, formatCurrency } from './monthly-operation-format'
 import { formatDuration } from './monthly-production-viatics'
 import { useCanApproveProduction, useCanCreateProduction } from './log-production-item'
 
-/** The six months the client's production history covers, newest first (`YYYY-MM`). */
 function lastSixMonths(today: string): string[] {
   const [year, month] = today.split('-').map(Number)
   return Array.from({ length: 6 }, (_, i) => {
@@ -40,10 +29,8 @@ function lastSixMonths(today: string): string[] {
   })
 }
 
-/** The month a production counts in: its period, or its shoot date on rows without one. */
 const monthOf = (p: ProductionRecord) => p.period ?? p.date.slice(0, 7)
 
-/** A month's productions grouped by who shot them, costliest first. */
 function variableTeam(productions: ProductionRecord[]) {
   const byPerson = new Map<string, { name: string; hours: number; cost: number }>()
   for (const p of productions) {
@@ -60,8 +47,6 @@ function variableTeam(productions: ProductionRecord[]) {
 export function ClientVariableTeamCard({ client }: { client: Client }) {
   const { capabilities } = useRole()
   const showCost = hasCapability(capabilities, 'teamCost')
-  // The productions read takes a production grant (built-in owner/admin hold them all); a
-  // custom role without one would get a 403 and an error card about data it may not see.
   const canCreate = useCanCreateProduction()
   const canApprove = useCanApproveProduction()
   const canRead = canCreate || canApprove
@@ -83,7 +68,6 @@ export function ClientVariableTeamCard({ client }: { client: Client }) {
         <h3 className="type-caption fg-subtle">Equipo variable</h3>
         <Select value={month} onValueChange={setMonth}>
           <SelectTrigger className="w-40" aria-label="Mes del equipo variable">
-            {/* Explicit children: without them Radix moves the item's text node here. */}
             <SelectValue>
               <span>{periodLabel(month)}</span>
             </SelectValue>
@@ -142,8 +126,6 @@ export function ClientVariableTeamCard({ client }: { client: Client }) {
               ) : (
                 <span className="type-body-2 fg-subtle">{`Sin producciones en ${periodLabel(month).toLowerCase()}.`}</span>
               )}
-              {/* The Resumen's Costo counts a production's hours once it is approved, the
-                  way a liquidación pays them; this list shows everything that was shot. */}
               {pending > 0 ? (
                 <span className="type-caption fg-subtle">
                   {pending === 1

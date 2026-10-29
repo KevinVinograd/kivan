@@ -77,25 +77,17 @@ describe('token store — subscriptions', () => {
 
 describe('token store — the regression this store exists to prevent', () => {
   it('notifies on a write made from OUTSIDE React, which is the only kind there is', () => {
-    // Every token write happens outside React: `authApi.login` on sign-in, and the api
-    // client's `tryRefresh` on a 401 (it rotates the pair, or clears it when the refresh
-    // chain is dead). Before this store was observable, `AuthProvider` read the token
-    // during render and never learned about any of them — so `/auth/me` stayed disabled
-    // after a login that did not also navigate, and the app hung on the auth splash.
     const listener = vi.fn()
     const unsubscribe = subscribeToTokens(listener)
 
-    // Sign-in.
     setTokens('access-1', 'refresh-1')
     expect(listener).toHaveBeenCalledTimes(1)
     expect(hasAccessToken()).toBe(true)
 
-    // The api client rotating the pair mid-session.
     setTokens('access-2', 'refresh-2')
     expect(listener).toHaveBeenCalledTimes(2)
     expect(hasAccessToken()).toBe(true)
 
-    // The api client giving up on a dead refresh chain.
     clearTokens()
     expect(listener).toHaveBeenCalledTimes(3)
     expect(hasAccessToken()).toBe(false)

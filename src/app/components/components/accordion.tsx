@@ -4,18 +4,6 @@ import { CaretDown as ChevronDownIcon } from "@phosphor-icons/react"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Accordion — shadcn/ui (new-york) Radix accordion, token-adapted. A vertically
- * stacked set of disclosure sections; each item is a header trigger plus a
- * collapsible content region. Item dividers use `border-alpha-subtle`, the
- * trigger label is `type-body-2` / `fg-default` (or `type-section` via
- * `emphasis="section"`), and the chevron (the shared
- * `CaretDown` affordance glyph) rotates 180° on open. Height open/close is
- * animated by the `accordion-down` / `accordion-up` keyframes (src/styles/
- * theme.css), driven by Radix's `--radix-accordion-content-height`. Theme is
- * handled by the tokens (no `dark:` overrides); `"use client"` removed (Vite,
- * not RSC).
- */
 function Accordion({
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Root>) {
@@ -41,14 +29,6 @@ function AccordionTrigger({
   emphasis = "default",
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Trigger> & {
-  /**
-   * Title typography. `default` is the standard `type-body-2` trigger label;
-   * `section` promotes it to the canonical section-title treatment
-   * (`type-section`, matching SectionHeader) for accordions used as titled
-   * section cards. This prop is the sanctioned way to change the trigger's
-   * type scale — a call-site `type-*` className override is forbidden by
-   * the convention.
-   */
   emphasis?: "default" | "section"
 }) {
   return (
@@ -78,14 +58,6 @@ function AccordionContent({
   inset = true,
   ...props
 }: React.ComponentProps<typeof AccordionPrimitive.Content> & {
-  /**
-   * Horizontal inset of the content body. `true` (default) keeps the 8px L/R
-   * padding that aligns the body under the trigger label; `false` makes the body
-   * flush (0px L/R) so an edge-to-edge table can fill the card width. Vertical
-   * spacing (`pt-0 pb-3`) is unchanged either way. This prop is the sanctioned
-   * way to drop the inset — a call-site `px-*` override is forbidden by
-   * the convention.
-   */
   inset?: boolean
 }) {
   return (

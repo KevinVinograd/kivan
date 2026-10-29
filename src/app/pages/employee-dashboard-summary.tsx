@@ -7,7 +7,6 @@ import type { KpiTone } from './cobranza-format'
 import { formatHours, formatPercent } from './employee-dashboard-format'
 import type { EmployeeDashboardData } from './employee-dashboard-types'
 
-/** The four summary KPIs, each owning a filtered section of the dashboard below. */
 export type EmployeeMetricId = 'pending' | 'clients' | 'objectives' | 'hours'
 
 type Metric = {
@@ -61,17 +60,6 @@ function buildMetrics(data: EmployeeDashboardData): Metric[] {
   ]
 }
 
-/**
- * One KPI tile, rendered as a naked `TabsTrigger` paired with a `KpiTabCard`.
- * The active card carries the lime treatment and flips its text to the
- * full-contrast `fg-high-contrast`. Radix owns role, roving focus, arrow keys
- * and `aria-selected`; the card is purely visual (no CTA — the card IS the
- * control).
- *
- * `compact` (mobile, pinned strip) drops the supporting line and sizes the card
- * to ~40% width so 2.5 cards peek in the horizontal-scroll bar — label + figure
- * only.
- */
 function EmployeeSummaryCard({
   metric,
   selected,
@@ -102,14 +90,6 @@ function EmployeeSummaryCard({
   )
 }
 
-/**
- * §1 Mi resumen. The four headline KPIs double as the dashboard's filter: the
- * naked `TabsList` of a radio card group (one card always active, defaulting to
- * pending). Selecting a card surfaces the section it owns below; the active card
- * paints the lime treatment so the selection reads at a glance. The `Tabs` root
- * (value + onValueChange) lives in the page so the same selection drives the
- * panels.
- */
 export function EmployeeSummary({
   data,
   selectedId,
@@ -120,9 +100,6 @@ export function EmployeeSummary({
   onSelect: (id: EmployeeMetricId) => void
 }) {
   const metrics = buildMetrics(data)
-  // Mobile: a compact, horizontally-scrollable row (label + figure, ~2.5 cards
-  // visible) that pins to the top as a fixed overlay once it scrolls away;
-  // desktop keeps the grid.
   const compact = useIsMobile()
   const triggers = metrics.map((metric) => (
     <EmployeeSummaryCard

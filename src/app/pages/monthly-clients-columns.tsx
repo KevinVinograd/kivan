@@ -39,10 +39,8 @@ const MARGIN_TONE_FG: Record<'default' | 'warning' | 'danger', string> = {
   danger: 'fg-danger',
 }
 
-/** The top alert signal for a client-month row (priority order). */
 export function clientRowAlert(client: ClientMonth): { label: string; tone: 'danger' | 'warning' } | null {
   if (client.paymentStatus === 'overdue') return { label: 'Pago vencido', tone: 'danger' }
-  // An unallocated margin (`null`) is unknown, not negative — it must not raise the alert.
   const margin = clientMargin(client)
   if (margin !== null && margin < 0) return { label: 'Margen negativo', tone: 'danger' }
   if (client.monthStatus === 'reviewed' && client.invoiceStatus === 'not_issued')
@@ -64,7 +62,6 @@ export type MonthlyClientRowActions = {
   onSetEffectiveDate: (client: ClientMonth) => void
 }
 
-/** `null` = the source does not allocate this cost (unknown); 0 = genuinely nothing. Both read "-". */
 function currencyOrDash(value: number | null): string {
   return value !== null && value > 0 ? formatCurrency(value) : NO_VALUE
 }
@@ -293,8 +290,6 @@ export function monthlyClientColumns(
                   <ICON.feedback aria-hidden />
                   Agregar nota
                 </DropdownMenuItem>
-                {/* Only a client pending review can transition, and the write PERSISTS with no
-                    UI path to undo it — so the item is disabled rather than a silent no-op. */}
                 <DropdownMenuItem
                   disabled={locked || client.monthStatus !== 'pending_review'}
                   onSelect={() => actions.onReviewProfitability(client)}

@@ -35,7 +35,6 @@ describe('assignmentPatch', () => {
   })
 
   it('never touches the amount for a viewer without teamCost', () => {
-    // The row they received has no amount, so an empty field must not erase the real one.
     const hidden = { ...stored, monthlyCost: undefined }
     expect(assignmentPatch(hidden, { ...same, costInput: '' }, false)).toEqual({})
   })

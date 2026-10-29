@@ -1,14 +1,3 @@
-/**
- * Owner Dashboard — derivation layer.
- *
- * Pure, read-only assembly of every dashboard aggregate for one month. It
- * composes three existing sources: the Reportes derivation (`getReportData`,
- * period-keyed: profitability, capacity, financials, summary), the Clientes
- * mock (static client facts: payment, meeting/feedback, due dates, onboarding),
- * and the live Operación mensual record (per-month operational state: checklist,
- * alerts, monotributo, cobros/pagos). Recent activity comes from the curated
- * mock. No mutation, no backend, no fake delays.
- */
 import { fromMonthId } from '@/app/lib/periods'
 import { differenceInDays, endOfMonth, parseISO } from 'date-fns'
 
@@ -46,32 +35,10 @@ import type {
 
 const sum = <T,>(items: T[], pick: (item: T) => number) => items.reduce((t, i) => t + pick(i), 0)
 
-/**
- * `'YYYY-MM'` → `'YYYY-MM-01'`. A pure conversion between two spellings of the same month.
- *
- * It used to be a two-entry lookup table (`'2026-06'`, `'2026-05'`) returning `null` for
- * anything else — and `null` here is load-bearing: it disables the profitability fetch on all
- * three dashboards and empties `clientRiskMap`, so the Rentabilidad section and the Riesgo
- * column silently vanish. Every month other than those two was treated as "this month cannot
- * be converted", which is not a thing a month can be. Found because an e2e spec went red the
- * moment the default month stopped being June.
- */
 export function monthIdToPeriod(monthId: MonthId): ReportPeriod {
   return fromMonthId(monthId)
 }
 
-/**
- * Risk band per client id for a month, reusing the dashboard scoring (single
- * source) so the Clients "Riesgo" filter and the dashboard agree.
- *
- * Scoring runs off the real profitability/capacity aggregates, so the caller MUST
- * pass them in — they come from the capability-gated `/reports/*` endpoints and this
- * module is pure. Called without them (or before they resolve, or for a role that
- * may not read them) the map is empty, and an absent entry means "we do not know
- * this client's risk", never "healthy": `riskOf` returns null and the column says
- * so. It used to omit the argument entirely, which scored every client off an empty
- * dataset and painted the whole table "Saludable".
- */
 export function clientRiskMap(
   monthId: MonthId,
   inputs?: Pick<ReportInputs, 'profitability' | 'capacity'>,
@@ -113,15 +80,11 @@ const LOAD_STATUS: Record<string, TeamLoadStatus> = {
   sin_carga: 'sin_carga',
 }
 
-// ── Critical alerts (§3) ─────────────────────────────────────────────────────
-// The dashboard is the trail root, so each CTA href bakes in a back-trail crumb
-// to the dashboard (no inbound trail to forward — `new URLSearchParams()`).
 const ALERT_CTA: Record<AlertType, { label: string; href: string }> = {
   cobros: {
     label: 'Ver cobro',
     href: buildTrailHref('/operacion-mensual?block=clientes', DASHBOARD_CRUMB, new URLSearchParams()),
   },
-  // Facturación/ARCA: the dedicated Facturación module (/billing).
   facturacion: {
     label: 'Revisar facturación',
     href: buildTrailHref('/billing', DASHBOARD_CRUMB, new URLSearchParams()),
@@ -166,7 +129,6 @@ function buildAlerts(record: MonthRecord): DashboardAlert[] {
     }))
 }
 
-/** Enriches an ARCA alert with the category's annual usage percentage when known. */
 function arcaDescription(alert: MonthlyAlert, watch: MonthRecord['data']['monotributo']): string | null {
   if (alert.type !== 'arca') return null
   const match = watch.find((entry) => MONOTRIBUTO_FULL_LABEL[entry.category] === alert.entity)
@@ -175,7 +137,6 @@ function arcaDescription(alert: MonthlyAlert, watch: MonthRecord['data']['monotr
   return `Está al ${pct}% del límite anual de la categoría.`
 }
 
-// ── Operación mensual status (§4) ────────────────────────────────────────────
 function buildOperation(record: MonthRecord, report: ReportDataset | null): OperationStatus {
   const data = record.data
   const checked = CHECKLIST_ITEMS.filter((item) => data.checklist[item.id]).length
@@ -188,9 +149,6 @@ function buildOperation(record: MonthRecord, report: ReportDataset | null): Oper
   const totalProductions = data.productions.length
   const viaticos = data.productions.filter((production) => production.viatics > 0).length
   const extras = sum(data.clients, (client) => client.extras.length)
-  // Average utilization over the people whose capacity is actually configured. Members
-  // without one are excluded rather than counted as 0% — including them would quietly
-  // drag the studio's average down toward zero and misreport the team as idle.
   const measurable = report?.capacity.filter((c) => c.utilization != null) ?? []
   const avgUtil =
     measurable.length > 0
@@ -215,7 +173,6 @@ function buildOperation(record: MonthRecord, report: ReportDataset | null): Oper
   return { completion, pendingItems: CHECKLIST_ITEMS.length - checked, lines, monthLabel: record.label }
 }
 
-// ── Rentabilidad estimada (§5) ───────────────────────────────────────────────
 function toMarginClient(item: { clientId: string; clientName: string; margen: number }): MarginClient {
   return {
     clientId: item.clientId,
@@ -241,11 +198,9 @@ function buildProfitability(report: ReportDataset): ProfitabilitySnapshot {
   }
 }
 
-// ── Cobros pendientes (§6) ───────────────────────────────────────────────────
 function buildPayments(record: MonthRecord, report: ReportDataset, referenceIso: string): PendingPayments {
   const op = summarize(record.data)
   const reference = parseISO(referenceIso)
-  // Real cobros of the month (from the receivables store, via the report's financials).
   const cobros = report.financials.cobrosDetail
 
   const rows = cobros
@@ -271,16 +226,12 @@ function buildPayments(record: MonthRecord, report: ReportDataset, referenceIso:
     totalExpected: op.totalToCollect,
     totalCollected: op.collected,
     totalPending: op.pendingToCollect,
-    // Every lane: an overdue cobro is overdue whatever it is billed in, and this number
-    // is what turns the tile red. The ROWS below stay peso-only because they carry
-    // amounts, and the section says how many it left out.
     overdueClients: report.financials.countsAllLanes.overdue,
     rows,
     otherLaneCount: report.financials.otherLaneCount,
   }
 }
 
-// ── Carga del equipo (§7) ────────────────────────────────────────────────────
 function buildTeamLoad(report: ReportDataset, riskByName: Map<string, string>): TeamLoad {
   const members = report.capacity.map((member) => ({
     personId: member.personId,
@@ -302,7 +253,6 @@ function buildTeamLoad(report: ReportDataset, riskByName: Map<string, string>): 
   }
 }
 
-/** Map each person to the first at-risk client they are assigned to (for the load row hint). */
 function riskByPerson(risks: { clientName: string; level: string; team: string[] }[]): Map<string, string> {
   const map = new Map<string, string>()
   for (const risk of risks) {
@@ -314,17 +264,12 @@ function riskByPerson(risks: { clientName: string; level: string; team: string[]
   return map
 }
 
-/** Build the full dashboard dataset for a month record + its (real) report dataset. */
 export function getDashboardData(record: MonthRecord, report: ReportDataset | null): DashboardData {
-  // Same month-end reference as `clientRiskMap`, and the same trap: local calendar, not UTC.
   const referenceIso = toIsoDate(endOfMonth(parseISO(`${record.id}-01`)))
 
   const risks = report
     ? sortRisks(computeClientRisks(report.profitability, report.capacity))
     : []
-  // A month with productions or team payouts but no cobro yet is not empty: it used to say
-  // "Todavía no hay datos cargados" over a month with work loaded (25/10 review). Same rule
-  // as the admin dashboard.
   const hasData =
     (report?.profitability.length ?? 0) > 0 ||
     record.data.clients.length > 0 ||
@@ -337,17 +282,9 @@ export function getDashboardData(record: MonthRecord, report: ReportDataset | nu
     clientsAtRisk: risks.filter((risk) => risk.level === 'riesgo_alto').length,
     clientsInAttention: risks.filter((risk) => risk.level === 'atencion').length,
     ingresosRegistrados: report ? report.financials.totalCobrado : null,
-    // "N de M clientes pagaron" counts CLIENTS, not money, so both halves span every
-    // lane. Read from the buckets they would exclude a client billed in dollars from the
-    // denominator, understating the month.
     paidClients: report ? report.financials.countsAllLanes.collected : null,
     totalClients: report ? report.financials.countsAllLanes.total : null,
     marginPercent: report ? report.summary.margenPromedio : null,
-    // Same figure as the Rentabilidad hero, and gated the same way. It is
-    // `ingresos - egresos`, so with no pago recorded it IS the revenue: printing it as
-    // "X de resultado proyectado" on the always-visible strip states as fact what the
-    // hero, two elements away, now declines to state. `null` is this type's existing
-    // "no figure" signal, so the supporting line simply goes quiet.
     estimatedProfit: report && report.summary.egresos > 0 ? report.summary.rentabilidad : null,
     operationCompletion: Math.round((checked / CHECKLIST_ITEMS.length) * 100),
     pendingDataItems: CHECKLIST_ITEMS.length - checked,
@@ -366,7 +303,6 @@ export function getDashboardData(record: MonthRecord, report: ReportDataset | nu
     profitability: report ? buildProfitability(report) : null,
     payments: hasData && report ? buildPayments(record, report, referenceIso) : null,
     teamLoad: report ? buildTeamLoad(report, riskByPerson(risks)) : null,
-    // No real activity-feed source yet — the rail shows its empty state.
     activity: [],
     activityPreviews: buildActivityPreviews(report),
   }

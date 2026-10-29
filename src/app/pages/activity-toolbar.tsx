@@ -20,13 +20,6 @@ type FilterFieldsProps = {
   entities: { members: EntityOption[]; clients: EntityOption[] }
 }
 
-/**
- * The period + action-type + entity filter sections, shared by the desktop Filtros
- * popover and the mobile compact FilterPopover panel. Type and entity options are
- * toggleable outlined buttons whose `selected` state marks the active value (clicking
- * one again clears that axis back to "all"); the period is a scope axis that always
- * carries a value, so its chips select but never clear.
- */
 function activityFilterItems({ filters, onChange, entities }: FilterFieldsProps) {
   return (
     <>
@@ -115,11 +108,6 @@ function activityFilterItems({ filters, onChange, entities }: FilterFieldsProps)
   )
 }
 
-/**
- * Time-period presets as a segmented toggle group (one active at a time). Lives in
- * the "Período" section of the Filtros panel — the toolbar itself stays a single row
- * (search + Filtros), and the active period is echoed on the count line under it.
- */
 function ActivityPresetGroup({ filters, onChange }: Omit<FilterFieldsProps, 'entities'>) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Período">
@@ -138,12 +126,6 @@ function ActivityPresetGroup({ filters, onChange }: Omit<FilterFieldsProps, 'ent
   )
 }
 
-/**
- * Sections that start expanded. "Período" always does — it is a scope axis that
- * always carries a value, so opening the panel must show which window is applied.
- * Type and entity expand only when they already carry one, so the applied filter
- * shows on open.
- */
 function activeSections(filters: ActivityFilters) {
   return [
     'period',
@@ -152,21 +134,10 @@ function activeSections(filters: ActivityFilters) {
   ].filter((id): id is string => id != null)
 }
 
-/**
- * Count of active filter axes shown on the Filtros trigger (action type + entity).
- * The period is deliberately excluded: it is an always-present scope axis, and a
- * count that can never read zero is meaningless.
- */
 function activeAxisCount(filters: ActivityFilters) {
   return [filters.type !== 'all', filters.entity !== 'all'].filter(Boolean).length
 }
 
-/**
- * Filters popover (period + action type + entity) for the desktop toolbar, mirroring
- * the Clientes/Equipo toolbar: a "Filtros" trigger carrying the active-axis count,
- * opening an accordion of toggleable outlined buttons. The trigger count covers the
- * narrowing axes only — the period never increments it (see activeAxisCount).
- */
 function FiltersPopover({ filters, onChange, entities }: FilterFieldsProps) {
   const activeCount = activeAxisCount(filters)
   const active = activeCount > 0
@@ -192,30 +163,13 @@ function FiltersPopover({ filters, onChange, entities }: FilterFieldsProps) {
 
 export type ActivityToolbarProps = {
   filters: ActivityFilters
-  /** Patch the active filter source (the page owns it). */
   onChange: (next: Partial<ActivityFilters>) => void
-  /** Distinct entities present in the feed, grouped for the entity filter. */
   entities: { members: EntityOption[]; clients: EntityOption[] }
-  /** Reset search + type + entity + preset to their defaults. */
   onClear: () => void
   hasActiveFilters: boolean
-  /**
-   * Mobile collapses the toolbar into the same single row with an icon-only
-   * FilterPopover trigger instead of the labelled desktop one. Both panels hold the
-   * same three sections (period, action type, entity). Defaults to the desktop layout.
-   */
   isMobile?: boolean
 }
 
-/**
- * Activity log toolbar — a single row at every width: free-text search plus one
- * Filtros panel holding all three axes (period, action type, entity). Desktop adds a
- * Limpiar reset when any filter is active; mobile uses the icon-only FilterPopover
- * trigger, which carries its own clear affordance. The trigger's count covers the
- * narrowing axes only, never the always-present period.
- * Controlled: the page owns one filter source, so the controls stay in sync with
- * the timeline.
- */
 export function ActivityToolbar({
   filters,
   onChange,
@@ -232,11 +186,6 @@ export function ActivityToolbar({
         placeholder: 'Buscar por persona, cliente o detalle',
         label: 'Buscar actividad',
       }}
-      // `isMobile` no longer picks a LAYOUT — Toolbar is one row at every width on its
-      // own. It only picks the filter CONTROL: the icon-only trigger (which carries its
-      // own clear affordance) on a phone, the labelled panel plus a Limpiar reset above.
-      // Limpiar rides in the `filters` slot, not `trailing`, so it stays beside the panel
-      // it resets instead of being pushed to the far edge.
       filters={
         isMobile ? (
           <FilterPopover count={activeAxisCount(filters)} onClear={onClear} canClear={hasActiveFilters}>

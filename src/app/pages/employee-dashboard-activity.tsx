@@ -17,7 +17,6 @@ import type {
   EmployeeActivityItem,
 } from './employee-dashboard-types'
 
-/** Round leading glyph for the timeline (local, mirroring the detail-panel pattern). */
 function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   return (
     <span className="flex size-6 shrink-0 items-center justify-center rounded-full border border-alpha-subtle bg-alpha-subtle fg-subtle">
@@ -26,19 +25,6 @@ function LeadingIcon({ icon: Glyph }: { icon: Icon }) {
   )
 }
 
-/**
- * Inline trigger for an entity name; the open behavior is owned by the surrounding
- * PreviewSurface, so it forwards its ref for Radix `asChild`.
- *
- * Deliberately raw markup, and deliberately NOT a <button>: a button box is atomic
- * inline-level content, so the browser cannot break a multi-word name across lines —
- * it pushes the whole name onto its own line and leaves the sentence above it ragged.
- * The Button primitive renders a real <button> and exposes no `asChild` to render
- * another tag, so no primitive can express a trigger
- * that flows and breaks like the running text around it. This is the raw-markup
- * escape hatch: a focusable inline span carrying the
- * button role, plus the Enter/Space activation a native button gives for free.
- */
 const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'span'> & { name: string }>(
   function EntityTrigger({ name, className, onKeyDown, ...props }, ref) {
     return (
@@ -65,7 +51,6 @@ const EntityTrigger = React.forwardRef<HTMLSpanElement, React.ComponentProps<'sp
   },
 )
 
-/** Safe team-member preview: name + role only (never compensation), plus Ver perfil. */
 function MemberPreviewContent({ entity }: { entity: Extract<EmployeeActivityEntity, { kind: 'member' }> }) {
   const navigate = useNavigate()
   return (
@@ -92,7 +77,6 @@ function MemberPreviewContent({ entity }: { entity: Extract<EmployeeActivityEnti
   )
 }
 
-/** Client preview: name + the employee's operational facts, plus Ver perfil. */
 function ClientPreviewContent({
   entity,
   client,
@@ -134,7 +118,6 @@ function ClientPreviewContent({
   )
 }
 
-/** Renders one activity entity: hover link-text for clients/members, plain for the rest. */
 function ActivityEntityRef({
   entity,
   clientLookup,
@@ -174,7 +157,6 @@ function ActivityRow({
 }) {
   return (
     <div className="flex gap-3">
-      {/* Leading icon + timeline connector linking each entry to the next. */}
       <div className="flex flex-col items-center gap-1">
         <LeadingIcon icon={activityIcon(item.activity)} />
         {!isLast ? <span aria-hidden className="flex-1 border-l border-alpha-subtle" /> : null}
@@ -190,13 +172,6 @@ function ActivityRow({
   )
 }
 
-/**
- * §9 Actividad reciente. A read-only timeline of recent events on the employee's
- * own work and assigned clients (connecting line + leading kind-icon). Each
- * client/team-member name is hover link-text whose preview shows safe info plus
- * an outlined "Ver perfil" CTA; productions (no profile page) render as plain
- * text. Destinations carry a `Dashboard` trail crumb so the page shows a back-breadcrumb.
- */
 export function EmployeeRecentActivityList({
   activity,
   clients,
@@ -207,10 +182,6 @@ export function EmployeeRecentActivityList({
   const clientLookup = (id: string) => clients.find((client) => client.clientId === id)
   return (
     <section aria-label="Actividad reciente" className="group/activity flex flex-col">
-      {/* "Ver actividad" is hidden on hover-capable pointers and fades in
-          (motion-standard) when the mouse enters the block or the button takes
-          keyboard focus; on touch it stays visible. The section header keeps it
-          on the title row, far right, at every width (the default). */}
       <SectionHeader
         title="Actividad reciente"
         actions={

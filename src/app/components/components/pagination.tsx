@@ -9,15 +9,6 @@ import { cn } from "@/app/lib/utils"
 import { motionClass } from "@/app/lib/motion"
 import { buttonVariants } from "@/app/components/components/button"
 
-/**
- * Pagination — shadcn/ui (new-york) pagination, reworked onto the governed
- * Button visual contract. The custom `Button` has no `asChild` polymorphism, so
- * pagination links stay native `<a>` anchors and borrow the *visual recipe*
- * directly from the shared `buttonVariants` cva (the single source of button
- * truth). Active page → `outlined` / `primary`; inactive → `transparent` /
- * `primary`. The cva carries no size, so square icon cells / text padding are
- * applied with layout utilities here.
- */
 function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
   return (
     <nav

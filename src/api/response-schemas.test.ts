@@ -3,13 +3,6 @@ import { describe, expect, it } from 'vitest'
 import { ClientSchema } from './clients'
 import { ReportsSummarySchema } from './reports'
 
-/**
- * Round-trip tests for the migrated response schemas: a contract-valid payload parses,
- * and a value the contract never declared (an enum not in the canonical `@hold/shared`
- * enum, a missing field, a wrong-typed field) throws — proving the enums are actually
- * ENFORCED at the boundary, not merely used as compile-time types.
- */
-
 function validClient(): Record<string, unknown> {
   return {
     id: 'cli-1',
@@ -65,9 +58,6 @@ describe('ClientSchema', () => {
   })
 
   it('parses a response from an API that predates the commercial fields', () => {
-    // Deploy Web and Deploy API fire independently, so the new bundle runs against the
-    // old API for minutes after every push. Required keys here would throw on parse and
-    // put /clientes into its error state for the whole window.
     const old = validClient()
     delete old.address
     delete old.discountPercentBp
@@ -77,9 +67,6 @@ describe('ClientSchema', () => {
   })
 
   it('rejects a discount rate sent as a string', () => {
-    // It is a RATE, not money: unlike every `*Minor` field it never goes through the
-    // string-encoded minor-units convention, and accepting one would put a string into
-    // the arithmetic that derives the net fee.
     expect(() => ClientSchema.parse({ ...validClient(), discountPercentBp: '1000' })).toThrow()
   })
 })

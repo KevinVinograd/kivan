@@ -54,16 +54,12 @@ describe('deriveSalaryCommitments', () => {
       expect(d.direction).toBe('outflow')
       expect(d.recurrence).toBe('monthly')
     }
-    // Flor (tm-flor, monthly_fixed, active) is included
     const flor = derived.find((d) => d.linkedEntityId === 'tm-flor')
     expect(flor).toBeDefined()
     expect(flor!.amount).toBe(1200000)
-    // hourly member (tm-mica) is excluded
     expect(derived.find((d) => d.linkedEntityId === 'tm-mica')).toBeUndefined()
   })
 
-  // The lane was pinned to 'ARS' while `compensation.currency` sat right there on the
-  // member, so a colaboradora paid in dollars entered the peso projection at face value.
   it('projects the salary in the lane the member is actually paid in', () => {
     const dollars = deriveSalaryCommitments(
       [
@@ -87,23 +83,14 @@ describe('deriveRetainerCommitments', () => {
       expect(d.direction).toBe('inflow')
       expect(d.confidence).toBe('projected')
       expect(d.amount).toBeGreaterThan(0)
-      // The lane, too. Every commitment this emits is a peso one — the USD case below is
-      // omitted rather than projected, so an output in any other lane means a retainer got
-      // filed in a lane no cobro of that client's ever lands in.
       expect(d.currency).toBe('ARS')
     }
-    // Café Roma (cli-001, active, monthlyFee 450000) is included
     const cafe = derived.find((d) => d.linkedEntityId === 'cli-001')
     expect(cafe).toBeDefined()
     expect(cafe!.amount).toBe(450000)
   })
 
-  // A USD retainer has no honest projection here, so it gets none.
   it('omits a USD client rather than naming a lane its amount is not in', () => {
-    // `priceFor` bills that retainer in PESOS at the month's stamped rate, but the amount
-    // available here is `netMonthlyFee`, denominated in dollars, and this function has no
-    // rate. 'ARS' would state a peso figure wrong by the exchange rate; 'USD' would file
-    // it in a lane no cobro of theirs lands in.
     const source = clients.find((c) => c.id === 'cli-001')!
     expect(deriveRetainerCommitments([{ ...source, currency: 'USD' }], START)).toHaveLength(0)
   })
@@ -141,7 +128,7 @@ describe('mergeCommitments', () => {
   })
   it('keeps derived items that have no manual override, and adds manual-only items', () => {
     const derived = [makeItem({ id: 'der-fx-002', linkedEntityId: 'fx-002' })]
-    const manual = [makeItem({ id: 'cmt-001', source: 'manual' })] // no linkedEntityId
+    const manual = [makeItem({ id: 'cmt-001', source: 'manual' })]
     const merged = mergeCommitments(derived, manual)
     expect(merged.map((m) => m.id).sort()).toEqual(['cmt-001', 'der-fx-002'])
   })

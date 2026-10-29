@@ -3,16 +3,6 @@ import { test, expect } from '@playwright/test'
 import { applyRole } from './fixtures/role'
 import { stubJson, stubRoute } from './fixtures/api-mock'
 
-/**
- * A production nobody is attributed to must not take Equipo down.
- *
- * "Cargar producción" from a client's ficha leaves "Content creator" optional. The server then
- * answers with an empty attribution, and the team store used to prepend `undefined` for it:
- * the next render of Equipo threw and the whole app fell to "Algo salió mal" until a reload.
- * Reproduced on the local stack on 22/10. Every move after the first load is a click, because
- * the crash lives in the in-memory store a reload would rebuild.
- */
-
 const CREATED = {
   id: 'prod-1',
   date: '2026-06-10',
@@ -36,7 +26,6 @@ const CREATED = {
 
 test('loading a production with no content creator keeps Equipo working', async ({ page }) => {
   await applyRole(page, 'owner')
-  // The form reads who works where and the client's lines; the catch-all's `{}` would fail both.
   await stubJson(page, '/assignments**', [])
   await stubJson(page, '/clients/*/service-lines', [])
   await stubRoute(page, '/months/*/productions', (route) => {

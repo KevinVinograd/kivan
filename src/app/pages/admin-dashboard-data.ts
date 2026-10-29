@@ -1,17 +1,3 @@
-/**
- * Admin / Operations Dashboard — derivation orchestrator + lighter builders.
- *
- * Pure, read-only assembly of every admin aggregate for one month. It composes
- * two existing sources: the live Operación mensual record (per-month operational
- * state: clients/cobros, team/pagos, productions/viáticos, expenses, alerts,
- * monotributo, checklist) and the Reportes capacity derivation (per-person
- * expected vs. logged hours). Recent activity comes from the shared dashboard
- * mock. Nothing here mutates, calls a backend, or fakes a delay.
- *
- * The heavier section builders (§2 pendientes, §5 pagos, §7 facturación) live in
- * `admin-dashboard-pendientes-data.ts`; this file owns the orchestrator plus the
- * §1 / §3 / §4 / §6 / §8 builders. CTA routing comes from `admin-dashboard-routes`.
- */
 import {
   CHECKLIST_ITEMS,
   type ClientMonth,
@@ -43,13 +29,8 @@ import { buildBilling, buildPendings, buildTeamPayments } from './admin-dashboar
 const sum = <T,>(items: T[], pick: (item: T) => number) => items.reduce((t, i) => t + pick(i), 0)
 const ratioPct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0)
 
-// ── §3 Horas y productividad ─────────────────────────────────────────────────
 function buildHours(report: ReportDataset | null): HoursCompleteness | null {
   if (!report) return null
-  // "How complete are this month's hours" is only answerable for people who have a
-  // stipulated capacity to be measured against. Members without one are excluded, and if
-  // nobody has one there is nothing to report — the card shows its "No disponible" state
-  // rather than a 0%-complete verdict derived from capacities that were never set.
   const measurable = report.capacity.filter(
     (member): member is typeof member & { capacity: number } => member.capacity != null,
   )
@@ -84,8 +65,6 @@ function buildHours(report: ReportDataset | null): HoursCompleteness | null {
   }
 }
 
-// ── §4 Producciones y viáticos ───────────────────────────────────────────────
-/** Whether the viático was paid back — HOLD pays them within the week, billed or not. */
 function viaticoStatus(production: ProductionRecord): ViaticoStatus {
   if (production.viatics <= 0) return 'sin_cargar'
   return production.viaticsPaidAt ? 'pagado' : 'sin_pagar'
@@ -105,8 +84,6 @@ function buildProductions(productions: ProductionRecord[]): ProductionsAndExpens
       people: p.participants,
       viaticoStatus: viaticoStatus(p),
       amount: p.viatics > 0 ? p.viatics : null,
-      // Land on the Producciones tab: the row IS a production, so dropping the reader on
-      // Pagos to go find it is the friction this param removes.
       ctaHref: withDashboardTrail(`${ROUTE.operacionEquipo}&view=producciones`),
     }))
   return {
@@ -120,7 +97,6 @@ function buildProductions(productions: ProductionRecord[]): ProductionsAndExpens
   }
 }
 
-// ── §6 Cobros de clientes ────────────────────────────────────────────────────
 function collectionStatus(client: ClientMonth): CollectionStatus {
   if (client.paymentStatus === 'paid') return 'pagado'
   if (client.paymentStatus === 'overdue') return 'vencido'
@@ -152,7 +128,6 @@ function buildCollections(clients: ClientMonth[], totals: ReturnType<typeof summ
   }
 }
 
-// ── §8 Gastos fijos ──────────────────────────────────────────────────────────
 const EXPENSE_CATEGORY_TO_ADMIN: Record<ExpenseCategory, string> = {
   software: 'Plataforma',
   taxes: 'Monotributo',
@@ -168,8 +143,6 @@ function buildExpenses(record: MonthRecord, previousExpected: number | null): Fi
   const rows = expenses.slice(0, 6).map((expense) => ({
     id: expense.id,
     concept: expense.concept,
-    // A studio-defined category has no built-in mapping; show what the studio called it
-    // rather than dropping the row into a bucket it did not choose.
     category: EXPENSE_CATEGORY_TO_ADMIN[expense.category as ExpenseCategory] ?? expense.category,
     amount: expense.amount,
     status: expense.payStatus === 'paid' ? ('registrado' as const) : ('pendiente' as const),
@@ -184,7 +157,6 @@ function buildExpenses(record: MonthRecord, previousExpected: number | null): Fi
   }
 }
 
-/** Count of the monthly-close validations currently failing (close blockers). */
 function closeBlockerCount(record: MonthRecord): number {
   const { clients, team, productions, alerts } = record.data
   let count = 0
@@ -196,7 +168,6 @@ function closeBlockerCount(record: MonthRecord): number {
   return count
 }
 
-// ── §1 Resumen del cierre (4 KPI cards) ──────────────────────────────────────
 function buildKpis(
   record: MonthRecord,
   hours: HoursCompleteness | null,
@@ -259,11 +230,6 @@ function buildKpis(
   ]
 }
 
-/** Build the full admin dashboard dataset for one Operación mensual month record.
- *  `reportInputs` carries the real profitability/capacity aggregates the page fetches from
- *  the owner+admin `/reports/*` endpoints; without them the report's capacity is empty and
- *  the "Horas y productividad" card can only report "No disponible". The admin holds both
- *  capabilities (money parity with the owner), so both are passed. */
 export function getAdminDashboardData(
   record: MonthRecord,
   previous?: MonthRecord,
@@ -307,7 +273,6 @@ export function getAdminDashboardData(
     collections,
     billing,
     expenses,
-    // No backend activity-feed source yet — the rail shows its honest empty state.
     activity: [],
     activityPreviews: buildActivityPreviews(report),
   }

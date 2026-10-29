@@ -24,24 +24,7 @@ import { formatMoney } from './cobranza-format'
 const globalFilterFn: FilterFn<CommittedItem> = (row, _columnId, value) =>
   commitmentSearchText(row.original).includes(String(value).toLowerCase())
 
-/**
- * Compromisos tab — the committed-items register. A DataTable over the treasury store's
- * commitments: edit (via the shared dialog) and delete behind a confirm. The
- * active/disabled toggle lives inside the edit dialog. Derived items (auto-seeded from
- * recurring sources) and manual ones share the table; editing or deleting mutates the
- * in-memory store.
- *
- * ADDING is deliberately NOT here. The page-header action owns it (`cashflow-page.tsx`,
- * `headerActions[0]`), and it is the only add affordance on this surface: it renders outside
- * the <Tabs>, so it is reachable from every tab, at every breakpoint, and while the register
- * is empty — none of which the toolbar button it replaced could claim.
- *
- * Nothing is lost by not creating here: the header's dialog and this table read the same
- * react-query cache (`queryKeys.treasury.commitments`), so a commitment created from the
- * header lands in this table immediately. Do not add a second button back.
- */
 export function CashflowRegister() {
-  // No `addCommitment`: this component edits and deletes, it does not create.
   const { commitments, applyCommitment, removeCommitment } = useTreasury()
   const [editTarget, setEditTarget] = useState<CommittedItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CommittedItem | null>(null)
@@ -78,9 +61,6 @@ export function CashflowRegister() {
           globalFilterFn={globalFilterFn}
           getRowId={(item) => item.id}
           toolbar={(table) => (
-            // Only the search field lives here now, so the flex row is gone: the wrapper
-            // survives solely for the bottom spacing (which cannot move onto the Input, where
-            // it would pad the inside of the field instead of the gap below it).
             <div className="pb-3">
               <Input
                 value={(table.getState().globalFilter as string) ?? ''}
@@ -108,9 +88,6 @@ export function CashflowRegister() {
             <AlertDialogHeader>
               <AlertDialogTitle>Eliminar compromiso</AlertDialogTitle>
               <AlertDialogDescription>
-                {/* The row's own lane, matching the Monto column this branch made lane-aware.
-                    A destructive confirmation quoting a different figure from the row it is
-                    about is the worst place for the two to disagree. */}
                 El compromiso "{deleteTarget.description}" por{' '}
                 {formatMoney(deleteTarget.amount, deleteTarget.currency)} se quitará de la
                 proyección. Esta acción no se puede deshacer.

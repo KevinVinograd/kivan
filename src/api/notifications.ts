@@ -1,4 +1,3 @@
-/** In-app notifications + the caller's own preferences — thin typed wrappers. */
 import { z } from 'zod'
 import { apiClient } from './client'
 
@@ -16,7 +15,6 @@ export type NotificationDto = z.infer<typeof NotificationSchema>
 
 export const NotificationListSchema = z.object({
   items: z.array(NotificationSchema),
-  /** Unread count for the badge — always the FULL count, not the page's. */
   unread: z.number(),
 })
 export type NotificationListDto = z.infer<typeof NotificationListSchema>
@@ -31,9 +29,6 @@ export type NotificationPrefs = z.infer<typeof NotificationPrefsSchema>
 const MarkReadResultSchema = z.object({ read: z.number() })
 
 export const notificationsApi = {
-  /** The caller's notices. `limit` exists for the rail badge, which needs the `unread`
-   *  COUNT and none of the rows: without it every poll shipped up to 50 full notices to
-   *  render a number. */
   list: (unread?: boolean, limit?: number) =>
     apiClient.get<NotificationListDto>('/notifications', {
       params: {

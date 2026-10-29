@@ -22,8 +22,6 @@ const ENTITY_SUBTITLE: Record<AccountEntity['entityType'], string> = {
   provider: 'Cuenta corriente del proveedor',
 }
 
-/** Per-entity statement: a summary card over a period-by-period accordion that
- *  expands to the movements composing each period (PRD §13). */
 export function AccountStatementDetail({
   entity,
   statements,
@@ -32,8 +30,6 @@ export function AccountStatementDetail({
 }: {
   entity: AccountEntity
   statements: PeriodStatement[]
-  /** Contextual back-trail forwarded to the detail scaffold when the account was
-   *  reached via a deep link (so the detail keeps a return path). */
   breadcrumb?: ReactNode
   onClose: () => void
 }) {
@@ -44,15 +40,10 @@ export function AccountStatementDetail({
   const settledLabel = isClient ? 'Cobrado' : 'Pagado'
   const dueLabel = entity.entityType === 'teamMember' ? 'Fecha de pago' : 'Vencimiento'
   const referenceLabel = isClient ? 'Factura asociada' : 'Concepto'
-  // The source-record link per side: a client charge opens its /cobros receivable,
-  // a provider charge/payment opens its /pagos record. Colaboradora liquidations
-  // have no /pagos record to open (they derive from the team snapshot), so no link.
   const sourceLinkLabel = isClient ? 'Ver cobro' : isProvider ? 'Ver pago' : null
   const badge = accountStatusBadge(entity.status, entity.entityType)
   const latest = statements[0]
 
-  /** Deep-link a movement to its source finance record, seeding the detail, period
-   *  and a breadcrumb back to Cuentas corrientes. */
   function viewSource(movement: LedgerEntry) {
     if (!movement.referenceId) return
     const route = isClient ? '/cobros' : '/pagos'
@@ -76,16 +67,10 @@ export function AccountStatementDetail({
       <KpiSummaryCard
         heroId="balance"
         figures={[
-          // §6 detail focal → the one type-metric hero; the charged/settled/Períodos
-          // companions step to the type-metric-2 supporting grid.
           {
             id: 'balance',
             label: 'Saldo actual',
             value: formatCurrency(entity.currentBalance),
-            // This account holds one running balance per lane; the hero can show one, and
-            // says which. What it leaves out is named rather than folded in: the figure
-            // used to be a single accumulator over every lane, subtracting dollars from
-            // pesos and printing the result under a "$".
             hint:
               entity.otherLaneCount > 0
                 ? `en pesos · ${entity.otherLaneCount} ${entity.otherLaneCount === 1 ? 'movimiento' : 'movimientos'} en otra moneda`
@@ -95,9 +80,6 @@ export function AccountStatementDetail({
             id: 'charged',
             label: `${chargedLabel} (último mes)`,
             value: formatCurrency(latest?.charged ?? 0),
-            // Peso-scoped like the hero above, and it says so for the same reason: a
-            // month billed entirely in another lane reads $ 0 here, which without the
-            // note is indistinguishable from a month nobody billed.
             hint: (latest?.otherLaneCount ?? 0) > 0 ? 'en pesos' : undefined,
           },
           {
@@ -106,7 +88,6 @@ export function AccountStatementDetail({
             value: formatCurrency(latest?.settled ?? 0),
             hint: (latest?.otherLaneCount ?? 0) > 0 ? 'en pesos' : undefined,
           },
-          // §6 ranks the Períodos count Tertiary — it stays quiet, not a supporting KPI.
           { id: 'periods', label: 'Períodos', value: String(statements.length), tertiary: true },
         ]}
       />
@@ -137,10 +118,6 @@ export function AccountStatementDetail({
                         <span className="tabular-nums type-body-2 fg-default">
                           {formatCurrency(statement.balance)}
                         </span>
-                        {/* The three figures above are the peso lane; the badge beside them
-                            is decided across every lane. Without this the collapsed row
-                            read two peso zeros for a period whose expansion shows a
-                            foreign factura. */}
                         {statement.otherLaneCount > 0 ? (
                           <span className="type-caption fg-subtle">
                             +{statement.otherLaneCount} en otra moneda
@@ -227,7 +204,6 @@ export function AccountStatementDetail({
   )
 }
 
-/** Debit reads as a charge (default), credit as a settlement (subtle). */
 function cnAmount(movement: LedgerEntry): string {
   return movement.debit > 0
     ? 'text-right tabular-nums type-body-2 fg-default'

@@ -4,19 +4,6 @@ import { CaretRight, DotsThree } from "@phosphor-icons/react"
 
 import { cn } from "@/app/lib/utils"
 
-/**
- * Breadcrumb — shadcn/ui (new-york) Radix-Slot breadcrumb, token-adapted. A
- * navigation trail showing the path to the current page. Resting links read
- * `fg-subtle` and lift to `fg-default` on hover (motion-token transition); the
- * current page (`BreadcrumbPage`) is the non-interactive `fg-default` leaf. The
- * separator and ellipsis are decorative chrome (registered Phosphor affordances
- * `CaretRight` / `DotsThree`). `BreadcrumbLink asChild` composes a router `Link`
- * so navigation stays SPA. Theme is handled by the tokens (no `dark:` overrides);
- * raw `text-muted-foreground` / `text-foreground` / `text-sm` stripped for the
- * `fg-*` + `type-*` token equivalents. Adopted from the known new-york source
- * (registry existence-check blocked by the env TLS limit — Breadcrumb is a core
- * shadcn primitive of certain existence).
- */
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
   return <nav aria-label="Ruta de navegación" data-slot="breadcrumb" {...props} />
 }
